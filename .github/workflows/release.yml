@@ -18,6 +18,7 @@ env:
   APPLE_CODESIGN_ARM64_SHA256: d1a532150adaf90048260d76359261aa716abafc45c53c5dc18845029184334a
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -58,83 +59,16 @@ jobs:
           test -n "$declared_release_tag"
           test "$release_base_version" = "$project_version"
           test "$RELEASE_TAG" = "$declared_release_tag"
+          release_commit=$(git rev-parse HEAD)
+          test "$release_commit" = "$(git rev-parse "$RELEASE_TAG^{commit}")"
+          echo "RELEASE_COMMIT=$release_commit" >> "$GITHUB_ENV"
 
-      - name: Install build and package dependencies
+      - name: Restore exact successful CI app
         env:
-          HOMEBREW_NO_AUTO_UPDATE: 1
-        run: |
-          if brew tap | grep -Fxq aws/tap; then
-            brew untap aws/tap
-          fi
-          missing_formulae=()
-          for formula in cmake qt mpv ffmpeg; do
-            if ! brew list --versions "$formula" >/dev/null; then
-              missing_formulae+=("$formula")
-            fi
-          done
-          if (( ${#missing_formulae[@]} > 0 )); then
-            brew install "${missing_formulae[@]}"
-          fi
-          echo "QT_ROOT_DIR=$(brew --prefix qt)" >> "$GITHUB_ENV"
-
-      - name: Configure
-        run: |
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_OSX_ARCHITECTURES=arm64 \
-            -DCMAKE_PREFIX_PATH="${QT_ROOT_DIR}" \
-            -DCMAKE_INSTALL_PREFIX="${GITHUB_WORKSPACE}/install"
-
-      - name: Build
-        run: cmake --build build --parallel
-
-      - name: Test
-        run: ctest --test-dir build --output-on-failure
-
-      - name: Install
-        run: cmake --install build
-
-      - name: Deploy Qt frameworks
+          GH_TOKEN: ${{ github.token }}
         run: |
           APP="${GITHUB_WORKSPACE}/install/240-mp-jellyfin.app"
-          MACDEPLOYQT_LOG="$RUNNER_TEMP/macdeployqt.log"
-          if ! "${QT_ROOT_DIR}/bin/macdeployqt" "$APP" \
-              -qmldir="${GITHUB_WORKSPACE}" \
-              -libpath="${QT_ROOT_DIR}/lib" \
-              -libpath="$(brew --prefix brotli)/lib" \
-              -libpath="$(brew --prefix webp)/lib" \
-              -no-codesign \
-              -verbose=1 >"$MACDEPLOYQT_LOG" 2>&1; then
-            cat "$MACDEPLOYQT_LOG"
-            exit 1
-          fi
-          # A manual dispatch can build an older tag whose prune script predates
-          # the signature-removal safeguard below.
-          while IFS= read -r binary; do
-            file -b "$binary" | grep -q 'Mach-O' || continue
-            external_rpath=$(otool -l "$binary" | awk '
-              $1 == "cmd" && $2 == "LC_RPATH" { in_rpath = 1; next }
-              in_rpath && $1 == "path" {
-                if ($2 ~ /^\// && $2 !~ /^\/System\// && $2 !~ /^\/usr\/lib\//) {
-                  print $2
-                  exit
-                }
-                in_rpath = 0
-              }
-            ')
-            if [ -n "$external_rpath" ]; then
-              codesign --remove-signature "$binary" >/dev/null 2>&1 || true
-            fi
-          done < <(find "$APP" -type f -print)
-          QML_IMPORT_SCANNER="$("${QT_ROOT_DIR}/bin/qtpaths" --query QT_INSTALL_LIBEXECS)/qmlimportscanner"
-          QML_IMPORT_PATH="$("${QT_ROOT_DIR}/bin/qtpaths" --query QT_INSTALL_QML)"
-          scripts/macos_prune_qt_deployment.zsh \
-            "$APP" "$GITHUB_WORKSPACE" "$QML_IMPORT_SCANNER" "$QML_IMPORT_PATH"
-
-      - name: Verify self-contained bundle structure
-        run: |
-          APP="${GITHUB_WORKSPACE}/install/240-mp-jellyfin.app"
-          scripts/macos_verify_bundle.zsh "$APP"
+          ./scripts/restore_ci_app.sh "$GITHUB_REPOSITORY" "$RELEASE_COMMIT" "$APP"
 
       - name: Import signing certificate
         env:
@@ -194,7 +128,7 @@ jobs:
             --preserve-metadata=entitlements \
             --sign "$SIGNING_IDENTITY" "$APP"
           codesign --verify --deep --strict "$APP"
-          expected_team=$(sed -n 's/^APP_UPDATE_TEAM_ID:STRING=//p' build/CMakeCache.txt)
+          expected_team=$(sed -nE 's/^set\(APP_UPDATE_TEAM_ID "([^"]+)".*/\1/p' CMakeLists.txt)
           actual_team=$(codesign -dv --verbose=4 "$APP" 2>&1 | sed -n 's/^TeamIdentifier=//p')
           test -n "$expected_team"
           test "$actual_team" = "$expected_team"
@@ -206,10 +140,11 @@ jobs:
           HELPER_HOME="$RUNNER_TEMP/helper-home"
           mkdir -p "$HELPER_HOME"
 
-          expected_yt_dlp=$(sed -n 's/^YT_DLP_VERSION:STRING=//p' build/CMakeCache.txt)
-          expected_deno=$(sed -n 's/^DENO_VERSION:STRING=//p' build/CMakeCache.txt)
+          expected_yt_dlp=$(sed -nE 's/^set\(YT_DLP_VERSION "([^"]+)".*/\1/p' cmake/BundledHelpers.cmake)
+          expected_deno=$(sed -nE 's/^set\(DENO_VERSION "([^"]+)".*/\1/p' cmake/BundledHelpers.cmake)
           test "$(env -i HOME="$HELPER_HOME" PATH=/usr/bin:/bin "$BIN/yt-dlp" --version)" = "$expected_yt_dlp"
-          env -i HOME="$HELPER_HOME" PATH=/usr/bin:/bin "$BIN/deno" --version | head -n 1 | grep -F "deno $expected_deno"
+          deno_version_output=$(env -i HOME="$HELPER_HOME" PATH=/usr/bin:/bin "$BIN/deno" --version)
+          test "${deno_version_output%%$'\n'*}" = "deno $expected_deno"
           env -i HOME="$HELPER_HOME" PATH=/usr/bin:/bin "$BIN/mpv" --version >/dev/null
           env -i HOME="$HELPER_HOME" PATH=/usr/bin:/bin "$BIN/ffmpeg" -version >/dev/null
           env -i HOME="$HELPER_HOME" PATH=/usr/bin:/bin "$BIN/ffprobe" -version >/dev/null
