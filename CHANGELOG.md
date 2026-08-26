@@ -4,6 +4,12 @@ All notable changes to 240-mp-jellyfin are documented here.
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-08-26
+
+### Added
+
+- Added one quiet GitHub release check whenever the app opens, following Podcast Visualizer 1.2.2's reviewed launch-update pattern. Current and failed checks stay unobtrusive; a valid newer Apple Silicon release presents a keyboard-first prompt that opens the existing Software Update screen, while downloading and installation remain user initiated.
+
 ## [1.5.2] - 2026-08-20
 
 ### Fixed

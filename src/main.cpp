@@ -4,6 +4,7 @@
 #include <QUrl>
 #include <QDir>
 #include <QStandardPaths>
+#include <QTimer>
 #include <QCursor>
 #include <QDebug>
 #include <QWindow>
@@ -198,6 +199,7 @@ int main(int argc, char *argv[]) {
     }
     if (QQuickWindow *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first()))
         inputManager.setTargetWindow(window);
+    QTimer::singleShot(0, &updateManager, &UpdateManager::checkForUpdatesOnLaunch);
 
 #ifdef Q_OS_MAC
     if (QWindow *win = qobject_cast<QWindow *>(engine.rootObjects().first())) {

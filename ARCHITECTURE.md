@@ -245,7 +245,9 @@ The Jellyfin module lives in `modules/jellyfin/` and `src/modules/jellyfin/`.
 
 ## In-App Updates
 
-`UpdateManager` checks the repository's latest GitHub Release and selects only the Apple Silicon DMG. It streams the download into the app data directory while hashing it, requires GitHub's SHA-256 digest and declared byte size, then verifies the signed/notarized DMG and its app. The nested app must match the current signed app's Team Identifier, `com.240mp.jellyfin`, the release version, and arm64 architecture.
+After the QML shell is ready, `UpdateManager` makes one background check against the repository's latest GitHub Release. A current or failed launch check remains unobtrusive. A valid newer release emits one launch-only signal; the shell presents the shared keyboard-first confirmation UI and can route to the existing Software Update view. The same `UpdateManager` request path serves the manual check, so launch and manual metadata parsing cannot drift.
+
+The updater selects only the Apple Silicon DMG. It streams a user-approved download into the app data directory while hashing it, requires GitHub's SHA-256 digest and declared byte size, then verifies the signed/notarized DMG and its app. The nested app must match the current signed app's Team Identifier, `com.240mp.jellyfin`, the release version, and arm64 architecture. The launch check never downloads or installs an update.
 
 For a signed app in a writable install directory, a small app-generated helper waits for the current process to exit, repeats every integrity and identity check, copies to a temporary sibling, verifies again, swaps atomically with rollback, and relaunches. Development builds and non-writable installs expose the already-verified DMG for manual installation instead.
 

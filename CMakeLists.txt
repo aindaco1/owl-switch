@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(240mp VERSION 1.5.2 LANGUAGES CXX)
+project(240mp VERSION 1.6.0 LANGUAGES CXX)
 
 if(NOT APPLE)
     message(FATAL_ERROR "This fork is macOS-only. Configure and build it on macOS.")
@@ -13,7 +13,7 @@ set(CMAKE_AUTOMOC ON)
 # is reached through a symlink such as macOS's /tmp -> /private/tmp.
 set(CMAKE_AUTOMOC_PATH_PREFIX ON)
 set(APP_DISPLAY_NAME "240-mp-jellyfin")
-set(APP_RELEASE_TAG "v1.5.2")
+set(APP_RELEASE_TAG "v1.6.0")
 set(APP_BUNDLE_IDENTIFIER "com.240mp.jellyfin" CACHE STRING "macOS bundle identifier")
 set(APP_UPDATE_REPOSITORY "aindaco1/240-mp-jellyfin" CACHE STRING "GitHub update repository")
 set(APP_UPDATE_TEAM_ID "PWT3Q52LZ2" CACHE STRING "Expected Developer ID team for updates")

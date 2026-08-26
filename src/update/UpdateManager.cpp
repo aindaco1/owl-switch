@@ -84,7 +84,14 @@ void detachDiskImage(const QString &mountPoint) {
 } // namespace
 
 UpdateManager::UpdateManager(const QString &dataRoot, QObject *parent)
-    : QObject(parent), m_dataRoot(dataRoot), m_network(new QNetworkAccessManager(this)) {
+    : UpdateManager(dataRoot, new QNetworkAccessManager, parent) {
+    m_network->setParent(this);
+}
+
+UpdateManager::UpdateManager(const QString &dataRoot, QNetworkAccessManager *network,
+                             QObject *parent)
+    : QObject(parent), m_dataRoot(dataRoot), m_network(network) {
+    Q_ASSERT(m_network);
     m_runningAppPath = runningAppBundlePath();
     const QString runningTeamIdentifier = teamIdentifierForApp(m_runningAppPath);
     m_expectedTeamIdentifier = QString::fromLatin1(kExpectedTeamIdentifier);
@@ -148,7 +155,16 @@ void UpdateManager::resetTransfer() {
 }
 
 void UpdateManager::checkForUpdates() {
+    startCheck(false);
+}
+
+void UpdateManager::checkForUpdatesOnLaunch() {
+    startCheck(true);
+}
+
+void UpdateManager::startCheck(bool startedOnLaunch) {
     resetTransfer();
+    m_checkStartedOnLaunch = startedOnLaunch;
     m_latestVersion.clear();
     m_releaseNotes.clear();
     m_assetUrl.clear();
@@ -173,6 +189,8 @@ void UpdateManager::handleReleaseResponse(QNetworkReply *reply) {
     if (reply != m_reply)
         return;
     m_reply = nullptr;
+    const bool startedOnLaunch = m_checkStartedOnLaunch;
+    m_checkStartedOnLaunch = false;
     const QByteArray body = reply->readAll();
     const QNetworkReply::NetworkError networkError = reply->error();
     reply->deleteLater();
@@ -219,6 +237,8 @@ void UpdateManager::handleReleaseResponse(QNetworkReply *reply) {
     }
     setStatus(QStringLiteral("available"),
               QStringLiteral("Version %1 is available.").arg(m_latestVersion));
+    if (startedOnLaunch)
+        emit launchUpdateAvailable(m_latestVersion);
 }
 
 void UpdateManager::downloadUpdate() {
@@ -404,6 +424,7 @@ void UpdateManager::cancel() {
     const QString partialPath = m_downloadedPath.isEmpty()
         ? QString() : m_downloadedPath + QStringLiteral(".part");
     resetTransfer();
+    m_checkStartedOnLaunch = false;
     if (!partialPath.isEmpty())
         QFile::remove(partialPath);
     setStatus(updateAvailable() ? QStringLiteral("available") : QStringLiteral("idle"),

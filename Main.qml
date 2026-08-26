@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Window
+import Components
 
 Window {
     id: root
@@ -17,6 +18,8 @@ Window {
     property bool mediaOutputOpaque: true
     property bool mediaOutputAcceptsFocus: false
     property alias mediaOutputLayer: mediaOutputLayerItem
+    property bool updatePromptVisible: false
+    property string updatePromptVersion: ""
 
     signal mediaOutputKeyPressed(var event)
 
@@ -32,6 +35,16 @@ Window {
     function closeMediaOutput() {
         root.mediaOutputActive = false
         root.mediaOutputAcceptsFocus = false
+    }
+
+    function navigateTo(path, params, listState) {
+        root.appNavStack.push({
+            source: moduleLoader.source,
+            params: root.appCurrentParams,
+            listState: listState || {}
+        })
+        root.appCurrentParams = params || {}
+        moduleLoader.setSource(path, { "navParams": params || {} })
     }
 
     // --- Color Schemes ---
@@ -203,6 +216,15 @@ Window {
         }
     }
 
+    Connections {
+        target: updateManager
+        function onLaunchUpdateAvailable(version) {
+            root.updatePromptVersion = version
+            root.updatePromptVisible = true
+            Qt.callLater(function() { updatePrompt.forceActiveFocus() })
+        }
+    }
+
     // --- MODULE LOADER ---
     Loader {
         id: moduleLoader;
@@ -233,9 +255,7 @@ Window {
             ignoreUnknownSignals: true
 
             function onNavigateTo(path, params, listState) {
-                root.appNavStack.push({ source: moduleLoader.source, params: root.appCurrentParams, listState: listState || {} })
-                root.appCurrentParams = params || {}
-                moduleLoader.setSource(path, { "navParams": params || {} })
+                root.navigateTo(path, params, listState)
             }
 
             function onGoBack() {
@@ -245,6 +265,23 @@ Window {
                 moduleLoader.setSource(prev.source, { "navParams": prev.params, "navListState": prev.listState || {} })
             }
 
+        }
+    }
+
+    ConfirmDialog {
+        id: updatePrompt
+        visible: root.updatePromptVisible
+        prompt: "VERSION " + root.updatePromptVersion + " IS AVAILABLE"
+        confirmLabel: "VIEW"
+        cancelLabel: "LATER"
+        choiceIndex: 1
+        onAccepted: {
+            root.updatePromptVisible = false
+            root.navigateTo("views/Update.qml", {}, {})
+        }
+        onRejected: {
+            root.updatePromptVisible = false
+            moduleLoader.forceActiveFocus()
         }
     }
 

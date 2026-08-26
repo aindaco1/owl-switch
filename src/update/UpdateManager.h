@@ -22,6 +22,8 @@ class UpdateManager final : public QObject {
 
 public:
     explicit UpdateManager(const QString &dataRoot, QObject *parent = nullptr);
+    UpdateManager(const QString &dataRoot, QNetworkAccessManager *network,
+                  QObject *parent);
 
     QString currentVersion() const;
     QString latestVersion() const { return m_latestVersion; }
@@ -33,6 +35,7 @@ public:
     bool canInstall() const { return m_canInstall; }
 
     Q_INVOKABLE void checkForUpdates();
+    void checkForUpdatesOnLaunch();
     Q_INVOKABLE void downloadUpdate();
     Q_INVOKABLE void cancel();
     Q_INVOKABLE void installAndRestart();
@@ -42,8 +45,10 @@ public:
 
 signals:
     void changed();
+    void launchUpdateAvailable(const QString &version);
 
 private:
+    void startCheck(bool startedOnLaunch);
     void resetTransfer();
     void setStatus(const QString &state, const QString &message);
     void handleReleaseResponse(QNetworkReply *reply);
@@ -71,4 +76,5 @@ private:
     QString m_runningAppPath;
     QString m_expectedTeamIdentifier;
     bool m_canInstall = false;
+    bool m_checkStartedOnLaunch = false;
 };

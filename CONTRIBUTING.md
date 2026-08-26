@@ -64,6 +64,7 @@ Manual checks for media changes:
 - Confirm Tumblr URL loading, favorites persistence/editing, shuffled non-repeating still/GIF playback, pause/resume, and 90s-style transitions.
 - Confirm Nature cold load, cached and stale-cache load, next/pause/refresh/source controls, compact name/species/location presentation, comma-separated `City, State/Province, Country` formatting, English place resolution, non-repeating playback, and offline fallback.
 - Confirm app settings persist after restart.
+- Confirm a current or failed launch update check stays unobtrusive, a newer valid release presents the keyboard-first **View / Later** prompt exactly once, **View** opens the existing Software Update screen, and the manual check remains available.
 - For packaging changes, run `cmake --install` into a temporary prefix and verify bundled `mpv`, `ffmpeg`, `ffprobe`, `yt-dlp`, and Deno launch with a stripped `PATH`.
 
 ## AI Use
