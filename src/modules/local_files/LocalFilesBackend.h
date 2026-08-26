@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QByteArray>
+#include <QJsonArray>
 #include <QLocalSocket>
 #include <QObject>
 #include <QProcess>
@@ -42,6 +43,7 @@ public:
     Q_INVOKABLE QVariantMap preparePlayback(const QString &startEntryId,
                                             bool shuffle = false);
     Q_INVOKABLE QStringList soundtrackPaths(bool shuffle = false) const;
+    Q_INVOKABLE QVariantMap currentSoundtrack() const;
     Q_INVOKABLE bool importYouTubePlaylist(const QString &url);
     Q_INVOKABLE void cancelYouTubePlaylistImport();
 
@@ -63,6 +65,7 @@ signals:
     void youtubePlaylistImportFailed(const QString &message);
     void audioPlaybackStarted();
     void audioPlaybackFailed(const QString &message);
+    void audioTrackStarted(const QVariantMap &track);
 
 public slots:
     void onSettingChanged(const QString &moduleId, const QString &key,
@@ -111,6 +114,10 @@ private:
     void clearYouTubePlaylistProcess();
 
     void launchAudioProcess();
+    void sendAudioCommand(const QJsonArray &command);
+    QVariantMap buildCurrentSoundtrack() const;
+    QString fallbackSoundtrackTitle(const QString &path) const;
+    void publishCurrentSoundtrack(quint64 generation, quint64 fileSerial);
 
     QString m_appRoot;
     QString m_dataRoot;
@@ -125,6 +132,12 @@ private:
     bool m_audioPlaybackReady = false;
     int m_audioRespawnCount = 0;
     quint64 m_audioGeneration = 0;
+    quint64 m_audioFileSerial = 0;
+    quint64 m_publishedAudioFileSerial = 0;
+    int m_audioPlaylistPos = -1;
+    QVariantMap m_audioMetadata;
+    QString m_audioMediaTitle;
+    QVariantMap m_currentSoundtrack;
     QLocalSocket *m_audioIpc = nullptr;
     QTimer *m_audioConnectTimer = nullptr;
     QString m_audioSocketPath;

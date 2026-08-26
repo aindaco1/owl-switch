@@ -2,6 +2,11 @@
 
 Version 1.1 completed the fork's daily-use Apple Silicon macOS foundation. Future work stays focused on reliability and depth in the existing modules rather than expanding platform or module scope.
 
+## Shipped In 1.6.2
+
+- New macOS cassette-and-play app icon with one reproducible iconset source.
+- Compact 15-second Local artist/song overlay at every video start and soundtrack change, preferring embedded tags and retaining safe title fallbacks.
+
 ## Shipped In 1.5.2
 
 - Local soundtrack mode keeps the main media audio disabled after every queued file reloads its saved track choice.

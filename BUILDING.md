@@ -88,6 +88,10 @@ Nature's atomic cache contains at most 100 validated public observation records 
 
 This directory is created automatically on first run. It is separate from the app itself, so deleting or rebuilding the app will not wipe your settings.
 
+### App icon
+
+`assets/images/240-mp.iconset/` is the canonical macOS icon source. Regenerate `assets/images/240-mp.icns` with `iconutil -c icns assets/images/240-mp.iconset`; the release uses that ICNS through `MACOSX_BUNDLE_ICON_FILE`, while the authoring iconset is excluded from installed app Resources.
+
 ## Debugging & logs
 
 240-mp-jellyfin logs to **stdout/stderr** via Qt's `qDebug` / `qWarning` (used throughout `AppCore`, `MpvController`, and the module backends).

@@ -21,6 +21,7 @@ FocusScope {
     property bool stopping: false
     property bool playbackStarted: false
     property bool waitingForSoundtrack: false
+    property bool mainItemLoaded: false
     property int pendingStartMs: 0
     property bool overlayVisible: false
     property int choiceIndex: 0
@@ -36,6 +37,11 @@ FocusScope {
 
     function currentEntry() {
         return currentIndex >= 0 && currentIndex < entries.length ? entries[currentIndex] : null
+    }
+
+    function currentEntryPath() {
+        var entry = currentEntry()
+        return entry ? (entry.filePath || "") : ""
     }
 
     function repeatLabel() {
@@ -57,6 +63,7 @@ FocusScope {
         if (playbackStarted || stopping)
             return
         playbackStarted = true
+        mainItemLoaded = false
         waitingForSoundtrack = false
         soundtrackStartupTimer.stop()
         overlayVisible = false
@@ -111,6 +118,8 @@ FocusScope {
         if (stopping)
             return
         stopping = true
+        mainItemLoaded = false
+        mpvController.clearSoundtrackOverlay()
         if (waitingForSoundtrack) {
             soundtrackStartupTimer.stop()
             localFilesBackend.stopAudio()
@@ -181,6 +190,8 @@ FocusScope {
         function onPlaylistPosChanged(position) {
             if (position >= 0 && position < entries.length && position !== currentIndex) {
                 currentIndex = position
+                mainItemLoaded = false
+                mpvController.clearSoundtrackOverlay()
                 lastPositionMs = 0
                 lastDurationMs = 0
             }
@@ -188,9 +199,14 @@ FocusScope {
         function onPlaybackItemLoaded(playlistIndex) {
             if (playlistIndex >= 0 && playlistIndex < entries.length)
                 currentIndex = playlistIndex
+            mainItemLoaded = true
             applyTracks(currentIndex)
+            moduleRoot.showSoundtrackOverlay(currentEntryPath(),
+                                             localFilesBackend.currentSoundtrack())
         }
         function onPlaybackItemEnded(playlistIndex, reason, error) {
+            mainItemLoaded = false
+            mpvController.clearSoundtrackOverlay()
             if (playlistIndex < 0 || playlistIndex >= entries.length || stopping)
                 return
             var entry = entries[playlistIndex]
@@ -202,6 +218,8 @@ FocusScope {
             }
         }
         function onPlaybackEnded(finalPositionMs, finalDurationMs, reason) {
+            mainItemLoaded = false
+            mpvController.clearSoundtrackOverlay()
             if (finalPositionMs > 0)
                 lastPositionMs = finalPositionMs
             if (finalDurationMs > 0)
@@ -223,6 +241,11 @@ FocusScope {
         function onAudioPlaybackFailed() {
             if (waitingForSoundtrack)
                 startMainPlayback(pendingStartMs)
+        }
+
+        function onAudioTrackStarted(track) {
+            if (mainItemLoaded)
+                moduleRoot.showSoundtrackOverlay(currentEntryPath(), track)
         }
     }
 

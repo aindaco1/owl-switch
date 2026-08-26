@@ -4,6 +4,16 @@ All notable changes to 240-mp-jellyfin are documented here.
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-08-26
+
+### Added
+
+- Added a compact bottom-right Local soundtrack overlay over video playback. It appears for 15 seconds when each video begins and restarts for 15 seconds whenever the soundtrack advances to a new song, using embedded audio tags such as ID3 artist/title metadata before falling back to `Artist - Song` names and then `SOUNDTRACK` plus the cleaned title.
+
+### Changed
+
+- Replaced the macOS app icon with the new cassette-and-play design and retained its complete iconset as the single reproducible source for the bundled ICNS.
+
 ## [1.6.1] - 2026-08-26
 
 ### Changed
