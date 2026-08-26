@@ -138,16 +138,9 @@ jobs:
           APP="${GITHUB_WORKSPACE}/install/240-mp-jellyfin.app"
           BIN="$APP/Contents/Resources/bin"
           HELPER_HOME="$RUNNER_TEMP/helper-home"
-          mkdir -p "$HELPER_HOME"
-
-          expected_yt_dlp=$(sed -nE 's/^set\(YT_DLP_VERSION "([^"]+)".*/\1/p' cmake/BundledHelpers.cmake)
-          expected_deno=$(sed -nE 's/^set\(DENO_VERSION "([^"]+)".*/\1/p' cmake/BundledHelpers.cmake)
-          test "$(env -i HOME="$HELPER_HOME" PATH=/usr/bin:/bin "$BIN/yt-dlp" --version)" = "$expected_yt_dlp"
-          deno_version_output=$(env -i HOME="$HELPER_HOME" PATH=/usr/bin:/bin "$BIN/deno" --version)
-          test "${deno_version_output%%$'\n'*}" = "deno $expected_deno"
-          env -i HOME="$HELPER_HOME" PATH=/usr/bin:/bin "$BIN/mpv" --version >/dev/null
-          env -i HOME="$HELPER_HOME" PATH=/usr/bin:/bin "$BIN/ffmpeg" -version >/dev/null
-          env -i HOME="$HELPER_HOME" PATH=/usr/bin:/bin "$BIN/ffprobe" -version >/dev/null
+          ./scripts/macos_verify_bundled_helpers.sh \
+            signed-runtime "$BIN" \
+            "${GITHUB_WORKSPACE}/cmake/BundledHelpers.cmake" "$HELPER_HOME"
 
           SMOKE_MEDIA="$RUNNER_TEMP/mpv-signing-smoke.mkv"
           "$BIN/ffmpeg" \
