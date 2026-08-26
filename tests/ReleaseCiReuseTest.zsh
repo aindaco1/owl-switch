@@ -10,6 +10,7 @@ source_root="${1:A}"
 ci_workflow="$source_root/.github/workflows/ci.yml"
 release_workflow="$source_root/.github/workflows/release.yml"
 restore_script="$source_root/scripts/restore_ci_app.sh"
+helper_verifier="$source_root/scripts/macos_verify_bundled_helpers.sh"
 
 for required_fragment in \
     'branches: [main]' \
@@ -27,9 +28,20 @@ done
 for required_fragment in \
     'actions: read' \
     'Restore exact successful CI app' \
-    './scripts/restore_ci_app.sh'; do
+    './scripts/restore_ci_app.sh' \
+    './scripts/macos_verify_bundled_helpers.sh'; do
     if ! grep -Fq "$required_fragment" "$release_workflow"; then
         echo "release workflow is missing exact-commit app reuse control: $required_fragment" >&2
+        exit 1
+    fi
+done
+
+for required_fragment in \
+    '"deno $expected_deno"|"deno $expected_deno "*' \
+    'mode" == "signed-runtime"' \
+    'bundled Deno version mismatch'; do
+    if ! grep -Fq -- "$required_fragment" "$helper_verifier"; then
+        echo "helper verifier is missing robust Deno version validation: $required_fragment" >&2
         exit 1
     fi
 done

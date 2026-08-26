@@ -120,6 +120,7 @@ packaging_contract_sha256="$({
         scripts/macos_bundle_tool_deps.zsh \
         scripts/macos_prepare_release_bundle.zsh \
         scripts/macos_prune_qt_deployment.zsh \
+        scripts/macos_verify_bundled_helpers.sh \
         scripts/macos_verify_bundle.zsh \
         scripts/package_ci_app.sh
 } | shasum -a 256 | awk '{print $1}')"
@@ -148,18 +149,8 @@ fi
 
 bin="$app/Contents/Resources/bin"
 helper_home="$work_root/helper-home"
-mkdir "$helper_home"
-expected_yt_dlp="$(sed -nE 's/^set\(YT_DLP_VERSION "([^"]+)".*/\1/p' "$repo_root/cmake/BundledHelpers.cmake")"
-expected_deno="$(sed -nE 's/^set\(DENO_VERSION "([^"]+)".*/\1/p' "$repo_root/cmake/BundledHelpers.cmake")"
-deno_version_output="$(env -i HOME="$helper_home" PATH=/usr/bin:/bin "$bin/deno" --version)"
-if [[ "$(env -i HOME="$helper_home" PATH=/usr/bin:/bin "$bin/yt-dlp" --version)" != "$expected_yt_dlp" || \
-      "${deno_version_output%%$'\n'*}" != "deno $expected_deno" ]]; then
-    echo "CI app pinned helper versions are invalid" >&2
-    exit 1
-fi
-env -i HOME="$helper_home" PATH=/usr/bin:/bin "$bin/mpv" --version >/dev/null
-env -i HOME="$helper_home" PATH=/usr/bin:/bin "$bin/ffmpeg" -version >/dev/null
-env -i HOME="$helper_home" PATH=/usr/bin:/bin "$bin/ffprobe" -version >/dev/null
+"$repo_root/scripts/macos_verify_bundled_helpers.sh" \
+    pinned-only "$bin" "$repo_root/cmake/BundledHelpers.cmake" "$helper_home"
 
 mkdir -p "$(dirname "$app_destination")"
 mv "$app" "$app_destination"

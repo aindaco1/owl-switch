@@ -271,6 +271,13 @@ if(BUILD_TESTING)
             "${CMAKE_SOURCE_DIR}/tests/ReleaseCiReuseTest.zsh"
             "${CMAKE_SOURCE_DIR}"
     )
+
+    add_test(
+        NAME bundled_helper_verification
+        COMMAND /bin/zsh
+            "${CMAKE_SOURCE_DIR}/tests/BundledHelpersVerificationTest.zsh"
+            "${CMAKE_SOURCE_DIR}/scripts/macos_verify_bundled_helpers.sh"
+    )
 endif()
 
 # ── macOS bundle metadata ──────────────────────────────────────────────────────
