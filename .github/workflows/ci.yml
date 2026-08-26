@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -20,6 +22,10 @@ jobs:
     name: macOS arm64 build and test
     runs-on: macos-26
     timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
 
     steps:
       - name: Configure Git defaults
@@ -29,6 +35,12 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Select pinned build Xcode
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_26.3.app/Contents/Developer
+          xcode_version="$(xcodebuild -version)"
+          test "${xcode_version%%$'\n'*}" = "Xcode 26.3"
 
       - name: Install dependencies
         env:
@@ -53,7 +65,8 @@ jobs:
           cmake -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
-            -DCMAKE_PREFIX_PATH="${QT_ROOT_DIR}"
+            -DCMAKE_PREFIX_PATH="${QT_ROOT_DIR}" \
+            -DCMAKE_INSTALL_PREFIX="${GITHUB_WORKSPACE}/install"
 
       - name: Build
         run: cmake --build build --parallel
@@ -80,3 +93,39 @@ jobs:
             --script=scripts/mpv-osc.lua \
             --vo=null --ao=null --frames=1 \
             'av://lavfi:color=c=black:s=640x480:d=0.1'
+
+      - name: Assemble and verify unsigned release app
+        run: |
+          ./scripts/macos_prepare_release_bundle.zsh \
+            "$GITHUB_WORKSPACE/build" "$GITHUB_WORKSPACE/install" \
+            "$GITHUB_WORKSPACE" "$QT_ROOT_DIR"
+
+      - name: Package exact-commit unsigned app for release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          CI_APP_ARTIFACT: ${{ runner.temp }}/240-mp-jellyfin-ci-app-${{ github.sha }}.tar.gz
+        run: |
+          ./scripts/package_ci_app.sh \
+            "$GITHUB_WORKSPACE/install/240-mp-jellyfin.app" \
+            "$CI_APP_ARTIFACT" "$GITHUB_REPOSITORY" "$GITHUB_SHA" \
+            "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"
+
+      - name: Attest exact-commit unsigned app
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
+        with:
+          subject-path: ${{ runner.temp }}/240-mp-jellyfin-ci-app-${{ github.sha }}.tar.gz
+
+      - name: Retain exact-commit unsigned app for release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        env:
+          # The current action's transitive archive dependency still calls
+          # Node's deprecated Buffer() constructor.
+          NODE_OPTIONS: --no-deprecation
+        with:
+          name: 240-mp-jellyfin-verified-app-${{ github.sha }}
+          path: ${{ runner.temp }}/240-mp-jellyfin-ci-app-${{ github.sha }}.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7

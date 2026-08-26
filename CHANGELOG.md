@@ -4,6 +4,12 @@ All notable changes to 240-mp-jellyfin are documented here.
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-08-26
+
+### Changed
+
+- Reduced tag-to-release build time by reusing the exact unsigned app already built, tested, deployed, and verified by the successful `main` CI run. The handoff is commit-bound, short-lived, GitHub-provenance-attested, safely extracted, content-manifested, and reverified before the unchanged Developer ID signing, notarization, DMG, helper, and updater gates run.
+
 ## [1.6.0] - 2026-08-26
 
 ### Added

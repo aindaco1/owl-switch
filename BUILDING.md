@@ -147,10 +147,16 @@ git tag v1.1.0-rc1
 git push origin v1.1.0-rc1
 ```
 
+Before pushing the tag, wait for the exact commit's `main` CI run to succeed.
+That run assembles, verifies, provenance-attests, and retains the unsigned
+release app for seven days. The release refuses a different commit, a failed or
+non-`main` run, a self-hosted provenance claim, modified packaging scripts, an
+unsafe archive, or altered bundle contents instead of silently rebuilding.
+
 Tags containing `-rc`, `-beta`, or `-alpha` are published as GitHub pre-releases.
 The numeric portion of the tag must match the `project(...)` version in `CMakeLists.txt`, and the full tag must match `APP_RELEASE_TAG`; CI rejects either mismatch before building. Public release notes are generated from the full tag's section in [CHANGELOG.md](CHANGELOG.md), so bump both declarations and finalize the matching dated changelog entry before tagging.
 
-If a tag push does not produce an Actions run, use **Actions → Release → Run workflow** and enter the existing tag. The manual path checks out that tag and runs the same version validation, tests, signing, notarization, and publication steps; it does not build arbitrary untagged source.
+If a tag push does not produce an Actions run, use **Actions → Release → Run workflow** and enter the existing tag. The manual path checks out that tag, requires its retained exact-commit CI app, and runs the same version validation, signing, notarization, and publication steps; it does not build arbitrary untagged source or bypass CI evidence.
 
 ### What the workflow does
 
@@ -161,7 +167,32 @@ The intended workflow is a macOS Apple Silicon build:
 | `build-macos-arm64` | `macos-26` (arm64) | Notarized app artifact |
 | `package-macos-arm64` | `macos-26` (arm64) | `240-mp-jellyfin-<tag>-macOS-arm64.dmg` |
 
-The first macOS 26 job installs Qt and packaging tools from the Apple Silicon runner's Homebrew snapshot, configures CMake for `arm64`, downloads and verifies pinned yt-dlp/Deno, builds and tests, embeds all helpers, runs `macdeployqt` without its temporary ad-hoc signing, prunes unused QML plugins, verifies every Mach-O file under a stripped environment (including one live extraction from each Karaoke source, one Local playlist expansion canary, and one actual Local YouTube audio-stream open through bundled mpv), rejects `.DS_Store`, broken symlinks, and external load paths, then Developer-ID signs, notarizes, and staples the app. The notarized app crosses jobs only as a `ditto` ZIP so signatures, entitlements, and the stapled ticket survive intact. A fresh macOS 26 job verifies that sealed app, stages exactly the app plus an `/Applications` shortcut, validates that layout with `scripts/macos_dmg_contract.zsh`, downloads checksum-pinned `rcodesign` 0.29.0, creates and Developer-ID signs the DMG, verifies the embedded signing certificate's team against the app, validates the image checksum, notarizes and staples it, mounts it read-only to recheck the shared layout and app contract, validates Gatekeeper acceptance, and publishes the DMG plus its SHA-256 checksum.
+The exact-commit `main` CI job pins Xcode 26.3, installs Qt and the media helpers
+from the Apple Silicon runner's Homebrew snapshot, configures CMake for `arm64`,
+downloads and verifies pinned yt-dlp/Deno, builds and tests, embeds all helpers,
+runs `macdeployqt` without its temporary ad-hoc signing, prunes unused QML
+plugins, and verifies the unsigned bundle. CI records a complete file, mode,
+hash, and contained-symlink manifest, packages the app as a seven-day internal
+artifact, and issues GitHub-hosted build provenance for that exact source
+commit. The release downloads only that artifact from the exact successful
+`main` CI run, verifies its provenance, metadata, packaging-contract hash,
+bundle manifest, app identity/version/architecture, helper versions, and every
+Mach-O dependency before signing. It then performs the same stripped-runtime
+checks (including one live extraction from each Karaoke source, one Local
+playlist expansion canary, and one actual Local YouTube audio-stream attempt),
+Developer-ID signs, notarizes, and staples the app. Build/test/deployment work
+is not repeated after tagging, while signing and all distribution trust checks
+remain fresh.
+
+The notarized app crosses jobs only as a `ditto` ZIP so signatures,
+entitlements, and the stapled ticket survive intact. A fresh macOS 26 job
+verifies that sealed app, stages exactly the app plus an `/Applications`
+shortcut, validates that layout with `scripts/macos_dmg_contract.zsh`, downloads
+checksum-pinned `rcodesign` 0.29.0, creates and Developer-ID signs the DMG,
+verifies the embedded signing certificate's team against the app, validates the
+image checksum, notarizes and staples it, mounts it read-only to recheck the
+shared layout and app contract, validates Gatekeeper acceptance, and publishes
+the DMG plus its SHA-256 checksum.
 
 The in-app updater consumes the same release. GitHub's API asset digest is mandatory, and the downloaded bundle must pass notarization, signature-team, bundle-ID, version, and arm64 checks before installation.
 

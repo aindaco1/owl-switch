@@ -66,6 +66,7 @@ Manual checks for media changes:
 - Confirm app settings persist after restart.
 - Confirm a current or failed launch update check stays unobtrusive, a newer valid release presents the keyboard-first **View / Later** prompt exactly once, **View** opens the existing Software Update screen, and the manual check remains available.
 - For packaging changes, run `cmake --install` into a temporary prefix and verify bundled `mpv`, `ffmpeg`, `ffprobe`, `yt-dlp`, and Deno launch with a stripped `PATH`.
+- Before tagging, wait for the exact commit's successful `main` CI run. Releases reuse only its seven-day, provenance-attested unsigned app artifact and still perform fresh signing, notarization, DMG, and downloaded-release verification.
 
 ## AI Use
 
