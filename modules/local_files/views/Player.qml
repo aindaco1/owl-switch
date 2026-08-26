@@ -28,6 +28,9 @@ FocusScope {
     property bool   imageContent:        false
     property var    soundtrackPaths:     []
     property bool   hasSoundtrack:       soundtrackPaths.length > 0 && !localFilesBackend.isAudio(filePath)
+    property bool   mainItemLoaded:      false
+    property bool   overlayShownForItem: false
+    property string currentItemPath:     ""
 
     property int automaticSubtitleTrack: subtitleMode === "on" ? 0
                                             : subtitleMode === "forced" ? -1 : -2
@@ -40,6 +43,10 @@ FocusScope {
     focus: true
 
     function launchPlayback(startMs, playlistStart, useShuffle) {
+        mainItemLoaded = false
+        overlayShownForItem = false
+        currentItemPath = ""
+        mpvController.clearSoundtrackOverlay()
         mpvController.loadAndPlayWithOptions(filePath, {
             startSeconds: startMs > 0 ? startMs / 1000.0 : 0,
             audioTrack: audioTrack,
@@ -116,10 +123,35 @@ FocusScope {
             if (pos >= 0) {
                 playerRoot.lastKnownPlaylistPos = pos
                 playerRoot.lastKnownPositionMs  = 0
+                playerRoot.mainItemLoaded = false
+                playerRoot.overlayShownForItem = false
+                mpvController.clearSoundtrackOverlay()
             }
         }
 
+        function onCurrentPathChanged(path) {
+            playerRoot.currentItemPath = path || ""
+            if (playerRoot.mainItemLoaded && !playerRoot.overlayShownForItem)
+                playerRoot.overlayShownForItem = moduleRoot.showSoundtrackOverlay(
+                    playerRoot.currentItemPath, localFilesBackend.currentSoundtrack())
+        }
+        function onPlaybackItemLoaded(playlistIndex) {
+            playerRoot.mainItemLoaded = true
+            playerRoot.overlayShownForItem = false
+            playerRoot.currentItemPath = mpvController.currentPath ||
+                                         (isPlaylist(filePath) ? "" : filePath)
+            playerRoot.overlayShownForItem = moduleRoot.showSoundtrackOverlay(
+                playerRoot.currentItemPath, localFilesBackend.currentSoundtrack())
+        }
+        function onPlaybackItemEnded(playlistIndex, reason, error) {
+            playerRoot.mainItemLoaded = false
+            playerRoot.overlayShownForItem = false
+            mpvController.clearSoundtrackOverlay()
+        }
+
         function onPlaybackEnded(finalPositionMs, finalDurationMs, reason) {
+            playerRoot.mainItemLoaded = false
+            mpvController.clearSoundtrackOverlay()
             localFilesBackend.stopAudio()
             var pos   = lastKnownPositionMs  || finalPositionMs
             var dur   = lastKnownDurationMs  || finalDurationMs
@@ -137,6 +169,15 @@ FocusScope {
                     localFilesBackend.savePosition(filePath, pos, -1)
             }
             goBack()
+        }
+    }
+
+    Connections {
+        target: localFilesBackend
+
+        function onAudioTrackStarted(track) {
+            if (playerRoot.mainItemLoaded)
+                moduleRoot.showSoundtrackOverlay(playerRoot.currentItemPath, track)
         }
     }
 

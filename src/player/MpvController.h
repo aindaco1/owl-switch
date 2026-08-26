@@ -4,6 +4,7 @@
 #include <QLocalSocket>
 #include <QTimer>
 #include <QJsonArray>
+#include <QJsonObject>
 #include <QVariantMap>
 
 #ifdef Q_OS_LINUX
@@ -26,6 +27,7 @@ class MpvController : public QObject {
     Q_PROPERTY(int position    READ position    NOTIFY positionChanged)
     Q_PROPERTY(int duration    READ duration    NOTIFY durationChanged)
     Q_PROPERTY(int playlistPos READ playlistPos NOTIFY playlistPosChanged)
+    Q_PROPERTY(QString currentPath READ currentPath NOTIFY currentPathChanged)
 
 public:
     explicit MpvController(const QString &appRoot, class AppCore *appCore = nullptr,
@@ -35,6 +37,7 @@ public:
     int position()    const { return m_position;    }
     int duration()    const { return m_duration;    }
     int playlistPos() const { return m_playlistPos; }
+    QString currentPath() const { return m_currentPath; }
     void setPlaybackScreenIndex(int index) { m_playbackScreenIndex = index; }
 
     Q_INVOKABLE void loadAndPlay(const QString &url, float startSeconds,
@@ -58,6 +61,9 @@ public:
     Q_INVOKABLE void sendKey(const QString &key);
     Q_INVOKABLE void setVideoFilters(const QString &filters);
     Q_INVOKABLE void showText(const QString &text, int durationMs = 4000);
+    Q_INVOKABLE void showSoundtrackOverlay(const QVariantMap &track,
+                                           int durationMs = 15000);
+    Q_INVOKABLE void clearSoundtrackOverlay();
     Q_INVOKABLE void showOsdSkipPrompt();
     Q_INVOKABLE void clearOsdPrompt();
     // Applies file-specific track choices after a playlist item loads. This is
@@ -75,6 +81,7 @@ signals:
     void positionChanged(int ms);
     void durationChanged(int ms);
     void playlistPosChanged(int pos);
+    void currentPathChanged(const QString &path);
     void mpvKeyPressed(const QString &key);
     void skipRequested();
     void subtitleCycleRequested();
@@ -99,6 +106,7 @@ private slots:
 
 private:
     void sendCommand(const QJsonArray &args);
+    void sendNamedCommand(const QJsonObject &command);
     void sendPlaylistCommand(const QJsonArray &args);
     void doHeadlessRestore(int pos, int dur);
     bool detectHeadlessMode() const;
@@ -118,6 +126,7 @@ private:
     QLocalSocket *m_ipc            = nullptr;
     QTimer       *m_connectTimer   = nullptr;
     QTimer       *m_watchdogTimer  = nullptr;
+    QTimer       *m_soundtrackOverlayTimer = nullptr;
     qint64        m_lastIpcEventMs = 0;
     QString       m_appRoot;
     AppCore       *m_appCore = nullptr;
@@ -127,6 +136,7 @@ private:
     QString       m_httpHeaderConfPath;
     QString       m_lastEndFileReason;
     QString       m_lastEndFileError;
+    QString       m_currentPath;
     QList<QJsonArray> m_pendingPlaylistCommands;
     int           m_position     = 0;
     int           m_duration     = 0;

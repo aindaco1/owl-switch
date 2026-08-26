@@ -32,6 +32,7 @@ private slots:
     void repeatModesUseNarrowMpvArguments();
     void muteAudioUsesNoAudioArgument();
     void trackSelectionPreservesLaunchMute();
+    void rendersAndClearsSoundtrackOverlay();
 };
 
 void MpvControllerTest::youtubeModesValidateFormats_data()
@@ -233,6 +234,97 @@ void MpvControllerTest::trackSelectionPreservesLaunchMute()
         return false;
     };
     QTRY_VERIFY_WITH_TIMEOUT(markerContainsMutedSelection(), 5000);
+}
+
+void MpvControllerTest::rendersAndClearsSoundtrackOverlay()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString appRoot = root.filePath(QStringLiteral("app"));
+    const QString binDirectory = QDir(appRoot).filePath(QStringLiteral("bin"));
+    QVERIFY(QDir().mkpath(binDirectory));
+
+    const QString markerPath = root.filePath(QStringLiteral("ipc-commands.jsonl"));
+    const QByteArray fakeMpv = QByteArrayLiteral(
+        "#!/bin/sh\n"
+        "socket_path=''\n"
+        "for argument in \"$@\"; do\n"
+        "  case \"$argument\" in\n"
+        "    --input-ipc-server=*) socket_path=${argument#*=} ;;\n"
+        "  esac\n"
+        "done\n"
+        "exec /usr/bin/python3 - \"$socket_path\" \"")
+        + QFile::encodeName(markerPath)
+        + QByteArrayLiteral("\" <<'PY'\n"
+            "import os, socket, sys, time\n"
+            "socket_path, marker_path = sys.argv[1:3]\n"
+            "try:\n"
+            "    os.unlink(socket_path)\n"
+            "except FileNotFoundError:\n"
+            "    pass\n"
+            "server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)\n"
+            "server.bind(socket_path)\n"
+            "server.listen(1)\n"
+            "connection, _ = server.accept()\n"
+            "connection.settimeout(5)\n"
+            "connection.sendall(b'{\"event\":\"property-change\",\"name\":\"path\",\"data\":\"/tmp/video.mp4\"}\\n')\n"
+            "connection.sendall(b'{\"event\":\"file-loaded\"}\\n')\n"
+            "buffer = b''\n"
+            "deadline = time.time() + 5\n"
+            "with open(marker_path, 'ab', buffering=0) as marker:\n"
+            "    while time.time() < deadline:\n"
+            "        try:\n"
+            "            chunk = connection.recv(4096)\n"
+            "        except socket.timeout:\n"
+            "            continue\n"
+            "        if not chunk:\n"
+            "            break\n"
+            "        buffer += chunk\n"
+            "        while b'\\n' in buffer:\n"
+            "            line, buffer = buffer.split(b'\\n', 1)\n"
+            "            marker.write(line + b'\\n')\n"
+            "PY\n");
+    QVERIFY(writeExecutable(QDir(binDirectory).filePath(QStringLiteral("mpv")), fakeMpv));
+
+    MpvController controller(appRoot);
+    QSignalSpy loadedSpy(&controller, &MpvController::playbackItemLoaded);
+    controller.loadAndPlayWithOptions(QStringLiteral("/tmp/video.mp4"));
+    QTRY_COMPARE_WITH_TIMEOUT(loadedSpy.count(), 1, 5000);
+    QCOMPARE(controller.currentPath(), QStringLiteral("/tmp/video.mp4"));
+
+    controller.showSoundtrackOverlay(
+        {{QStringLiteral("artist"), QStringLiteral("Ar{t}\\ist")},
+         {QStringLiteral("song"), QStringLiteral("So}ng")}}, 100);
+
+    const auto overlayCommands = [&markerPath] {
+        QList<QJsonObject> commands;
+        QFile marker(markerPath);
+        if (!marker.open(QIODevice::ReadOnly | QIODevice::Text))
+            return commands;
+        while (!marker.atEnd()) {
+            const QJsonValue command = QJsonDocument::fromJson(marker.readLine())
+                                           .object().value(QStringLiteral("command"));
+            if (command.isObject() &&
+                command.toObject().value(QStringLiteral("name")).toString() ==
+                    QLatin1String("osd-overlay")) {
+                commands.append(command.toObject());
+            }
+        }
+        return commands;
+    };
+    QTRY_VERIFY_WITH_TIMEOUT(overlayCommands().size() >= 2, 5000);
+    const QList<QJsonObject> commands = overlayCommands();
+    const QJsonObject shown = commands.at(commands.size() - 2);
+    const QJsonObject cleared = commands.last();
+    QCOMPARE(shown.value(QStringLiteral("format")).toString(), QStringLiteral("ass-events"));
+    QCOMPARE(shown.value(QStringLiteral("res_x")).toInt(), 1920);
+    QCOMPARE(shown.value(QStringLiteral("res_y")).toInt(), 1080);
+    const QString data = shown.value(QStringLiteral("data")).toString();
+    QVERIFY(data.contains(QStringLiteral("Artist")));
+    QVERIFY(data.contains(QStringLiteral("Song")));
+    QVERIFY(!data.contains(QStringLiteral("Ar{t}")));
+    QVERIFY(!data.contains(QStringLiteral("So}ng")));
+    QCOMPARE(cleared.value(QStringLiteral("format")).toString(), QStringLiteral("none"));
 }
 
 QTEST_GUILESS_MAIN(MpvControllerTest)

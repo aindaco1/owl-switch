@@ -67,6 +67,7 @@ Not yet implemented: music libraries and explicit watched/unwatched controls fro
 - Persistent, duplicate-friendly media and soundtrack queues with reorder, remove, and clear controls. Completed media remains queued; failed media stays visibly marked.
 - Repeat Off, Repeat Queue, Repeat One, queue shuffle, soundtrack shuffle, and optional saved-queue auto-launch.
 - Any non-empty soundtrack queue loops in a separate bounded-recovery mpv process while media-queue video audio is muted.
+- Video playback with an active soundtrack shows a compact artist/song overlay in the bottom-right corner for its first 15 seconds and for 15 seconds after every soundtrack change. Embedded audio tags such as ID3 metadata take priority, followed by `Artist - Song` names and a `SOUNDTRACK` fallback.
 - Resume history.
 - Play Now and Add to Queue actions after audio and subtitle selection; queued entries retain their file-specific track choices.
 - Sidecar subtitle discovery for common subtitle formats.
@@ -110,7 +111,7 @@ APP_ROOT=$(pwd) ./build/240-mp-jellyfin.app/Contents/MacOS/240-mp-jellyfin
 
 ## Install
 
-See [INSTALL.md](INSTALL.md). [Download 240-mp-jellyfin 1.6.1 for Apple Silicon](https://github.com/aindaco1/240-mp-jellyfin/releases/download/v1.6.1/240-mp-jellyfin-v1.6.1-macOS-arm64.dmg), open the notarized DMG, and drag the app onto its Applications shortcut. If EasyDMG is already configured as the Mac's default DMG handler, the same single-app image can automate that copy; no additional installer is required. Checksums and release notes remain available from [GitHub Releases](https://github.com/aindaco1/240-mp-jellyfin/releases).
+See [INSTALL.md](INSTALL.md). [Download 240-mp-jellyfin 1.6.2 for Apple Silicon](https://github.com/aindaco1/240-mp-jellyfin/releases/download/v1.6.2/240-mp-jellyfin-v1.6.2-macOS-arm64.dmg), open the notarized DMG, and drag the app onto its Applications shortcut. If EasyDMG is already configured as the Mac's default DMG handler, the same single-app image can automate that copy; no additional installer is required. Checksums and release notes remain available from [GitHub Releases](https://github.com/aindaco1/240-mp-jellyfin/releases).
 
 The app quietly checks for a newer signed GitHub release whenever it opens. A current or failed check stays out of the way; a valid newer Apple Silicon release presents **View** and **Later**, with **View** opening the existing **Settings → Software Update** screen. The manual check remains available there, and downloading and installation always require user action. The updater verifies GitHub's SHA-256 digest, Apple notarization, the Developer ID team, bundle identity, version, and Apple Silicon architecture before replacing the app.
 

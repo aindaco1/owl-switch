@@ -29,6 +29,7 @@ private slots:
     void usesBundledMpvForSeparateAudio();
     void streamsYouTubeSoundtrackWithBundledHelpers();
     void reportsWhenSeparateAudioActuallyStarts();
+    void reportsTaggedAndFallbackSoundtrackMetadata();
 };
 
 static bool writeFile(const QString &path, const QByteArray &contents = {})
@@ -548,6 +549,95 @@ void LocalFilesBackendTest::reportsWhenSeparateAudioActuallyStarts()
     backend.startAudio({audioPath});
     QTRY_COMPARE_WITH_TIMEOUT(readySpy.count(), 1, 5000);
     backend.stopAudio();
+}
+
+void LocalFilesBackendTest::reportsTaggedAndFallbackSoundtrackMetadata()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString appRoot = root.filePath(QStringLiteral("app"));
+    const QString dataRoot = root.filePath(QStringLiteral("data"));
+    const QString binDirectory = QDir(appRoot).filePath(QStringLiteral("bin"));
+    QVERIFY(QDir().mkpath(binDirectory));
+    QVERIFY(QDir().mkpath(dataRoot));
+    QVERIFY(writeLocalConfig(dataRoot, root.path()));
+
+    const QByteArray fakeMpv = QByteArrayLiteral(
+        "#!/bin/sh\n"
+        "socket_path=''\n"
+        "for argument in \"$@\"; do\n"
+        "  case \"$argument\" in\n"
+        "    --input-ipc-server=*) socket_path=${argument#*=} ;;\n"
+        "  esac\n"
+        "done\n"
+        "exec /usr/bin/python3 - \"$socket_path\" <<'PY'\n"
+        "import os, socket, sys, time\n"
+        "socket_path = sys.argv[1]\n"
+        "try:\n"
+        "    os.unlink(socket_path)\n"
+        "except FileNotFoundError:\n"
+        "    pass\n"
+        "server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)\n"
+        "server.bind(socket_path)\n"
+        "server.listen(1)\n"
+        "connection, _ = server.accept()\n"
+        "events = [\n"
+        " b'{\"event\":\"file-loaded\"}\\n',\n"
+        " b'{\"event\":\"property-change\",\"name\":\"playlist-pos\",\"data\":0}\\n',\n"
+        " b'{\"event\":\"property-change\",\"name\":\"metadata\",\"data\":{\"ARTIST\":\"Tagged Artist\",\"TITLE\":\"Tagged Song\"}}\\n',\n"
+        " b'{\"event\":\"playback-restart\"}\\n',\n"
+        " b'{\"event\":\"playback-restart\"}\\n',\n"
+        " ]\n"
+        "for event in events:\n"
+        "    connection.sendall(event)\n"
+        "time.sleep(0.35)\n"
+        "events = [\n"
+        " b'{\"event\":\"file-loaded\"}\\n',\n"
+        " b'{\"event\":\"property-change\",\"name\":\"playlist-pos\",\"data\":1}\\n',\n"
+        " b'{\"event\":\"property-change\",\"name\":\"metadata\",\"data\":{}}\\n',\n"
+        " b'{\"event\":\"playback-restart\"}\\n',\n"
+        " ]\n"
+        "for event in events:\n"
+        "    connection.sendall(event)\n"
+        "time.sleep(0.35)\n"
+        "events = [\n"
+        " b'{\"event\":\"file-loaded\"}\\n',\n"
+        " b'{\"event\":\"property-change\",\"name\":\"playlist-pos\",\"data\":2}\\n',\n"
+        " b'{\"event\":\"property-change\",\"name\":\"metadata\",\"data\":{}}\\n',\n"
+        " b'{\"event\":\"playback-restart\"}\\n',\n"
+        " ]\n"
+        "for event in events:\n"
+        "    connection.sendall(event)\n"
+        "time.sleep(5)\n"
+        "PY\n");
+    QVERIFY(writeExecutable(QDir(binDirectory).filePath(QStringLiteral("mpv")), fakeMpv));
+
+    const QString taggedPath = root.filePath(QStringLiteral("tagged.mp3"));
+    const QString parsedPath = root.filePath(QStringLiteral("Fallback Artist - Fallback Song.flac"));
+    const QString genericPath = root.filePath(QStringLiteral("Ambient Bed.wav"));
+    QVERIFY(writeFile(taggedPath));
+    QVERIFY(writeFile(parsedPath));
+    QVERIFY(writeFile(genericPath));
+
+    LocalFilesBackend backend(appRoot, dataRoot);
+    QSignalSpy trackSpy(&backend, &LocalFilesBackend::audioTrackStarted);
+    backend.startAudio({taggedPath, parsedPath, genericPath});
+    QTRY_COMPARE_WITH_TIMEOUT(trackSpy.count(), 3, 5000);
+
+    const QVariantMap tagged = trackSpy.at(0).at(0).toMap();
+    QCOMPARE(tagged.value(QStringLiteral("artist")).toString(), QStringLiteral("Tagged Artist"));
+    QCOMPARE(tagged.value(QStringLiteral("song")).toString(), QStringLiteral("Tagged Song"));
+
+    const QVariantMap parsed = trackSpy.at(1).at(0).toMap();
+    QCOMPARE(parsed.value(QStringLiteral("artist")).toString(), QStringLiteral("Fallback Artist"));
+    QCOMPARE(parsed.value(QStringLiteral("song")).toString(), QStringLiteral("Fallback Song"));
+
+    const QVariantMap generic = trackSpy.at(2).at(0).toMap();
+    QCOMPARE(generic.value(QStringLiteral("artist")).toString(), QStringLiteral("SOUNDTRACK"));
+    QCOMPARE(generic.value(QStringLiteral("song")).toString(), QStringLiteral("Ambient Bed"));
+    QCOMPARE(backend.currentSoundtrack(), generic);
+    backend.stopAudio();
+    QVERIFY(backend.currentSoundtrack().isEmpty());
 }
 
 QTEST_MAIN(LocalFilesBackendTest)

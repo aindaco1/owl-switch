@@ -72,6 +72,34 @@ static QString redactedTextForLog(QString text) {
     return text;
 }
 
+static QString boundedOverlayLine(const QString &value, const QString &fallback) {
+    QString safe;
+    safe.reserve(72);
+    bool truncated = false;
+    for (const QChar character : value.trimmed()) {
+        if (character == QLatin1Char('{') || character == QLatin1Char('}') ||
+            character == QLatin1Char('\\')) {
+            continue;
+        }
+        if (character.isSpace()) {
+            if (!safe.isEmpty() && safe.back() != QLatin1Char(' '))
+                safe.append(QLatin1Char(' '));
+        } else if (!character.isNull() && character.isPrint()) {
+            safe.append(character);
+        }
+        if (safe.size() >= 72) {
+            truncated = true;
+            break;
+        }
+    }
+    safe = safe.trimmed();
+    if (safe.isEmpty())
+        safe = fallback;
+    if (truncated && safe.size() > 3)
+        safe = safe.left(safe.size() - 3) + QStringLiteral("...");
+    return safe;
+}
+
 #ifdef Q_OS_LINUX
 #include <fcntl.h>
 #include <unistd.h>
@@ -124,6 +152,7 @@ MpvController::MpvController(const QString &appRoot, AppCore *appCore, QObject *
         sendCommand({"observe_property", 2, "duration"});
         sendCommand({"observe_property", 3, "playlist-pos"});
         sendCommand({"observe_property", 4, "pause"});
+        sendCommand({"observe_property", 5, "path"});
         const QList<QJsonArray> pendingCommands = m_pendingPlaylistCommands;
         m_pendingPlaylistCommands.clear();
         for (const QJsonArray &command : pendingCommands)
@@ -147,6 +176,11 @@ MpvController::MpvController(const QString &appRoot, AppCore *appCore, QObject *
                      silenceMs / 1000);
         }
     });
+
+    m_soundtrackOverlayTimer = new QTimer(this);
+    m_soundtrackOverlayTimer->setSingleShot(true);
+    connect(m_soundtrackOverlayTimer, &QTimer::timeout,
+            this, &MpvController::clearSoundtrackOverlay);
 }
 
 MpvController::~MpvController() {
@@ -278,6 +312,7 @@ void MpvController::loadAndPlayWithOptions(const QString &url, const QVariantMap
     const QStringList extraArguments = options.value("extraArguments").toStringList();
     const int imageDurationSeconds = qMax(0, options.value("imageDurationSeconds").toInt());
     m_muteAudio = muteAudio;
+    clearSoundtrackOverlay();
     if (m_process) {
         m_process->disconnect();
         if (m_process->state() != QProcess::NotRunning) {
@@ -294,6 +329,10 @@ void MpvController::loadAndPlayWithOptions(const QString &url, const QVariantMap
     m_position    = 0;
     m_duration    = 0;
     m_playlistPos = -1;
+    if (!m_currentPath.isEmpty()) {
+        m_currentPath.clear();
+        emit currentPathChanged({});
+    }
     m_lastEndFileReason.clear();
     m_lastEndFileError.clear();
     m_pendingStartClear = false;
@@ -565,6 +604,48 @@ void MpvController::showText(const QString &text, int durationMs) {
     sendCommand({"show-text", text, durationMs});
 }
 
+void MpvController::showSoundtrackOverlay(const QVariantMap &track, int durationMs) {
+    const QString artist = boundedOverlayLine(
+        track.value(QStringLiteral("artist")).toString(), QStringLiteral("SOUNDTRACK"));
+    const QString song = boundedOverlayLine(
+        track.value(QStringLiteral("song")).toString(), QStringLiteral("UNKNOWN SONG"));
+    if (song == QLatin1String("UNKNOWN SONG"))
+        return;
+
+    static constexpr int kOverlayId = 240;
+    const QString background = QStringLiteral(
+        "{\\an7\\pos(1300,914)\\p1\\bord0\\shad0\\1c&H000000&\\1a&H70&}"
+        "m 0 0 l 560 0 560 126 0 126");
+    const QString text = QStringLiteral(
+        "{\\an3\\pos(1824,1004)\\fnVCR OSD Mono\\fs28\\b1\\bord1.4\\shad0"
+        "\\1c&HFFFFFF&\\3c&H000000&}%1"
+        "\\N{\\fs23\\b0\\1c&HE6E6E6&}%2").arg(artist, song);
+    sendNamedCommand(QJsonObject{
+        {QStringLiteral("name"), QStringLiteral("osd-overlay")},
+        {QStringLiteral("id"), kOverlayId},
+        {QStringLiteral("format"), QStringLiteral("ass-events")},
+        {QStringLiteral("data"), background + QLatin1Char('\n') + text},
+        {QStringLiteral("res_x"), 1920},
+        {QStringLiteral("res_y"), 1080},
+        {QStringLiteral("z"), 100}
+    });
+    m_soundtrackOverlayTimer->start(qBound(100, durationMs, 60000));
+}
+
+void MpvController::clearSoundtrackOverlay() {
+    if (m_soundtrackOverlayTimer)
+        m_soundtrackOverlayTimer->stop();
+    sendNamedCommand(QJsonObject{
+        {QStringLiteral("name"), QStringLiteral("osd-overlay")},
+        {QStringLiteral("id"), 240},
+        {QStringLiteral("format"), QStringLiteral("none")},
+        {QStringLiteral("data"), QString{}},
+        {QStringLiteral("res_x"), 1920},
+        {QStringLiteral("res_y"), 1080},
+        {QStringLiteral("z"), 100}
+    });
+}
+
 void MpvController::showOsdSkipPrompt() {
     sendCommand({"script-message", "skip-overlay-state", "1"});
     sendCommand({"keypress", "DOWN"});
@@ -719,6 +800,12 @@ void MpvController::onIpcReadyRead() {
         } else if (name == "playlist-pos") {
             m_playlistPos = int(val);
             emit playlistPosChanged(m_playlistPos);
+        } else if (name == "path") {
+            const QString path = data.toString();
+            if (path != m_currentPath) {
+                m_currentPath = path;
+                emit currentPathChanged(m_currentPath);
+            }
         }
     }
 }
@@ -734,6 +821,7 @@ void MpvController::onProcessFinished() {
         qWarning("[MpvController] mpv exited with code %d", exitCode);
     m_connectTimer->stop();
     m_watchdogTimer->stop();
+    m_soundtrackOverlayTimer->stop();
     m_ipc->abort();
     QFile::remove(m_socketPath);
     removeHttpHeaderConfig();
@@ -741,6 +829,10 @@ void MpvController::onProcessFinished() {
     const int dur = m_duration;
     m_position = 0;
     m_duration = 0;
+    if (!m_currentPath.isEmpty()) {
+        m_currentPath.clear();
+        emit currentPathChanged({});
+    }
 
     QString reason;
     if (exitCode != 0 || m_lastEndFileReason == QStringLiteral("error"))
@@ -801,6 +893,14 @@ void MpvController::sendCommand(const QJsonArray &args) {
     QJsonObject cmd;
     cmd["command"] = args;
     m_ipc->write(QJsonDocument(cmd).toJson(QJsonDocument::Compact) + "\n");
+}
+
+void MpvController::sendNamedCommand(const QJsonObject &command) {
+    if (m_ipc->state() != QLocalSocket::ConnectedState)
+        return;
+    QJsonObject request;
+    request[QStringLiteral("command")] = command;
+    m_ipc->write(QJsonDocument(request).toJson(QJsonDocument::Compact) + '\n');
 }
 
 void MpvController::sendPlaylistCommand(const QJsonArray &args) {

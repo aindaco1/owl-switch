@@ -27,6 +27,22 @@ FocusScope {
         return true
     }
 
+    function isVideoPath(path) {
+        return path && !localFilesBackend.isImage(path) &&
+               !localFilesBackend.isAudio(path) &&
+               !localFilesBackend.isPlaylist(path)
+    }
+
+    function showSoundtrackOverlay(path, track) {
+        if (!isVideoPath(path))
+            return false
+        var nowPlaying = track || localFilesBackend.currentSoundtrack()
+        if (!nowPlaying || !nowPlaying.song)
+            return false
+        mpvController.showSoundtrackOverlay(nowPlaying, 15000)
+        return true
+    }
+
     function navigateTo(viewPath, params, fromState) {
         var resolved = Qt.resolvedUrl(viewPath)
         navStack.push({ source: internalLoader.source, params: currentParams, listState: fromState || {} })

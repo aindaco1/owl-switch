@@ -162,6 +162,33 @@ QString boundedDisplayTitle(const QString &title)
     return safe.trimmed();
 }
 
+QString metadataValue(const QVariantMap &metadata, const QStringList &names)
+{
+    for (auto iterator = metadata.cbegin(); iterator != metadata.cend(); ++iterator) {
+        const bool matches = std::any_of(names.cbegin(), names.cend(),
+            [&iterator](const QString &name) {
+                return iterator.key().compare(name, Qt::CaseInsensitive) == 0;
+            });
+        if (!matches)
+            continue;
+        const QString value = boundedDisplayTitle(iterator.value().toString());
+        if (!value.isEmpty())
+            return value;
+    }
+    return {};
+}
+
+QPair<QString, QString> splitArtistAndSong(const QString &title)
+{
+    const QString cleaned = boundedDisplayTitle(title);
+    static const QRegularExpression separator(QStringLiteral("\\s+[-\\x{2013}\\x{2014}]\\s+"));
+    const QRegularExpressionMatch match = separator.match(cleaned);
+    if (!match.hasMatch() || match.capturedStart() <= 0 || match.capturedEnd() >= cleaned.size())
+        return {};
+    return {cleaned.left(match.capturedStart()).trimmed(),
+            cleaned.mid(match.capturedEnd()).trimmed()};
+}
+
 template<typename T>
 void secureShuffle(T &values)
 {
@@ -183,6 +210,12 @@ LocalFilesBackend::LocalFilesBackend(const QString &appRoot, const QString &data
     m_audioIpc = new QLocalSocket(this);
     connect(m_audioIpc, &QLocalSocket::connected, this, [this] {
         m_audioConnectTimer->stop();
+        sendAudioCommand({QStringLiteral("observe_property"), 1,
+                          QStringLiteral("playlist-pos")});
+        sendAudioCommand({QStringLiteral("observe_property"), 2,
+                          QStringLiteral("metadata")});
+        sendAudioCommand({QStringLiteral("observe_property"), 3,
+                          QStringLiteral("media-title")});
     });
     connect(m_audioIpc, &QLocalSocket::readyRead,
             this, &LocalFilesBackend::onAudioIpcReadyRead);
@@ -943,6 +976,11 @@ QStringList LocalFilesBackend::soundtrackPaths(bool shuffle) const
     return paths;
 }
 
+QVariantMap LocalFilesBackend::currentSoundtrack() const
+{
+    return m_currentSoundtrack;
+}
+
 bool LocalFilesBackend::importYouTubePlaylist(const QString &url)
 {
     if (m_youtubePlaylistProcess &&
@@ -1167,11 +1205,19 @@ void LocalFilesBackend::startAudio(const QStringList &paths, bool shuffle)
     }
     if (validatedPaths.isEmpty())
         return;
+    if (shuffle)
+        secureShuffle(validatedPaths);
     m_audioPaths = validatedPaths;
-    m_audioShuffle = shuffle;
+    m_audioShuffle = false;
     m_audioStopRequested = false;
     m_audioPlaybackReady = false;
     m_audioRespawnCount = 0;
+    m_audioPlaylistPos = -1;
+    m_audioMetadata.clear();
+    m_audioMediaTitle.clear();
+    m_currentSoundtrack.clear();
+    ++m_audioFileSerial;
+    m_publishedAudioFileSerial = 0;
     ++m_audioGeneration;
     launchAudioProcess();
 }
@@ -1239,15 +1285,116 @@ void LocalFilesBackend::onAudioIpcReadyRead()
     while (m_audioIpc->canReadLine()) {
         const QJsonObject message = QJsonDocument::fromJson(
             m_audioIpc->readLine().trimmed()).object();
-        if (message.value(QStringLiteral("event")).toString() !=
-            QLatin1String("playback-restart")) {
+        const QString event = message.value(QStringLiteral("event")).toString();
+        if (event == QLatin1String("property-change")) {
+            const QString name = message.value(QStringLiteral("name")).toString();
+            const QJsonValue data = message.value(QStringLiteral("data"));
+            if (name == QLatin1String("playlist-pos") && data.isDouble())
+                m_audioPlaylistPos = data.toInt(-1);
+            else if (name == QLatin1String("metadata") && data.isObject())
+                m_audioMetadata = data.toObject().toVariantMap();
+            else if (name == QLatin1String("media-title") && data.isString())
+                m_audioMediaTitle = boundedDisplayTitle(data.toString());
             continue;
         }
+        if (event == QLatin1String("file-loaded")) {
+            ++m_audioFileSerial;
+            m_audioMetadata.clear();
+            m_audioMediaTitle.clear();
+            continue;
+        }
+        if (event != QLatin1String("playback-restart"))
+            continue;
         if (!m_audioPlaybackReady) {
             m_audioPlaybackReady = true;
             emit audioPlaybackStarted();
         }
+        const quint64 generation = m_audioGeneration;
+        const quint64 fileSerial = m_audioFileSerial;
+        QTimer::singleShot(100, this, [this, generation, fileSerial] {
+            publishCurrentSoundtrack(generation, fileSerial);
+        });
     }
+}
+
+void LocalFilesBackend::sendAudioCommand(const QJsonArray &command)
+{
+    if (m_audioIpc->state() != QLocalSocket::ConnectedState)
+        return;
+    const QJsonObject request{{QStringLiteral("command"), command}};
+    m_audioIpc->write(QJsonDocument(request).toJson(QJsonDocument::Compact) + '\n');
+}
+
+QString LocalFilesBackend::fallbackSoundtrackTitle(const QString &path) const
+{
+    for (const QVariant &value : m_soundtrackQueue) {
+        const QVariantMap entry = value.toMap();
+        if (entry.value(QStringLiteral("source")).toString() == QLatin1String("youtube")) {
+            if (canonicalYouTubeVideoUrl(entry.value(QStringLiteral("videoId")).toString()) == path)
+                return entry.value(QStringLiteral("displayTitle")).toString();
+            continue;
+        }
+        if (QDir::cleanPath(entry.value(QStringLiteral("filePath")).toString()) ==
+            QDir::cleanPath(path)) {
+            const QString displayTitle = entry.value(QStringLiteral("displayTitle")).toString();
+            const QFileInfo displayInfo(displayTitle);
+            return displayInfo.completeBaseName().isEmpty()
+                ? displayTitle : displayInfo.completeBaseName();
+        }
+    }
+    const QFileInfo info(path);
+    return info.completeBaseName().isEmpty() ? info.fileName() : info.completeBaseName();
+}
+
+QVariantMap LocalFilesBackend::buildCurrentSoundtrack() const
+{
+    if (m_audioPaths.isEmpty())
+        return {};
+    const int index = qBound(0, m_audioPlaylistPos, m_audioPaths.size() - 1);
+    const QString path = m_audioPaths.at(index);
+    QString fallback = boundedDisplayTitle(fallbackSoundtrackTitle(path));
+    if (fallback.isEmpty())
+        fallback = boundedDisplayTitle(m_audioMediaTitle);
+    if (fallback.isEmpty())
+        fallback = QStringLiteral("Unknown song");
+
+    QString artist = metadataValue(
+        m_audioMetadata,
+        {QStringLiteral("artist"), QStringLiteral("album_artist"),
+         QStringLiteral("album artist"), QStringLiteral("performer")});
+    QString song = metadataValue(m_audioMetadata, {QStringLiteral("title")});
+    const QPair<QString, QString> parsedFallback = splitArtistAndSong(fallback);
+    const QPair<QString, QString> parsedMediaTitle = splitArtistAndSong(m_audioMediaTitle);
+    if (artist.isEmpty())
+        artist = !parsedFallback.first.isEmpty()
+            ? parsedFallback.first : parsedMediaTitle.first;
+    if (song.isEmpty())
+        song = !parsedFallback.second.isEmpty()
+            ? parsedFallback.second : parsedMediaTitle.second;
+    if (song.isEmpty())
+        song = boundedDisplayTitle(m_audioMediaTitle);
+    if (song.isEmpty())
+        song = fallback;
+    if (artist.isEmpty())
+        artist = QStringLiteral("SOUNDTRACK");
+
+    return {{QStringLiteral("artist"), boundedDisplayTitle(artist)},
+            {QStringLiteral("song"), boundedDisplayTitle(song)}};
+}
+
+void LocalFilesBackend::publishCurrentSoundtrack(quint64 generation, quint64 fileSerial)
+{
+    if (m_audioStopRequested || generation != m_audioGeneration ||
+        fileSerial != m_audioFileSerial ||
+        fileSerial == m_publishedAudioFileSerial) {
+        return;
+    }
+    const QVariantMap track = buildCurrentSoundtrack();
+    if (track.isEmpty())
+        return;
+    m_publishedAudioFileSerial = fileSerial;
+    m_currentSoundtrack = track;
+    emit audioTrackStarted(track);
 }
 
 void LocalFilesBackend::stopAudio()
@@ -1255,6 +1402,12 @@ void LocalFilesBackend::stopAudio()
     m_audioStopRequested = true;
     m_audioRespawnCount = 0;
     ++m_audioGeneration;
+    ++m_audioFileSerial;
+    m_audioPlaylistPos = -1;
+    m_audioMetadata.clear();
+    m_audioMediaTitle.clear();
+    m_currentSoundtrack.clear();
+    m_publishedAudioFileSerial = 0;
     m_audioConnectTimer->stop();
     m_audioIpc->abort();
     QFile::remove(m_audioSocketPath);
@@ -1273,6 +1426,12 @@ void LocalFilesBackend::onAudioProcessFinished()
 {
     m_audioConnectTimer->stop();
     m_audioIpc->abort();
+    ++m_audioFileSerial;
+    m_audioPlaylistPos = -1;
+    m_audioMetadata.clear();
+    m_audioMediaTitle.clear();
+    m_currentSoundtrack.clear();
+    m_publishedAudioFileSerial = 0;
     QFile::remove(m_audioSocketPath);
     if (m_audioProcess) {
         m_audioProcess->disconnect(this);
