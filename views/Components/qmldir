@@ -10,3 +10,4 @@ MediaOutputLease MediaOutputLease.qml
 ConfirmDialog ConfirmDialog.qml
 singleton TextSearch 1.0 TextSearch.qml
 singleton TransitionMath 1.0 TransitionMath.qml
+singleton TrackPreviewPolicy 1.0 TrackPreviewPolicy.qml

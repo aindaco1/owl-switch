@@ -39,7 +39,7 @@ FocusScope {
         var nowPlaying = track || localFilesBackend.currentSoundtrack()
         if (!nowPlaying || !nowPlaying.song)
             return false
-        mpvController.showSoundtrackOverlay(nowPlaying, 15000)
+        mpvController.showTrackOverlay(nowPlaying, "", 15000)
         return true
     }
 

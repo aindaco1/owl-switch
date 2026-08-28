@@ -32,7 +32,7 @@ private slots:
     void repeatModesUseNarrowMpvArguments();
     void muteAudioUsesNoAudioArgument();
     void trackSelectionPreservesLaunchMute();
-    void rendersAndClearsSoundtrackOverlay();
+    void rendersAndClearsTrackOverlay();
 };
 
 void MpvControllerTest::youtubeModesValidateFormats_data()
@@ -236,7 +236,7 @@ void MpvControllerTest::trackSelectionPreservesLaunchMute()
     QTRY_VERIFY_WITH_TIMEOUT(markerContainsMutedSelection(), 5000);
 }
 
-void MpvControllerTest::rendersAndClearsSoundtrackOverlay()
+void MpvControllerTest::rendersAndClearsTrackOverlay()
 {
     QTemporaryDir root;
     QVERIFY(root.isValid());
@@ -292,9 +292,10 @@ void MpvControllerTest::rendersAndClearsSoundtrackOverlay()
     QTRY_COMPARE_WITH_TIMEOUT(loadedSpy.count(), 1, 5000);
     QCOMPARE(controller.currentPath(), QStringLiteral("/tmp/video.mp4"));
 
-    controller.showSoundtrackOverlay(
-        {{QStringLiteral("artist"), QStringLiteral("Ar{t}\\ist")},
-         {QStringLiteral("song"), QStringLiteral("So}ng")}}, 100);
+    controller.showTrackOverlay(
+        {{QStringLiteral("displayTitle"), QStringLiteral("Ar{t}\\ist - So}ng")},
+         {QStringLiteral("fallbackArtist"), QStringLiteral("KARAOKE")}},
+        QStringLiteral("UP {NEXT}"), 100);
 
     const auto overlayCommands = [&markerPath] {
         QList<QJsonObject> commands;
@@ -322,9 +323,26 @@ void MpvControllerTest::rendersAndClearsSoundtrackOverlay()
     const QString data = shown.value(QStringLiteral("data")).toString();
     QVERIFY(data.contains(QStringLiteral("Artist")));
     QVERIFY(data.contains(QStringLiteral("Song")));
+    QVERIFY(data.contains(QStringLiteral("UP NEXT")));
+    QVERIFY(data.contains(QStringLiteral("\\an5\\pos(1476,911)")));
+    QVERIFY(data.contains(QStringLiteral("m 0 0 l 760 0 760 210 0 210")));
+    QVERIFY(data.contains(QStringLiteral("\\fs42")));
+    QVERIFY(data.contains(QStringLiteral("\\fs34")));
     QVERIFY(!data.contains(QStringLiteral("Ar{t}")));
     QVERIFY(!data.contains(QStringLiteral("So}ng")));
     QCOMPARE(cleared.value(QStringLiteral("format")).toString(), QStringLiteral("none"));
+
+    controller.showTrackOverlay(
+        {{QStringLiteral("artist"), QStringLiteral("Persistent Artist")},
+         {QStringLiteral("song"), QStringLiteral("Persistent Song")}},
+        QString{}, 0);
+    QTest::qWait(250);
+    QCOMPARE(overlayCommands().last().value(QStringLiteral("format")).toString(),
+             QStringLiteral("ass-events"));
+    controller.clearTrackOverlay();
+    QTRY_COMPARE_WITH_TIMEOUT(
+        overlayCommands().last().value(QStringLiteral("format")).toString(),
+        QStringLiteral("none"), 1000);
 }
 
 QTEST_GUILESS_MAIN(MpvControllerTest)

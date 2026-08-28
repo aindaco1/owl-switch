@@ -74,7 +74,7 @@ static QString redactedTextForLog(QString text) {
 
 static QString boundedOverlayLine(const QString &value, const QString &fallback) {
     QString safe;
-    safe.reserve(72);
+    safe.reserve(44);
     bool truncated = false;
     for (const QChar character : value.trimmed()) {
         if (character == QLatin1Char('{') || character == QLatin1Char('}') ||
@@ -87,7 +87,7 @@ static QString boundedOverlayLine(const QString &value, const QString &fallback)
         } else if (!character.isNull() && character.isPrint()) {
             safe.append(character);
         }
-        if (safe.size() >= 72) {
+        if (safe.size() >= 44) {
             truncated = true;
             break;
         }
@@ -98,6 +98,16 @@ static QString boundedOverlayLine(const QString &value, const QString &fallback)
     if (truncated && safe.size() > 3)
         safe = safe.left(safe.size() - 3) + QStringLiteral("...");
     return safe;
+}
+
+static int fittedOverlayFontSize(const QString &value, int preferred, int minimum) {
+    // VCR OSD Mono is close to 0.62 em per glyph. Keep even the longest bounded
+    // line inside the card while allowing ordinary titles to render much larger.
+    static constexpr int kUsableWidth = 680;
+    const int fitted = value.isEmpty()
+        ? preferred
+        : (kUsableWidth * 100) / (value.size() * 62);
+    return qBound(minimum, fitted, preferred);
 }
 
 #ifdef Q_OS_LINUX
@@ -177,10 +187,10 @@ MpvController::MpvController(const QString &appRoot, AppCore *appCore, QObject *
         }
     });
 
-    m_soundtrackOverlayTimer = new QTimer(this);
-    m_soundtrackOverlayTimer->setSingleShot(true);
-    connect(m_soundtrackOverlayTimer, &QTimer::timeout,
-            this, &MpvController::clearSoundtrackOverlay);
+    m_trackOverlayTimer = new QTimer(this);
+    m_trackOverlayTimer->setSingleShot(true);
+    connect(m_trackOverlayTimer, &QTimer::timeout,
+            this, &MpvController::clearTrackOverlay);
 }
 
 MpvController::~MpvController() {
@@ -312,7 +322,7 @@ void MpvController::loadAndPlayWithOptions(const QString &url, const QVariantMap
     const QStringList extraArguments = options.value("extraArguments").toStringList();
     const int imageDurationSeconds = qMax(0, options.value("imageDurationSeconds").toInt());
     m_muteAudio = muteAudio;
-    clearSoundtrackOverlay();
+    clearTrackOverlay();
     if (m_process) {
         m_process->disconnect();
         if (m_process->state() != QProcess::NotRunning) {
@@ -604,22 +614,50 @@ void MpvController::showText(const QString &text, int durationMs) {
     sendCommand({"show-text", text, durationMs});
 }
 
-void MpvController::showSoundtrackOverlay(const QVariantMap &track, int durationMs) {
-    const QString artist = boundedOverlayLine(
-        track.value(QStringLiteral("artist")).toString(), QStringLiteral("SOUNDTRACK"));
-    const QString song = boundedOverlayLine(
-        track.value(QStringLiteral("song")).toString(), QStringLiteral("UNKNOWN SONG"));
+void MpvController::showTrackOverlay(const QVariantMap &track, const QString &heading,
+                                     int durationMs) {
+    QString rawArtist = track.value(QStringLiteral("artist")).toString().trimmed();
+    QString rawSong = track.value(QStringLiteral("song")).toString().trimmed();
+    if (rawSong.isEmpty()) {
+        const QString displayTitle = track.value(
+            QStringLiteral("displayTitle")).toString().trimmed();
+        const int separator = displayTitle.indexOf(QStringLiteral(" - "));
+        if (separator > 0) {
+            rawArtist = displayTitle.left(separator).trimmed();
+            rawSong = displayTitle.mid(separator + 3).trimmed();
+        } else {
+            rawSong = displayTitle;
+        }
+    }
+
+    const QString fallbackArtist = boundedOverlayLine(
+        track.value(QStringLiteral("fallbackArtist")).toString(),
+        QStringLiteral("SOUNDTRACK"));
+    const QString artist = boundedOverlayLine(rawArtist, fallbackArtist);
+    const QString song = boundedOverlayLine(rawSong, QStringLiteral("UNKNOWN SONG"));
     if (song == QLatin1String("UNKNOWN SONG"))
         return;
 
+    const QString safeHeading = boundedOverlayLine(heading, QString{});
+    const int artistSize = fittedOverlayFontSize(artist, 42, 26);
+    const int songSize = fittedOverlayFontSize(song, 34, 24);
+
     static constexpr int kOverlayId = 240;
     const QString background = QStringLiteral(
-        "{\\an7\\pos(1300,914)\\p1\\bord0\\shad0\\1c&H000000&\\1a&H70&}"
-        "m 0 0 l 560 0 560 126 0 126");
+        "{\\an7\\pos(1096,806)\\p1\\bord0\\shad0\\1c&H000000&\\1a&H38&}"
+        "m 0 0 l 760 0 760 210 0 210");
+    const QString headingLine = safeHeading.isEmpty()
+        ? QString{}
+        : QStringLiteral("{\\fs22\\b1\\1c&HBBBBBB&}%1\\N").arg(safeHeading);
     const QString text = QStringLiteral(
-        "{\\an3\\pos(1824,1004)\\fnVCR OSD Mono\\fs28\\b1\\bord1.4\\shad0"
-        "\\1c&HFFFFFF&\\3c&H000000&}%1"
-        "\\N{\\fs23\\b0\\1c&HE6E6E6&}%2").arg(artist, song);
+        "{\\an5\\pos(1476,911)\\fnVCR OSD Mono\\bord2\\shad0\\3c&H000000&}"
+        "%1{\\fs%2\\b1\\1c&HFFFFFF&}%3"
+        "\\N{\\fs%4\\b0\\1c&HE6E6E6&}%5")
+        .arg(headingLine)
+        .arg(artistSize)
+        .arg(artist)
+        .arg(songSize)
+        .arg(song);
     sendNamedCommand(QJsonObject{
         {QStringLiteral("name"), QStringLiteral("osd-overlay")},
         {QStringLiteral("id"), kOverlayId},
@@ -629,12 +667,15 @@ void MpvController::showSoundtrackOverlay(const QVariantMap &track, int duration
         {QStringLiteral("res_y"), 1080},
         {QStringLiteral("z"), 100}
     });
-    m_soundtrackOverlayTimer->start(qBound(100, durationMs, 60000));
+    if (durationMs > 0)
+        m_trackOverlayTimer->start(qBound(100, durationMs, 60000));
+    else
+        m_trackOverlayTimer->stop();
 }
 
-void MpvController::clearSoundtrackOverlay() {
-    if (m_soundtrackOverlayTimer)
-        m_soundtrackOverlayTimer->stop();
+void MpvController::clearTrackOverlay() {
+    if (m_trackOverlayTimer)
+        m_trackOverlayTimer->stop();
     sendNamedCommand(QJsonObject{
         {QStringLiteral("name"), QStringLiteral("osd-overlay")},
         {QStringLiteral("id"), 240},
@@ -821,7 +862,7 @@ void MpvController::onProcessFinished() {
         qWarning("[MpvController] mpv exited with code %d", exitCode);
     m_connectTimer->stop();
     m_watchdogTimer->stop();
-    m_soundtrackOverlayTimer->stop();
+    m_trackOverlayTimer->stop();
     m_ipc->abort();
     QFile::remove(m_socketPath);
     removeHttpHeaderConfig();

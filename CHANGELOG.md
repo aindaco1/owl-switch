@@ -4,6 +4,16 @@ All notable changes to 240-mp-jellyfin are documented here.
 
 ## [Unreleased]
 
+## [1.6.3] - 2026-08-28
+
+### Added
+
+- Added a Karaoke `UP NEXT` card for the next queued song during the first and last 15 seconds of each video. It follows live queue edits, stays visible across overlapping windows in videos shorter than 30 seconds, and stays hidden when no next song exists.
+
+### Changed
+
+- Reworked Local's bottom-right soundtrack card into the shared track-overlay style used by Karaoke, with a larger, higher-contrast background and substantially larger artist/title text centered within the card. Long metadata remains bounded, escaped, and adaptively sized.
+
 ## [1.6.2] - 2026-08-26
 
 ### Added

@@ -2,6 +2,11 @@
 
 Version 1.1 completed the fork's daily-use Apple Silicon macOS foundation. Future work stays focused on reliability and depth in the existing modules rather than expanding platform or module scope.
 
+## Shipped In 1.6.3
+
+- Shared, larger bottom-right artist/title card with centered text and stronger contrast for Local soundtrack metadata.
+- Karaoke next-song previews during the first and last 15 seconds, including live queue edits, overlapping short-video windows, and no-next-song suppression.
+
 ## Shipped In 1.6.2
 
 - New macOS cassette-and-play app icon with one reproducible iconset source.

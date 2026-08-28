@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(240mp VERSION 1.6.2 LANGUAGES CXX)
+project(240mp VERSION 1.6.3 LANGUAGES CXX)
 
 if(NOT APPLE)
     message(FATAL_ERROR "This fork is macOS-only. Configure and build it on macOS.")
@@ -13,7 +13,7 @@ set(CMAKE_AUTOMOC ON)
 # is reached through a symlink such as macOS's /tmp -> /private/tmp.
 set(CMAKE_AUTOMOC_PATH_PREFIX ON)
 set(APP_DISPLAY_NAME "240-mp-jellyfin")
-set(APP_RELEASE_TAG "v1.6.2")
+set(APP_RELEASE_TAG "v1.6.3")
 set(APP_BUNDLE_IDENTIFIER "com.240mp.jellyfin" CACHE STRING "macOS bundle identifier")
 set(APP_UPDATE_REPOSITORY "aindaco1/240-mp-jellyfin" CACHE STRING "GitHub update repository")
 set(APP_UPDATE_TEAM_ID "PWT3Q52LZ2" CACHE STRING "Expected Developer ID team for updates")
@@ -155,6 +155,15 @@ if(BUILD_TESTING)
     )
     target_link_libraries(media_output_lease_tests PRIVATE Qt6::Core Qt6::Qml Qt6::Test)
     add_test(NAME media_output_lease COMMAND media_output_lease_tests)
+
+    add_executable(track_preview_policy_tests
+        tests/TrackPreviewPolicyTest.cpp
+    )
+    target_compile_definitions(track_preview_policy_tests PRIVATE
+        TEST_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
+    )
+    target_link_libraries(track_preview_policy_tests PRIVATE Qt6::Core Qt6::Qml Qt6::Test)
+    add_test(NAME track_preview_policy COMMAND track_preview_policy_tests)
 
     add_executable(mpv_controller_tests
         tests/MpvControllerTest.cpp
