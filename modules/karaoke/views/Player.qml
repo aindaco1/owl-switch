@@ -26,6 +26,10 @@ FocusScope {
     property string transitionFromEntryId: ""
     property string transitionTargetEntryId: ""
     property bool usingTransitionOutput: false
+    property bool trackPreviewActive: false
+    property string trackPreviewCurrentEntryId: ""
+    property string trackPreviewNextEntryId: ""
+    readonly property int trackPreviewWindowMs: 15000
 
     function indexOfEntry(entryId) {
         for (var index = 0; index < queue.length; ++index) {
@@ -38,6 +42,43 @@ FocusScope {
     function currentEntry() {
         var index = indexOfEntry(currentEntryId)
         return index >= 0 ? queue[index] : null
+    }
+
+    function nextEntry() {
+        var index = indexOfEntry(currentEntryId)
+        return index >= 0 && index + 1 < queue.length ? queue[index + 1] : null
+    }
+
+    function clearNextSongPreview() {
+        if (trackPreviewActive)
+            mpvController.clearTrackOverlay()
+        trackPreviewActive = false
+        trackPreviewCurrentEntryId = ""
+        trackPreviewNextEntryId = ""
+    }
+
+    function syncNextSongPreview() {
+        var next = nextEntry()
+        var inWindow = loadedEntryId !== "" && loadedEntryId === currentEntryId &&
+                       TrackPreviewPolicy.isActive(lastPositionMs, lastDurationMs,
+                                                   trackPreviewWindowMs)
+        if (!inWindow || !next) {
+            clearNextSongPreview()
+            return
+        }
+
+        var nextId = next.entryId || ""
+        if (trackPreviewActive && trackPreviewCurrentEntryId === currentEntryId &&
+            trackPreviewNextEntryId === nextId)
+            return
+
+        mpvController.showTrackOverlay({
+            displayTitle: next.displayTitle || next.rawTitle || "KARAOKE SONG",
+            fallbackArtist: "KARAOKE"
+        }, "UP NEXT", 0)
+        trackPreviewActive = true
+        trackPreviewCurrentEntryId = currentEntryId
+        trackPreviewNextEntryId = nextId
     }
 
     function playbackStatus() {
@@ -60,6 +101,7 @@ FocusScope {
         }
         if (currentQueueIndex >= 0 && loadedEntryId === currentEntryId)
             prefetchTimer.restart()
+        syncNextSongPreview()
     }
 
     function beginTransitionForIndex(index) {
@@ -128,6 +170,7 @@ FocusScope {
         var index = Math.min(Math.max(0, startIndex), queue.length - 1)
         currentEntryId = queue[index].entryId
         currentQueueIndex = index
+        clearNextSongPreview()
         karaokeBackend.resetQueueEntry(currentEntryId)
         usingTransitionOutput = root.hasMediaOutputScreen
         mpvController.loadAndPlay(playlistPath, 0.0, 0, -1, [], false,
@@ -139,6 +182,7 @@ FocusScope {
         if (leaving)
             return
         leaving = true
+        clearNextSongPreview()
         mpvController.stop()
         usingTransitionOutput = false
         goBack()
@@ -174,6 +218,7 @@ FocusScope {
             finalizePendingOutcome(true)
         }
         if (nextEntryId !== "" && nextEntryId !== currentEntryId) {
+            clearNextSongPreview()
             currentEntryId = nextEntryId
             loadedEntryId = ""
             karaokeBackend.resetQueueEntry(nextEntryId)
@@ -224,10 +269,14 @@ FocusScope {
             if (position >= 0) {
                 lastPositionMs = position
                 maybeCoverNaturalTransition()
+                syncNextSongPreview()
             }
         }
         function onDurationChanged(duration) {
-            if (duration >= 0) lastDurationMs = duration
+            if (duration >= 0) {
+                lastDurationMs = duration
+                syncNextSongPreview()
+            }
         }
         function onPlaylistPosChanged(position) {
             handlePlaylistPosition(position)
@@ -240,6 +289,7 @@ FocusScope {
         function onPlaybackItemEnded(playlistIndex, reason, error) {
             if (leaving || reason === "redirect" || reason === "stop" || reason === "quit")
                 return
+            clearNextSongPreview()
             var entry = playlistIndex >= 0 && playlistIndex < queue.length
                       ? queue[playlistIndex] : currentEntry()
             if (!entry)
@@ -253,6 +303,7 @@ FocusScope {
         function onPlaybackEnded(finalPositionMs, finalDurationMs, reason) {
             if (leaving)
                 return
+            clearNextSongPreview()
             if (reason === "failed") {
                 if (pendingEndedEntryId === "") {
                     pendingEndedEntryId = currentEntryId
@@ -306,6 +357,7 @@ FocusScope {
         }
         onQueueEntryRequested: function(index, entryId) {
             beginTransitionForIndex(index)
+            playerRoot.clearNextSongPreview()
             loadedEntryId = ""
             mpvController.playPlaylistItem(index)
         }
@@ -326,6 +378,7 @@ FocusScope {
         onTriggered: {
             playerRoot.loadedEntryId = playerRoot.currentEntryId
             prefetchTimer.restart()
+            playerRoot.syncNextSongPreview()
         }
     }
 

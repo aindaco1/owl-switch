@@ -123,10 +123,10 @@ void UpdateManagerTest::comparesVersions() {
 }
 
 void UpdateManagerTest::launchCheckSignalsForNewerRelease() {
-    QCoreApplication::setApplicationVersion(QStringLiteral("1.6.1"));
+    QCoreApplication::setApplicationVersion(QStringLiteral("1.6.2"));
     QTemporaryDir dataRoot;
     QVERIFY(dataRoot.isValid());
-    StubNetworkAccessManager network(releaseResponse(QStringLiteral("1.6.2")));
+    StubNetworkAccessManager network(releaseResponse(QStringLiteral("1.6.3")));
     UpdateManager manager(dataRoot.path(), &network, nullptr);
     QSignalSpy availableSpy(&manager, &UpdateManager::launchUpdateAvailable);
 
@@ -135,14 +135,14 @@ void UpdateManagerTest::launchCheckSignalsForNewerRelease() {
     QTRY_COMPARE(manager.state(), QStringLiteral("available"));
     QCOMPARE(network.requestCount, 1);
     QCOMPARE(availableSpy.count(), 1);
-    QCOMPARE(availableSpy.first().first().toString(), QStringLiteral("1.6.2"));
+    QCOMPARE(availableSpy.first().first().toString(), QStringLiteral("1.6.3"));
 }
 
 void UpdateManagerTest::launchCheckStaysQuietWhenCurrent() {
-    QCoreApplication::setApplicationVersion(QStringLiteral("1.6.1"));
+    QCoreApplication::setApplicationVersion(QStringLiteral("1.6.3"));
     QTemporaryDir dataRoot;
     QVERIFY(dataRoot.isValid());
-    StubNetworkAccessManager network(releaseResponse(QStringLiteral("1.6.1")));
+    StubNetworkAccessManager network(releaseResponse(QStringLiteral("1.6.3")));
     UpdateManager manager(dataRoot.path(), &network, nullptr);
     QSignalSpy availableSpy(&manager, &UpdateManager::launchUpdateAvailable);
 
@@ -154,7 +154,7 @@ void UpdateManagerTest::launchCheckStaysQuietWhenCurrent() {
 }
 
 void UpdateManagerTest::launchCheckStaysQuietWhenReleaseIsInvalid() {
-    QCoreApplication::setApplicationVersion(QStringLiteral("1.6.1"));
+    QCoreApplication::setApplicationVersion(QStringLiteral("1.6.3"));
     QTemporaryDir dataRoot;
     QVERIFY(dataRoot.isValid());
     StubNetworkAccessManager network(QByteArrayLiteral("not-json"));
@@ -169,10 +169,10 @@ void UpdateManagerTest::launchCheckStaysQuietWhenReleaseIsInvalid() {
 }
 
 void UpdateManagerTest::manualCheckDoesNotEmitLaunchSignal() {
-    QCoreApplication::setApplicationVersion(QStringLiteral("1.6.1"));
+    QCoreApplication::setApplicationVersion(QStringLiteral("1.6.2"));
     QTemporaryDir dataRoot;
     QVERIFY(dataRoot.isValid());
-    StubNetworkAccessManager network(releaseResponse(QStringLiteral("1.6.2")));
+    StubNetworkAccessManager network(releaseResponse(QStringLiteral("1.6.3")));
     UpdateManager manager(dataRoot.path(), &network, nullptr);
     QSignalSpy availableSpy(&manager, &UpdateManager::launchUpdateAvailable);
 

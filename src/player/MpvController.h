@@ -61,9 +61,10 @@ public:
     Q_INVOKABLE void sendKey(const QString &key);
     Q_INVOKABLE void setVideoFilters(const QString &filters);
     Q_INVOKABLE void showText(const QString &text, int durationMs = 4000);
-    Q_INVOKABLE void showSoundtrackOverlay(const QVariantMap &track,
-                                           int durationMs = 15000);
-    Q_INVOKABLE void clearSoundtrackOverlay();
+    Q_INVOKABLE void showTrackOverlay(const QVariantMap &track,
+                                      const QString &heading,
+                                      int durationMs = 15000);
+    Q_INVOKABLE void clearTrackOverlay();
     Q_INVOKABLE void showOsdSkipPrompt();
     Q_INVOKABLE void clearOsdPrompt();
     // Applies file-specific track choices after a playlist item loads. This is
@@ -126,7 +127,7 @@ private:
     QLocalSocket *m_ipc            = nullptr;
     QTimer       *m_connectTimer   = nullptr;
     QTimer       *m_watchdogTimer  = nullptr;
-    QTimer       *m_soundtrackOverlayTimer = nullptr;
+    QTimer       *m_trackOverlayTimer = nullptr;
     qint64        m_lastIpcEventMs = 0;
     QString       m_appRoot;
     AppCore       *m_appCore = nullptr;

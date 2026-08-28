@@ -46,7 +46,7 @@ FocusScope {
         mainItemLoaded = false
         overlayShownForItem = false
         currentItemPath = ""
-        mpvController.clearSoundtrackOverlay()
+        mpvController.clearTrackOverlay()
         mpvController.loadAndPlayWithOptions(filePath, {
             startSeconds: startMs > 0 ? startMs / 1000.0 : 0,
             audioTrack: audioTrack,
@@ -125,7 +125,7 @@ FocusScope {
                 playerRoot.lastKnownPositionMs  = 0
                 playerRoot.mainItemLoaded = false
                 playerRoot.overlayShownForItem = false
-                mpvController.clearSoundtrackOverlay()
+                mpvController.clearTrackOverlay()
             }
         }
 
@@ -146,12 +146,12 @@ FocusScope {
         function onPlaybackItemEnded(playlistIndex, reason, error) {
             playerRoot.mainItemLoaded = false
             playerRoot.overlayShownForItem = false
-            mpvController.clearSoundtrackOverlay()
+            mpvController.clearTrackOverlay()
         }
 
         function onPlaybackEnded(finalPositionMs, finalDurationMs, reason) {
             playerRoot.mainItemLoaded = false
-            mpvController.clearSoundtrackOverlay()
+            mpvController.clearTrackOverlay()
             localFilesBackend.stopAudio()
             var pos   = lastKnownPositionMs  || finalPositionMs
             var dur   = lastKnownDurationMs  || finalDurationMs
