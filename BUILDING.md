@@ -1,6 +1,6 @@
-# Building 240-mp-jellyfin
+# Building OwlSwitch
 
-This fork is macOS-only. CMake intentionally fails configuration on non-macOS hosts.
+OwlSwitch remains in the `240-mp-jellyfin` repository but builds and installs as `OwlSwitch.app`. The signed DMG supplies hidden legacy aliases required by the existing updater contract. This fork is macOS-only; CMake intentionally fails configuration on non-macOS hosts.
 
 ## macOS (ARM)
 
@@ -24,9 +24,9 @@ brew install qt
 brew install mpv ffmpeg
 ```
 
-240-mp-jellyfin uses mpv as an external subprocess for video playback, `ffprobe` for local audio/subtitle track probing, and `ffmpeg` to merge high-quality Karaoke prefetches. Development runs can use Homebrew copies from `PATH`. Packaged apps embed all three helpers and their non-system dynamic libraries during `cmake --install`.
+OwlSwitch uses mpv as an external subprocess for video playback, `ffprobe` for local audio/subtitle track probing, and `ffmpeg` to merge high-quality Karaoke prefetches. Development runs can use Homebrew copies from `PATH`. Packaged apps embed all three helpers and their non-system dynamic libraries during `cmake --install`.
 
-CMake also downloads pinned Apple Silicon-compatible Deno and standalone universal `yt-dlp` release assets, verifies their SHA-256 checksums, and embeds them with their license files. These power Karaoke catalog extraction and mpv's YouTube handoff without relying on a user's Python, JavaScript runtime, yt-dlp, or Homebrew installation. Maintainers can test a local helper build with `-DYT_DLP_EXECUTABLE_OVERRIDE=/path/to/yt-dlp` or `-DDENO_EXECUTABLE_OVERRIDE=/path/to/deno`; release builds should use the pinned defaults.
+CMake also downloads pinned Apple Silicon-compatible Deno and the official universal yt-dlp onedir archive, verifies their SHA-256 checksums, and embeds them with their license files. The installed `helper-manifest.json` is the authority for versions, archive digests, paths, and the required onedir runtime. This avoids yt-dlp's first-use self-extraction while remaining independent of a user's Python, JavaScript runtime, yt-dlp, or Homebrew installation. Maintainers can test a local standalone helper with `-DYT_DLP_EXECUTABLE_OVERRIDE=/path/to/yt-dlp` or `-DDENO_EXECUTABLE_OVERRIDE=/path/to/deno`; release builds must use the pinned defaults.
 
 Jellyfin playback sends authentication headers to mpv through a temporary owner-only mpv include file. Tokens are not placed in normal Jellyfin stream URLs, and the app's playback launch log redacts known token query parameters.
 
@@ -59,10 +59,10 @@ The repository Run action and its terminal equivalent build first, stop any prio
 ./script/build_and_run.sh
 ```
 
-You can also double-click `build/240-mp-jellyfin.app` in Finder, or run the executable directly:
+You can also double-click `build/OwlSwitch.app` in Finder, or run the executable directly:
 
 ```bash
-APP_ROOT=$(pwd) ./build/240-mp-jellyfin.app/Contents/MacOS/240-mp-jellyfin
+APP_ROOT=$(pwd) ./build/OwlSwitch.app/Contents/MacOS/OwlSwitch
 ```
 
 ### Configuration
@@ -94,14 +94,16 @@ This directory is created automatically on first run. It is separate from the ap
 
 ## Debugging & logs
 
-240-mp-jellyfin logs to **stdout/stderr** via Qt's `qDebug` / `qWarning` (used throughout `AppCore`, `MpvController`, and the module backends).
+OwlSwitch logs to **stdout/stderr** via Qt's `qDebug` / `qWarning` and writes already-sanitized, owner-only rotating structured events under `diagnostics/` in the existing Application Support directory. Settings → Diagnostics previews the bounded events and provides explicit Send Report/Clear Local Log actions; reports are never sent automatically.
+
+The GitHub-issue aggregation Worker lives in `diagnostics-relay/`. `npm run check` tests and dry-runs it without deployment. Its README documents the dedicated KV bindings and GitHub App secrets that must be configured before a deliberate, separate deploy.
 
 ### Running from source
 
 Just run the binary in a terminal and the logs will print right there:
 
 ```bash
-APP_ROOT=$(pwd) ./build/240-mp-jellyfin.app/Contents/MacOS/240-mp-jellyfin
+APP_ROOT=$(pwd) ./build/OwlSwitch.app/Contents/MacOS/OwlSwitch
 ```
 
 ### mpv playback logs
@@ -119,7 +121,7 @@ QT_LOGGING_RULES="qt.qml.*=true"   # verbose QML engine logging
 QML_IMPORT_TRACE=1                 # trace QML import resolution (missing modules/components)
 ```
 
-Set them inline, e.g. `QML_IMPORT_TRACE=1 APP_ROOT=$(pwd) ./build/240-mp-jellyfin.app/Contents/MacOS/240-mp-jellyfin`.
+Set them inline, e.g. `QML_IMPORT_TRACE=1 APP_ROOT=$(pwd) ./build/OwlSwitch.app/Contents/MacOS/OwlSwitch`.
 
 ## GitHub Actions
 
@@ -268,11 +270,11 @@ For packaging changes, also run a local install into a temporary prefix and conf
 
 ```bash
 cmake --install build --prefix /tmp/240mp-jellyfin-install-test
-/tmp/240mp-jellyfin-install-test/240-mp-jellyfin.app/Contents/Resources/bin/mpv --version
-/tmp/240mp-jellyfin-install-test/240-mp-jellyfin.app/Contents/Resources/bin/ffmpeg -version
-/tmp/240mp-jellyfin-install-test/240-mp-jellyfin.app/Contents/Resources/bin/ffprobe -version
-/tmp/240mp-jellyfin-install-test/240-mp-jellyfin.app/Contents/Resources/bin/yt-dlp --version
-/tmp/240mp-jellyfin-install-test/240-mp-jellyfin.app/Contents/Resources/bin/deno --version
+/tmp/240mp-jellyfin-install-test/OwlSwitch.app/Contents/Resources/bin/mpv --version
+/tmp/240mp-jellyfin-install-test/OwlSwitch.app/Contents/Resources/bin/ffmpeg -version
+/tmp/240mp-jellyfin-install-test/OwlSwitch.app/Contents/Resources/bin/ffprobe -version
+/tmp/240mp-jellyfin-install-test/OwlSwitch.app/Contents/Resources/bin/yt-dlp --version
+/tmp/240mp-jellyfin-install-test/OwlSwitch.app/Contents/Resources/bin/deno --version
 ```
 
 Run the DMG layout fixtures independently when changing packaging or release workflows:
@@ -304,9 +306,9 @@ cmake --build build
 This retains tracked development scripts, CMake helpers, entitlements, source, and tests while removing old build/package trees, DMGs, logs, caches, and Finder metadata.
 
 When applying hardened-runtime signatures, preserve the bundled Deno binary's
-upstream entitlements. Sign standalone yt-dlp with
-`packaging/yt-dlp.entitlements` because its PyInstaller launcher extracts and
-loads its embedded Python runtime dynamically. Sign mpv with
+upstream entitlements. Sign the yt-dlp onedir launcher with
+`packaging/yt-dlp.entitlements` because it loads its adjacent Python runtime
+dynamically, and sign every nested Mach-O runtime file before the launcher. Sign mpv with
 `packaging/mpv.entitlements` because its LuaJIT engine generates executable
 memory when loading playback scripts.
 

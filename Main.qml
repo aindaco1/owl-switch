@@ -5,6 +5,7 @@ import Components
 
 Window {
     id: root
+    title: "OwlSwitch - Video Controller"
     flags: Qt.FramelessWindowHint | Qt.Window
     x:      Qt.platform.os === "osx" ? macScreenX      : Screen.virtualX
     y:      Qt.platform.os === "osx" ? macScreenY      : Screen.virtualY

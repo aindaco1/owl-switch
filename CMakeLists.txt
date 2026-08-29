@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(240mp VERSION 1.6.3 LANGUAGES CXX)
+project(240mp VERSION 1.6.4 LANGUAGES CXX)
 
 if(NOT APPLE)
     message(FATAL_ERROR "This fork is macOS-only. Configure and build it on macOS.")
@@ -12,8 +12,10 @@ set(CMAKE_AUTOMOC ON)
 # making moc output reproducible, this avoids broken paths when the build tree
 # is reached through a symlink such as macOS's /tmp -> /private/tmp.
 set(CMAKE_AUTOMOC_PATH_PREFIX ON)
-set(APP_DISPLAY_NAME "240-mp-jellyfin")
-set(APP_RELEASE_TAG "v1.6.3")
+set(APP_PRODUCT_NAME "OwlSwitch")
+set(APP_DISPLAY_NAME "${APP_PRODUCT_NAME}")
+set(APP_LEGACY_NAME "240-mp-jellyfin")
+set(APP_RELEASE_TAG "v1.6.4")
 set(APP_BUNDLE_IDENTIFIER "com.240mp.jellyfin" CACHE STRING "macOS bundle identifier")
 set(APP_UPDATE_REPOSITORY "aindaco1/240-mp-jellyfin" CACHE STRING "GitHub update repository")
 set(APP_UPDATE_TEAM_ID "PWT3Q52LZ2" CACHE STRING "Expected Developer ID team for updates")
@@ -27,6 +29,11 @@ find_program(MPV_EXECUTABLE NAMES mpv)
 find_program(FFMPEG_EXECUTABLE NAMES ffmpeg)
 find_program(FFPROBE_EXECUTABLE NAMES ffprobe)
 include(cmake/BundledHelpers.cmake)
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated")
+configure_file(
+    "${CMAKE_SOURCE_DIR}/cmake/helper-manifest.json.in"
+    "${CMAKE_BINARY_DIR}/generated/helper-manifest.json"
+    @ONLY)
 
 if(MPV_EXECUTABLE)
     get_filename_component(MPV_EXECUTABLE_REAL "${MPV_EXECUTABLE}" REALPATH)
@@ -66,6 +73,9 @@ add_executable(240mp
     src/input/InputManager.mm
     src/update/UpdateManager.cpp
     src/tools/HelperResolver.cpp
+    src/tools/YouTubeJob.cpp
+    src/tools/YouTubePolicy.cpp
+    src/diagnostics/DiagnosticsManager.cpp
     src/macos_utils.mm
 )
 
@@ -75,6 +85,9 @@ target_compile_definitions(app_build_config INTERFACE
     APP_BUNDLE_IDENTIFIER="${APP_BUNDLE_IDENTIFIER}"
     APP_UPDATE_REPOSITORY="${APP_UPDATE_REPOSITORY}"
     APP_UPDATE_TEAM_ID="${APP_UPDATE_TEAM_ID}"
+    APP_PRODUCT_NAME="${APP_PRODUCT_NAME}"
+    APP_BUNDLE_NAME="${APP_DISPLAY_NAME}.app"
+    APP_LEGACY_BUNDLE_NAME="${APP_LEGACY_NAME}.app"
 )
 
 target_compile_definitions(240mp PRIVATE
@@ -124,10 +137,30 @@ if(BUILD_TESTING)
     target_link_libraries(display_selection_tests PRIVATE Qt6::Core Qt6::Test)
     add_test(NAME display_selection COMMAND display_selection_tests)
 
+    add_executable(right_shift_back_tracker_tests
+        tests/RightShiftBackTrackerTest.cpp
+    )
+    target_include_directories(right_shift_back_tracker_tests PRIVATE src)
+    target_link_libraries(right_shift_back_tracker_tests PRIVATE Qt6::Core Qt6::Test)
+    add_test(NAME right_shift_back_tracker COMMAND right_shift_back_tracker_tests)
+
+    add_executable(input_manager_tests
+        tests/InputManagerTest.mm
+        src/input/InputManager.mm
+    )
+    target_include_directories(input_manager_tests PRIVATE src)
+    target_link_libraries(input_manager_tests PRIVATE
+        Qt6::Core Qt6::Gui Qt6::Quick Qt6::Test
+        "-framework GameController"
+    )
+    add_test(NAME input_manager COMMAND input_manager_tests)
+
     add_executable(karaoke_backend_tests
         tests/KaraokeBackendTest.cpp
         src/modules/karaoke/KaraokeBackend.cpp
         src/tools/HelperResolver.cpp
+        src/tools/YouTubeJob.cpp
+        src/tools/YouTubePolicy.cpp
     )
     target_compile_definitions(karaoke_backend_tests PRIVATE
         DEV_YT_DLP_EXECUTABLE="${YT_DLP_EXECUTABLE}"
@@ -169,6 +202,7 @@ if(BUILD_TESTING)
         tests/MpvControllerTest.cpp
         src/player/MpvController.cpp
         src/tools/HelperResolver.cpp
+        src/tools/YouTubePolicy.cpp
         src/AppCore.cpp
     )
     target_include_directories(mpv_controller_tests PRIVATE src)
@@ -190,6 +224,8 @@ if(BUILD_TESTING)
         tests/LocalFilesBackendTest.cpp
         src/modules/local_files/LocalFilesBackend.cpp
         src/tools/HelperResolver.cpp
+        src/tools/YouTubeJob.cpp
+        src/tools/YouTubePolicy.cpp
     )
     target_compile_definitions(local_files_backend_tests PRIVATE
         DEV_YT_DLP_EXECUTABLE="${YT_DLP_EXECUTABLE}"
@@ -198,6 +234,24 @@ if(BUILD_TESTING)
     target_include_directories(local_files_backend_tests PRIVATE src)
     target_link_libraries(local_files_backend_tests PRIVATE Qt6::Core Qt6::Network Qt6::Test)
     add_test(NAME local_files_backend COMMAND local_files_backend_tests)
+
+    add_executable(youtube_tools_tests
+        tests/YouTubeToolsTest.cpp
+        src/tools/HelperResolver.cpp
+        src/tools/YouTubeJob.cpp
+        src/tools/YouTubePolicy.cpp
+    )
+    target_include_directories(youtube_tools_tests PRIVATE src)
+    target_link_libraries(youtube_tools_tests PRIVATE Qt6::Core Qt6::Test)
+    add_test(NAME youtube_tools COMMAND youtube_tools_tests)
+
+    add_executable(diagnostics_manager_tests
+        tests/DiagnosticsManagerTest.cpp
+        src/diagnostics/DiagnosticsManager.cpp
+    )
+    target_include_directories(diagnostics_manager_tests PRIVATE src)
+    target_link_libraries(diagnostics_manager_tests PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+    add_test(NAME diagnostics_manager COMMAND diagnostics_manager_tests)
 
     add_executable(update_manager_tests
         tests/UpdateManagerTest.cpp
@@ -293,12 +347,23 @@ endif()
 set_target_properties(240mp PROPERTIES
     OUTPUT_NAME "${APP_DISPLAY_NAME}"
     MACOSX_BUNDLE TRUE
-    MACOSX_BUNDLE_BUNDLE_NAME "${APP_DISPLAY_NAME}"
+    MACOSX_BUNDLE_BUNDLE_NAME "${APP_PRODUCT_NAME}"
     MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
     MACOSX_BUNDLE_GUI_IDENTIFIER "${APP_BUNDLE_IDENTIFIER}"
     MACOSX_BUNDLE_ICON_FILE "assets/images/240-mp"
     INSTALL_RPATH_USE_LINK_PATH TRUE
+)
+
+# Keep a compatibility executable alias inside the renamed bundle. Released
+# 1.6.3 updaters validate this historical path before copying the new app.
+add_custom_command(TARGET 240mp POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E remove -f
+        "$<TARGET_BUNDLE_CONTENT_DIR:240mp>/MacOS/${APP_LEGACY_NAME}"
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "${APP_DISPLAY_NAME}"
+        "$<TARGET_BUNDLE_CONTENT_DIR:240mp>/MacOS/${APP_LEGACY_NAME}"
+    COMMENT "Adding legacy executable alias for updater compatibility"
 )
 
 # ── Dev bundle symlink (macOS only, non-CI) ───────────────────────────────────
@@ -320,6 +385,19 @@ endif()
 
 # ── Install rules ──────────────────────────────────────────────────────────────
 install(TARGETS 240mp BUNDLE DESTINATION . COMPONENT Runtime)
+
+install(CODE "
+    set(legacy_executable \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${APP_DISPLAY_NAME}.app/Contents/MacOS/${APP_LEGACY_NAME}\")
+    file(REMOVE \"\${legacy_executable}\")
+    execute_process(
+        COMMAND \"${CMAKE_COMMAND}\" -E create_symlink
+            \"${APP_DISPLAY_NAME}\" \"\${legacy_executable}\"
+        RESULT_VARIABLE legacy_executable_result
+    )
+    if(NOT legacy_executable_result EQUAL 0)
+        message(FATAL_ERROR \"Failed to add legacy executable alias\")
+    endif()
+")
 
 # Dev builds symlink Contents/Resources to the repo root. If a local
 # cmake --install copies that symlink, subsequent install rules write back
@@ -358,6 +436,13 @@ install(PROGRAMS "${YT_DLP_EXECUTABLE}"
     RENAME yt-dlp
     COMPONENT Runtime)
 
+if(YT_DLP_RUNTIME_DIRECTORY)
+    install(DIRECTORY "${YT_DLP_RUNTIME_DIRECTORY}"
+        DESTINATION "${APP_DISPLAY_NAME}.app/Contents/Resources/bin"
+        USE_SOURCE_PERMISSIONS
+        COMPONENT Runtime)
+endif()
+
 install(PROGRAMS "${DENO_EXECUTABLE}"
     DESTINATION "${APP_DISPLAY_NAME}.app/Contents/Resources/bin"
     RENAME deno
@@ -368,6 +453,10 @@ install(FILES
     ${BUNDLED_YT_DLP_LICENSES}
     "${BUNDLED_DENO_LICENSE}"
     DESTINATION "${APP_DISPLAY_NAME}.app/Contents/Resources/licenses"
+    COMPONENT Runtime)
+
+install(FILES "${CMAKE_BINARY_DIR}/generated/helper-manifest.json"
+    DESTINATION "${APP_DISPLAY_NAME}.app/Contents/Resources"
     COMPONENT Runtime)
 
 if(MPV_EXECUTABLE)
@@ -422,13 +511,13 @@ endif()
 # is environment-specific. Run it manually in CI after cmake --install.
 
 # ── CPack ──────────────────────────────────────────────────────────────────────
-set(CPACK_PACKAGE_NAME "${APP_DISPLAY_NAME}")
+set(CPACK_PACKAGE_NAME "${APP_PRODUCT_NAME}")
 set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "240-mp-jellyfin Media Player")
-set(CPACK_PACKAGE_VENDOR "240-mp-jellyfin")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "OwlSwitch Video Controller")
+set(CPACK_PACKAGE_VENDOR "OwlSwitch")
 
 set(CPACK_GENERATOR "DragNDrop")
-set(CPACK_DMG_VOLUME_NAME "${APP_DISPLAY_NAME}")
+set(CPACK_DMG_VOLUME_NAME "${APP_PRODUCT_NAME}")
 set(CPACK_DMG_FORMAT "UDZO")
 
 include(CPack)

@@ -37,20 +37,23 @@ expect_failure() {
 
 make_valid_layout() {
     local root="$1"
-    /bin/mkdir -p "$root/240-mp-jellyfin.app"
+    /bin/mkdir -p "$root/OwlSwitch.app"
+    /bin/ln -s OwlSwitch.app "$root/240-mp-jellyfin.app"
     /bin/ln -s /Applications "$root/Applications"
 }
 
-source_app="$test_root/source/240-mp-jellyfin.app"
+source_app="$test_root/source/OwlSwitch.app"
 /bin/mkdir -p "$source_app/Contents"
 stage_root="$test_root/staged"
 /bin/zsh "$contract_script" stage "$source_app" "$stage_root"
 /bin/zsh "$contract_script" validate-layout "$stage_root"
 
 staged_entries=("$stage_root"/*(DN))
-(( ${#staged_entries} == 2 )) || fail "staged layout did not contain exactly two entries"
+(( ${#staged_entries} == 3 )) || fail "staged layout did not contain exactly three entries"
 [[ "$(/usr/bin/readlink "$stage_root/Applications")" == "/Applications" ]] ||
     fail "staged Applications shortcut was redirected"
+[[ "$(/usr/bin/readlink "$stage_root/240-mp-jellyfin.app")" == "OwlSwitch.app" ]] ||
+    fail "staged legacy updater alias was redirected"
 
 existing_stage="$test_root/existing-stage"
 /bin/mkdir "$existing_stage"
@@ -85,10 +88,18 @@ expect_failure "extra top-level entry" \
 
 linked_app="$test_root/linked-app"
 /bin/mkdir "$linked_app"
-/bin/ln -s /tmp "$linked_app/240-mp-jellyfin.app"
+/bin/ln -s /tmp "$linked_app/OwlSwitch.app"
+/bin/ln -s OwlSwitch.app "$linked_app/240-mp-jellyfin.app"
 /bin/ln -s /Applications "$linked_app/Applications"
 expect_failure "symlinked app bundle" \
     /bin/zsh "$contract_script" validate-layout "$linked_app"
+
+redirected_legacy_alias="$test_root/redirected-legacy-alias"
+make_valid_layout "$redirected_legacy_alias"
+/bin/rm "$redirected_legacy_alias/240-mp-jellyfin.app"
+/bin/ln -s /tmp "$redirected_legacy_alias/240-mp-jellyfin.app"
+expect_failure "redirected legacy updater alias" \
+    /bin/zsh "$contract_script" validate-layout "$redirected_legacy_alias"
 
 expect_failure "relative layout root" \
     /bin/zsh "$contract_script" validate-layout relative-layout

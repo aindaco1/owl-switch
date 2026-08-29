@@ -2,6 +2,13 @@
 
 Version 1.1 completed the fork's daily-use Apple Silicon macOS foundation. Future work stays focused on reliability and depth in the existing modules rather than expanding platform or module scope.
 
+## Shipped In 1.6.4
+
+- OwlSwitch visible product identity with the tagline “the owls are not what they seem,” while retaining every update/data compatibility identifier from 1.6.3.
+- Official pinned yt-dlp onedir packaging, post-launch no-network warm-up, shared YouTube profiles/jobs, one helper manifest, and reusable live canaries.
+- Immediate Karaoke entry with backend paging/search, progressive Local playlist import, and persistent Retro mpv switching.
+- Reviewable, explicitly submitted, doubly sanitized diagnostics plus a fail-closed GitHub-issue aggregation relay ready for separate deployment.
+
 ## Shipped In 1.6.3
 
 - Shared, larger bottom-right artist/title card with centered text and stronger contrast for Local soundtrack metadata.
@@ -56,9 +63,8 @@ Version 1.1 completed the fork's daily-use Apple Silicon macOS foundation. Futur
 
 ### Diagnostics And Recovery
 
-- Add a diagnostics screen for bundled helper versions, app/config/log paths, display selection, and redacted playback failures.
 - Distinguish helper, authentication, negotiation, network, and codec failures in user-facing playback errors.
-- Add a redacted copy-diagnostics action.
+- Add a local export action for the same bounded report preview when offline support needs a file handoff.
 
 ### First-Run Experience
 

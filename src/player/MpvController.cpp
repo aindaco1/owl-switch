@@ -1,6 +1,7 @@
 #include "MpvController.h"
 #include "AppCore.h"
 #include "tools/HelperResolver.h"
+#include "tools/YouTubePolicy.h"
 #include <QDir>
 #include <QFile>
 #include <QProcessEnvironment>
@@ -281,6 +282,10 @@ void MpvController::loadAndPlay(const QString &url, float startSeconds,
                                  const QStringList &httpHeaderFields,
                                  const QString &videoFilters,
                                  const QStringList &inputBindings) {
+    const QString youtubeProfile =
+        oscMode == QLatin1String("karaoke") || oscMode == QLatin1String("retro")
+        ? YouTubePolicy::profileName(YouTubePolicy::MediaProfile::Video720p)
+        : QString{};
     loadAndPlayWithOptions(url, QVariantMap{
         {"startSeconds", startSeconds},
         {"audioTrack", audioTrack},
@@ -293,6 +298,7 @@ void MpvController::loadAndPlay(const QString &url, float startSeconds,
         {"plexToken", plexToken},
         {"muteAudio", muteAudio},
         {"oscMode", oscMode},
+        {"youtubeProfile", youtubeProfile},
         {"shuffle", shuffle},
         {"httpHeaderFields", httpHeaderFields},
         {"videoFilters", videoFilters},
@@ -315,6 +321,12 @@ void MpvController::loadAndPlayWithOptions(const QString &url, const QVariantMap
     const QString plexToken = options.value("plexToken").toString();
     const bool muteAudio = options.value("muteAudio").toBool();
     const QString oscMode = options.value("oscMode").toString();
+    QString youtubeProfileName = options.value("youtubeProfile").toString();
+    if (youtubeProfileName.isEmpty() &&
+        (oscMode == QLatin1String("karaoke") || oscMode == QLatin1String("retro"))) {
+        youtubeProfileName = YouTubePolicy::profileName(
+            YouTubePolicy::MediaProfile::Video720p);
+    }
     const bool shuffle = options.value("shuffle").toBool();
     const QStringList httpHeaderFields = options.value("httpHeaderFields").toStringList();
     const QString videoFilters = options.value("videoFilters").toString();
@@ -368,7 +380,7 @@ void MpvController::loadAndPlayWithOptions(const QString &url, const QVariantMap
     {
         QFile lf(m_logFilePath);
         if (lf.open(QFile::Append | QFile::Text)) {
-            lf.write(QString("\n=== 240-mp-jellyfin session start %1 ===\n    url: %2\n\n")
+            lf.write(QString("\n=== OwlSwitch session start %1 ===\n    url: %2\n\n")
                          .arg(QDateTime::currentDateTime().toString(Qt::ISODate))
                          .arg(redactedUrlForLog(url))
                          .toUtf8());
@@ -454,10 +466,10 @@ void MpvController::loadAndPlayWithOptions(const QString &url, const QVariantMap
         args << QString("--image-display-duration=%1").arg(imageDurationSeconds);
     args << extraArguments;
 
-    const bool usesYoutube = oscMode == QStringLiteral("karaoke")
-                          || oscMode == QStringLiteral("retro");
-    if (usesYoutube)
-        args << HelperResolver::youtubeMpvArguments(m_appRoot);
+    const YouTubePolicy::MediaProfile youtubeProfile =
+        YouTubePolicy::profileFromName(youtubeProfileName);
+    if (youtubeProfile != YouTubePolicy::MediaProfile::None)
+        args << YouTubePolicy::mpvArguments(m_appRoot, youtubeProfile);
 
     QStringList playbackHeaders = httpHeaderFields;
     if (!plexToken.isEmpty()) {
@@ -741,6 +753,21 @@ void MpvController::replacePlaylistItem(int index, const QString &url) {
     // displaced entry now one slot later.
     sendPlaylistCommand({"loadfile", url, "insert-at", index});
     sendPlaylistCommand({"playlist-remove", index + 1});
+}
+
+bool MpvController::replaceCurrentMedia(const QString &url) {
+    const QString value = url.trimmed();
+    if (value.isEmpty() || !m_process ||
+        m_process->state() == QProcess::NotRunning) {
+        return false;
+    }
+    clearTrackOverlay();
+    m_position = 0;
+    m_duration = 0;
+    m_lastEndFileReason.clear();
+    m_lastEndFileError.clear();
+    sendPlaylistCommand({"loadfile", value, "replace"});
+    return true;
 }
 
 void MpvController::removePlaylistItem(int index) {

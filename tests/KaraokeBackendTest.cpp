@@ -295,6 +295,11 @@ void KaraokeBackendTest::cleansProviderTitles()
         QStringLiteral("Trentemoller Ft. Sune Rose Wagner - Deceive"));
     QCOMPARE(
         KaraokeBackend::cleanedTitle(
+            QStringLiteral("DABEULL - Feat. HOLYBRUNE - DX7"),
+            QStringLiteral("one_music_karaoke")),
+        QStringLiteral("DABEULL Ft. HOLYBRUNE - DX7"));
+    QCOMPARE(
+        KaraokeBackend::cleanedTitle(
             QStringLiteral(
                 "Cigarettes After Sex - Apocalypse (Karaoke Version)"),
             QStringLiteral("karaoke_office")),
@@ -1188,6 +1193,14 @@ void KaraokeBackendTest::loadsFreshCatalogCache()
              QStringLiteral("https://www.youtube.com/watch?v=abcDEF123_-"));
     QCOMPARE(loaded.value(QStringLiteral("sourceId")).toString(),
              QStringLiteral("funbox"));
+
+    const QVariantMap search = backend.searchCatalog(QStringLiteral("cached song"), 0, 25);
+    QCOMPARE(search.value(QStringLiteral("total")).toInt(), 1);
+    QCOMPARE(search.value(QStringLiteral("offset")).toInt(), 0);
+    const QVariantList searchItems = search.value(QStringLiteral("items")).toList();
+    QCOMPARE(searchItems.size(), 1);
+    QCOMPARE(searchItems.first().toMap().value(QStringLiteral("videoId")).toString(),
+             QStringLiteral("abcDEF123_-"));
 }
 
 void KaraokeBackendTest::loadsLegacyMultiSourceCatalogCache()
@@ -2549,6 +2562,17 @@ void KaraokeBackendTest::prefetchesLivePlaybackMedia()
     QCOMPARE(backend.cachedPlaybackPath(QStringLiteral("Ofh80EmEwRA")), path);
 }
 
-QTEST_GUILESS_MAIN(KaraokeBackendTest)
+int main(int argc, char **argv)
+{
+    // The exhaustive live refresh intentionally allows ten minutes across all
+    // configured sources. QtTest otherwise aborts the function at its global
+    // five-minute default before the test's explicit wait can finish.
+    if (qEnvironmentVariable("KARAOKE_LIVE_TEST") == QLatin1String("1"))
+        qputenv("QTEST_FUNCTION_TIMEOUT", QByteArrayLiteral("650000"));
+
+    QCoreApplication application(argc, argv);
+    KaraokeBackendTest testObject;
+    return QTest::qExec(&testObject, argc, argv);
+}
 
 #include "KaraokeBackendTest.moc"

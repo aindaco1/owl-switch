@@ -2,7 +2,8 @@
 set -eu
 setopt pipe_fail null_glob
 
-readonly APP_NAME="240-mp-jellyfin.app"
+readonly APP_NAME="OwlSwitch.app"
+readonly LEGACY_APP_ALIAS="240-mp-jellyfin.app"
 readonly APPLICATIONS_LINK_NAME="Applications"
 readonly APPLICATIONS_LINK_TARGET="/Applications"
 
@@ -26,25 +27,34 @@ validate_layout() {
 
     local -a entries
     entries=("$layout_root"/*(DN))
-    (( ${#entries} == 2 )) ||
-        fail "DMG layout must contain exactly the app and Applications shortcut"
+    (( ${#entries} == 3 )) ||
+        fail "DMG layout must contain the app, updater alias, and Applications shortcut"
 
     local saw_app=false
+    local saw_legacy_alias=false
     local saw_applications=false
     local entry
     for entry in "${entries[@]}"; do
         case "${entry:t}" in
             "$APP_NAME") saw_app=true ;;
+            "$LEGACY_APP_ALIAS") saw_legacy_alias=true ;;
             "$APPLICATIONS_LINK_NAME") saw_applications=true ;;
             *) fail "unexpected top-level DMG entry: ${entry:t}" ;;
         esac
     done
-    [[ "$saw_app" == true && "$saw_applications" == true ]] ||
+    [[ "$saw_app" == true && "$saw_legacy_alias" == true &&
+       "$saw_applications" == true ]] ||
         fail "DMG layout is missing a required entry"
 
     local app_path="$layout_root/$APP_NAME"
     [[ -d "$app_path" && ! -L "$app_path" ]] ||
         fail "DMG app must be a real directory"
+
+    local legacy_alias="$layout_root/$LEGACY_APP_ALIAS"
+    [[ -L "$legacy_alias" ]] ||
+        fail "DMG updater compatibility entry must be a symbolic link"
+    [[ "$(/usr/bin/readlink "$legacy_alias")" == "$APP_NAME" ]] ||
+        fail "DMG updater compatibility entry must point exactly to $APP_NAME"
 
     local applications_link="$layout_root/$APPLICATIONS_LINK_NAME"
     [[ -L "$applications_link" ]] ||
@@ -65,6 +75,8 @@ stage_layout() {
 
     /bin/mkdir -p "$staging_root"
     /usr/bin/ditto --norsrc --noextattr "$source_app" "$staging_root/$APP_NAME"
+    /bin/ln -s "$APP_NAME" "$staging_root/$LEGACY_APP_ALIAS"
+    /usr/bin/chflags -h hidden "$staging_root/$LEGACY_APP_ALIAS"
     /bin/ln -s "$APPLICATIONS_LINK_TARGET" "$staging_root/$APPLICATIONS_LINK_NAME"
     validate_layout "$staging_root"
 }

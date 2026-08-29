@@ -159,8 +159,9 @@ FocusScope {
 
         // SYSTEM section
         items.push({ type: "section", label: "System:" })
+        items.push({ type: "system_submenu", label: "Diagnostics", path: "views/Diagnostics.qml" })
         items.push({ type: "system_submenu", label: "Software Update", path: "views/Update.qml" })
-        items.push({ type: "quit", label: "Quit 240-mp-jellyfin" })
+        items.push({ type: "quit", label: "Quit OwlSwitch" })
 
         settingsItems = items
 

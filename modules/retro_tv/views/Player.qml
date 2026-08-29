@@ -33,6 +33,7 @@ FocusScope {
     property bool suppressFinish: false
     property bool usingExternalOutput: false
     property bool pendingStatusOsd: false
+    property bool mpvSessionActive: false
 
     signal goBack()
 
@@ -233,9 +234,18 @@ FocusScope {
 
         loadState = "playing"
         suppressFinish = false
-        mpvController.loadAndPlay(videoUrl(clip), 0.0, 0, -1, [], true, -1, 0.0,
-                                  "", false, "retro", false, [], effectFilters(),
-                                  retroInputBindings())
+        if (mpvSessionActive && mpvController.replaceCurrentMedia(videoUrl(clip))) {
+            mpvController.setVideoFilters(effectFilters())
+        } else {
+            mpvSessionActive = true
+            mpvController.loadAndPlayWithOptions(videoUrl(clip), {
+                loop: true,
+                oscMode: "retro",
+                youtubeProfile: "video720p",
+                videoFilters: effectFilters(),
+                inputBindings: retroInputBindings()
+            })
+        }
 
         var label = channel.year + " " + channel.categoryLabel + " CH " + (currentIndex + 1)
         if (channel.clips.length > 1)
@@ -248,10 +258,6 @@ FocusScope {
             pendingPreferredClipIndex = preferredClipIndex
             showStaticOutput()
             staticOverlayHideTimer.stop()
-            if (!staticTransitionTimer.running) {
-                suppressFinish = true
-                mpvController.stop()
-            }
             staticTransitionTimer.restart()
             return
         }
@@ -350,6 +356,7 @@ FocusScope {
         staticOverlayHideTimer.stop()
         suppressFinish = true
         mpvController.stop()
+        mpvSessionActive = false
         loadState = "error"
         errorText = message
     }
@@ -361,6 +368,7 @@ FocusScope {
         staticOverlayHideTimer.stop()
         suppressFinish = true
         mpvController.stop()
+        mpvSessionActive = false
         goBack()
     }
 
@@ -384,6 +392,7 @@ FocusScope {
         staticOverlayHideTimer.stop()
         suppressFinish = true
         mpvController.stop()
+        mpvSessionActive = false
         filterList.forceActiveFocus()
     }
 
@@ -588,6 +597,7 @@ FocusScope {
         }
 
         function onPlaybackEnded(finalPositionMs, finalDurationMs, reason) {
+            mpvSessionActive = false
             if (suppressFinish) {
                 suppressFinish = false
                 return

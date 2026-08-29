@@ -1,0 +1,18 @@
+{
+  "name": "owlswitch-diagnostics-relay",
+  "version": "1.6.4",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local",
+    "test": "node --test test/*.test.mjs",
+    "check": "npm test && wrangler deploy --dry-run",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@octokit/auth-app": "8.3.0"
+  },
+  "devDependencies": {
+    "wrangler": "4.127.1"
+  }
+}

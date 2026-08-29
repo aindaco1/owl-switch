@@ -1,9 +1,10 @@
-set(YT_DLP_VERSION "2026.08.19" CACHE STRING "Pinned yt-dlp release")
-set(YT_DLP_SHA256 "0f192b7ec147ab6288885d6351d9ab67367640029b4377576ef46dd79cf7b202"
-    CACHE STRING "SHA-256 for the pinned yt-dlp_macos executable")
-set(DENO_VERSION "2.9.3" CACHE STRING "Pinned Deno release")
-set(DENO_SHA256 "1b2972f7ceb6df28d9600eab18d423bebb9aa18db02f01d7eb37a5b501482203"
-    CACHE STRING "SHA-256 for the pinned Deno Apple Silicon archive")
+# Release pins are source-controlled authority, not sticky cache knobs. Keeping
+# them out of CMakeCache ensures an existing developer build adopts a pin or
+# layout update on its next ordinary configure.
+set(YT_DLP_VERSION "2026.08.19")
+set(YT_DLP_SHA256 "07e54b0865303c864006925913bce2604f8ee8cc6f18699bac9c309f9328a6d8")
+set(DENO_VERSION "2.9.3")
+set(DENO_SHA256 "1b2972f7ceb6df28d9600eab18d423bebb9aa18db02f01d7eb37a5b501482203")
 
 set(YT_DLP_EXECUTABLE_OVERRIDE "" CACHE FILEPATH
     "Use an existing yt-dlp executable instead of downloading the pinned helper")
@@ -44,17 +45,34 @@ if(YT_DLP_EXECUTABLE_OVERRIDE)
             "YT_DLP_EXECUTABLE_OVERRIDE does not exist: ${YT_DLP_EXECUTABLE_OVERRIDE}")
     endif()
     set(YT_DLP_EXECUTABLE "${YT_DLP_EXECUTABLE_OVERRIDE}")
+    set(YT_DLP_RUNTIME_DIRECTORY "")
+    set(YT_DLP_INSTALLED_RUNTIME_DIRECTORY "")
+    set(YT_DLP_LAYOUT "standalone-override")
 else()
-    set(_yt_dlp_path "${_helper_cache}/yt-dlp-${YT_DLP_VERSION}")
+    set(_yt_dlp_archive "${_helper_cache}/yt-dlp-${YT_DLP_VERSION}-macos.zip")
+    set(_yt_dlp_dir "${_helper_cache}/yt-dlp-${YT_DLP_VERSION}-macos")
+    set(_yt_dlp_path "${_yt_dlp_dir}/yt-dlp_macos")
+    set(_yt_dlp_runtime_dir "${_yt_dlp_dir}/_internal")
     download_verified(
-        "https://github.com/yt-dlp/yt-dlp/releases/download/${YT_DLP_VERSION}/yt-dlp_macos"
-        "${_yt_dlp_path}"
+        "https://github.com/yt-dlp/yt-dlp/releases/download/${YT_DLP_VERSION}/yt-dlp_macos.zip"
+        "${_yt_dlp_archive}"
         "${YT_DLP_SHA256}")
+    if(NOT EXISTS "${_yt_dlp_path}" OR NOT IS_DIRECTORY "${_yt_dlp_runtime_dir}")
+        file(REMOVE_RECURSE "${_yt_dlp_dir}")
+        file(MAKE_DIRECTORY "${_yt_dlp_dir}")
+        file(ARCHIVE_EXTRACT INPUT "${_yt_dlp_archive}" DESTINATION "${_yt_dlp_dir}")
+    endif()
+    if(NOT EXISTS "${_yt_dlp_path}" OR NOT EXISTS "${_yt_dlp_runtime_dir}/Python")
+        message(FATAL_ERROR "Pinned yt-dlp onedir archive is missing its executable or runtime")
+    endif()
     file(CHMOD "${_yt_dlp_path}" PERMISSIONS
         OWNER_READ OWNER_WRITE OWNER_EXECUTE
         GROUP_READ GROUP_EXECUTE
         WORLD_READ WORLD_EXECUTE)
     set(YT_DLP_EXECUTABLE "${_yt_dlp_path}")
+    set(YT_DLP_RUNTIME_DIRECTORY "${_yt_dlp_runtime_dir}")
+    set(YT_DLP_INSTALLED_RUNTIME_DIRECTORY "bin/_internal")
+    set(YT_DLP_LAYOUT "onedir")
 endif()
 
 if(DENO_EXECUTABLE_OVERRIDE)

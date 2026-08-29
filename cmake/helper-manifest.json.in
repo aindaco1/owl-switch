@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "ytDlp": {
+    "version": "@YT_DLP_VERSION@",
+    "layout": "@YT_DLP_LAYOUT@",
+    "archiveSha256": "@YT_DLP_SHA256@",
+    "executable": "bin/yt-dlp",
+    "runtimeDirectory": "@YT_DLP_INSTALLED_RUNTIME_DIRECTORY@"
+  },
+  "deno": {
+    "version": "@DENO_VERSION@",
+    "archiveSha256": "@DENO_SHA256@",
+    "executable": "bin/deno"
+  },
+  "runtimeHelpers": [
+    "bin/mpv",
+    "bin/ffmpeg",
+    "bin/ffprobe"
+  ]
+}

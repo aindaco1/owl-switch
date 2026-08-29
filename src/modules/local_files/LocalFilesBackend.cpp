@@ -1,6 +1,7 @@
 #include "LocalFilesBackend.h"
 
 #include "tools/HelperResolver.h"
+#include "tools/YouTubePolicy.h"
 
 #include <QDir>
 #include <QFile>
@@ -50,6 +51,7 @@ const QStringList kSidecarSubtitleExts = {
 constexpr qint64 kMaxPlaylistBytes = 8 * 1024 * 1024;
 constexpr qint64 kMaxStateBytes = 16 * 1024 * 1024;
 constexpr qint64 kMaxYouTubePlaylistOutputBytes = 8 * 1024 * 1024;
+constexpr int kYouTubePlaylistPublishBatchSize = 16;
 
 bool writeOwnerOnlyAtomicFile(const QString &path, const QByteArray &contents)
 {
@@ -224,6 +226,15 @@ LocalFilesBackend::LocalFilesBackend(const QString &appRoot, const QString &data
     connect(m_audioConnectTimer, &QTimer::timeout,
             this, &LocalFilesBackend::tryConnectAudioIpc);
 
+    m_youtubePlaylistJob = new YouTubeJob(m_appRoot, this);
+    connect(m_youtubePlaylistJob, &YouTubeJob::outputReady, this,
+            [this](const QByteArray &output) {
+        m_youtubePlaylistOutputBuffer += output;
+        consumeYouTubePlaylistOutput();
+    });
+    connect(m_youtubePlaylistJob, &YouTubeJob::completed, this,
+            &LocalFilesBackend::onYouTubePlaylistJobCompleted);
+
     // Local remains configurable, with ~/Desktop as the sole default. The old
     // Loop root is intentionally not migrated into the consolidated module.
     QFile configFile(m_dataRoot + QStringLiteral("/config.json"));
@@ -262,76 +273,22 @@ bool LocalFilesBackend::isPlaylist(const QString &path) const
 
 bool LocalFilesBackend::isValidYouTubeVideoId(const QString &videoId)
 {
-    static const QRegularExpression valid(
-        QStringLiteral("^[A-Za-z0-9_-]{11}$"));
-    return valid.match(videoId).hasMatch();
+    return YouTubePolicy::isValidVideoId(videoId);
 }
 
 QString LocalFilesBackend::canonicalYouTubeVideoUrl(const QString &videoId)
 {
-    return isValidYouTubeVideoId(videoId)
-        ? QStringLiteral("https://www.youtube.com/watch?v=") + videoId
-        : QString{};
+    return YouTubePolicy::canonicalVideoUrl(videoId);
 }
 
 QString LocalFilesBackend::canonicalYouTubePlaylistUrl(const QString &input)
 {
-    QString value = input.trimmed();
-    if (value.startsWith(QLatin1String("www.youtube.com/"), Qt::CaseInsensitive) ||
-        value.startsWith(QLatin1String("youtube.com/"), Qt::CaseInsensitive) ||
-        value.startsWith(QLatin1String("m.youtube.com/"), Qt::CaseInsensitive) ||
-        value.startsWith(QLatin1String("music.youtube.com/"), Qt::CaseInsensitive) ||
-        value.startsWith(QLatin1String("youtu.be/"), Qt::CaseInsensitive)) {
-        value.prepend(QStringLiteral("https://"));
-    }
-    if (value.contains(QLatin1Char('\n')) || value.contains(QLatin1Char('\r')))
-        return {};
-
-    const QUrl url(value, QUrl::StrictMode);
-    if (!url.isValid() || url.scheme().compare(QLatin1String("https"),
-                                               Qt::CaseInsensitive) != 0) {
-        return {};
-    }
-    const QString host = url.host().toLower();
-    const bool youtubeHost = host == QLatin1String("youtube.com") ||
-        host == QLatin1String("www.youtube.com") ||
-        host == QLatin1String("m.youtube.com") ||
-        host == QLatin1String("music.youtube.com");
-    const bool shortHost = host == QLatin1String("youtu.be") ||
-        host == QLatin1String("www.youtu.be");
-    if ((!youtubeHost && !shortHost) || url.hasFragment())
-        return {};
-    if (youtubeHost && url.path() != QLatin1String("/playlist") &&
-        url.path() != QLatin1String("/watch")) {
-        return {};
-    }
-
-    const QString playlistId = QUrlQuery(url).queryItemValue(
-        QStringLiteral("list"), QUrl::FullyDecoded).trimmed();
-    static const QRegularExpression validPlaylistId(
-        QStringLiteral("^[A-Za-z0-9_-]{10,128}$"));
-    if (!validPlaylistId.match(playlistId).hasMatch())
-        return {};
-
-    QUrl canonical(QStringLiteral("https://www.youtube.com/playlist"));
-    QUrlQuery canonicalQuery;
-    canonicalQuery.addQueryItem(QStringLiteral("list"), playlistId);
-    canonical.setQuery(canonicalQuery);
-    return canonical.toString(QUrl::FullyEncoded);
+    return YouTubePolicy::canonicalPlaylistUrl(input);
 }
 
 bool LocalFilesBackend::isCanonicalYouTubeVideoUrl(const QString &url)
 {
-    const QUrl parsed(url, QUrl::StrictMode);
-    if (!parsed.isValid() || parsed.scheme() != QLatin1String("https") ||
-        parsed.host() != QLatin1String("www.youtube.com") ||
-        parsed.path() != QLatin1String("/watch") || parsed.hasFragment()) {
-        return false;
-    }
-    const QUrlQuery query(parsed);
-    const auto items = query.queryItems(QUrl::FullyDecoded);
-    return items.size() == 1 && items.first().first == QLatin1String("v") &&
-        isValidYouTubeVideoId(items.first().second);
+    return YouTubePolicy::isCanonicalVideoUrl(url);
 }
 
 bool LocalFilesBackend::isPathWithinMediaRoot(const QString &path) const
@@ -983,8 +940,7 @@ QVariantMap LocalFilesBackend::currentSoundtrack() const
 
 bool LocalFilesBackend::importYouTubePlaylist(const QString &url)
 {
-    if (m_youtubePlaylistProcess &&
-        m_youtubePlaylistProcess->state() != QProcess::NotRunning) {
+    if (m_youtubePlaylistJob->isRunning()) {
         emit youtubePlaylistImportFailed(
             QStringLiteral("A YouTube playlist is already loading."));
         return false;
@@ -1004,85 +960,41 @@ bool LocalFilesBackend::importYouTubePlaylist(const QString &url)
     }
 
     const QString ytDlp = HelperResolver::ytDlp(m_appRoot);
-    const QString deno = HelperResolver::deno(m_appRoot);
-    if (ytDlp.isEmpty() || deno.isEmpty()) {
+    const QStringList arguments = YouTubePolicy::playlistInventoryArguments(
+        m_appRoot, {canonicalUrl}, available);
+    if (ytDlp.isEmpty() || arguments.isEmpty()) {
         emit youtubePlaylistImportFailed(
             QStringLiteral("Bundled YouTube helpers are unavailable."));
         return false;
     }
 
-    m_youtubePlaylistProcess = new QProcess(this);
-    m_youtubePlaylistProcess->setProcessEnvironment(
-        HelperResolver::processEnvironment(m_appRoot));
-    m_youtubePlaylistProcess->setProcessChannelMode(QProcess::SeparateChannels);
     m_youtubePlaylistOutputBuffer.clear();
     m_youtubePlaylistEntries.clear();
-    m_youtubePlaylistOutputOverflow = false;
+    m_youtubePlaylistAddedCount = 0;
+    m_youtubePlaylistSaveFailed = false;
 
-    connect(m_youtubePlaylistProcess, &QProcess::readyReadStandardOutput,
-            this, [this] {
-        if (!m_youtubePlaylistProcess)
-            return;
-        const QByteArray output = m_youtubePlaylistProcess->readAllStandardOutput();
-        if (m_youtubePlaylistOutputBuffer.size() + output.size() >
-            kMaxYouTubePlaylistOutputBytes) {
-            m_youtubePlaylistOutputOverflow = true;
-            m_youtubePlaylistProcess->kill();
-            return;
-        }
-        m_youtubePlaylistOutputBuffer += output;
-        consumeYouTubePlaylistOutput();
-    });
-    connect(m_youtubePlaylistProcess, &QProcess::readyReadStandardError,
-            this, [this] {
-        // Consume helper diagnostics so the pipe cannot block. Do not surface
-        // the text because it may echo the submitted playlist URL.
-        if (m_youtubePlaylistProcess)
-            m_youtubePlaylistProcess->readAllStandardError();
-    });
-    connect(m_youtubePlaylistProcess,
-            QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, &LocalFilesBackend::onYouTubePlaylistProcessFinished);
-    connect(m_youtubePlaylistProcess, &QProcess::errorOccurred,
-            this, [this](QProcess::ProcessError error) {
-        if (error == QProcess::FailedToStart)
-            onYouTubePlaylistProcessFinished(-1, QProcess::CrashExit);
-    });
-
-    const QStringList arguments{
-        QStringLiteral("--no-config"),
-        QStringLiteral("--no-update"),
-        QStringLiteral("--no-warnings"),
-        QStringLiteral("--no-progress"),
-        QStringLiteral("--ignore-errors"),
-        QStringLiteral("--flat-playlist"),
-        QStringLiteral("--lazy-playlist"),
-        QStringLiteral("--dump-json"),
-        QStringLiteral("--playlist-end"),
-        QString::number(available),
-        QStringLiteral("--js-runtimes"),
-        QStringLiteral("deno:") + deno,
-        canonicalUrl
-    };
     emit youtubePlaylistImportStarted();
-    m_youtubePlaylistProcess->start(ytDlp, arguments);
-    const quint64 generation = ++m_youtubePlaylistGeneration;
-    QTimer::singleShot(120000, this, [this, generation] {
-        if (generation == m_youtubePlaylistGeneration &&
-            m_youtubePlaylistProcess &&
-            m_youtubePlaylistProcess->state() != QProcess::NotRunning) {
-            m_youtubePlaylistProcess->kill();
-        }
-    });
-    return true;
+    if (m_youtubePlaylistJob->start(arguments, 120000,
+                                    kMaxYouTubePlaylistOutputBytes, 8192)) {
+        return true;
+    }
+    clearYouTubePlaylistProcess();
+    emit youtubePlaylistImportFailed(
+        QStringLiteral("Bundled YouTube helpers are unavailable."));
+    return false;
 }
 
 void LocalFilesBackend::cancelYouTubePlaylistImport()
 {
-    if (!m_youtubePlaylistProcess)
+    if (!m_youtubePlaylistJob->isRunning())
         return;
+    const int addedCount = m_youtubePlaylistAddedCount;
     clearYouTubePlaylistProcess();
-    emit youtubePlaylistImportFailed(QStringLiteral("YouTube playlist import canceled."));
+    if (addedCount > 0) {
+        emit youtubePlaylistImportFinished(addedCount);
+    } else {
+        emit youtubePlaylistImportFailed(QStringLiteral("YouTube playlist import canceled."));
+    }
 }
 
 void LocalFilesBackend::consumeYouTubePlaylistOutput(bool includeRemainder)
@@ -1101,7 +1013,8 @@ void LocalFilesBackend::consumeYouTubePlaylistOutput(bool includeRemainder)
 
 void LocalFilesBackend::consumeYouTubePlaylistLine(const QByteArray &line)
 {
-    if (line.isEmpty() || m_youtubePlaylistEntries.size() >= kMaxQueueEntries)
+    if (m_youtubePlaylistSaveFailed || line.isEmpty() ||
+        m_youtubePlaylistAddedCount + m_youtubePlaylistEntries.size() >= kMaxQueueEntries)
         return;
     QJsonParseError error;
     const QJsonDocument document = QJsonDocument::fromJson(line, &error);
@@ -1120,70 +1033,76 @@ void LocalFilesBackend::consumeYouTubePlaylistLine(const QByteArray &line)
         true, false);
     if (!entry.isEmpty())
         m_youtubePlaylistEntries.append(entry);
+    if (m_youtubePlaylistAddedCount == 0 ||
+        m_youtubePlaylistEntries.size() >= kYouTubePlaylistPublishBatchSize) {
+        if (!flushYouTubePlaylistEntries()) {
+            m_youtubePlaylistSaveFailed = true;
+            m_youtubePlaylistJob->cancelSilently();
+            QTimer::singleShot(0, this, [this] {
+                onYouTubePlaylistJobCompleted(YouTubeJob::Failure::ProcessFailed,
+                                              -1, {});
+            });
+        }
+    }
 }
 
-void LocalFilesBackend::onYouTubePlaylistProcessFinished(
-    int exitCode, QProcess::ExitStatus exitStatus)
+bool LocalFilesBackend::flushYouTubePlaylistEntries()
 {
-    if (!m_youtubePlaylistProcess)
-        return;
-    m_youtubePlaylistProcess->readAllStandardError();
-    const QByteArray output = m_youtubePlaylistProcess->readAllStandardOutput();
-    if (m_youtubePlaylistOutputBuffer.size() + output.size() >
-        kMaxYouTubePlaylistOutputBytes) {
-        m_youtubePlaylistOutputOverflow = true;
-    } else {
-        m_youtubePlaylistOutputBuffer += output;
-        consumeYouTubePlaylistOutput(true);
-    }
-
-    const bool helperSucceeded = !m_youtubePlaylistOutputOverflow &&
-        exitStatus == QProcess::NormalExit && exitCode == 0;
-    const QVariantList importedEntries = m_youtubePlaylistEntries;
-    clearYouTubePlaylistProcess();
-    if (!helperSucceeded || importedEntries.isEmpty()) {
-        emit youtubePlaylistImportFailed(
-            QStringLiteral("Could not load playable videos from that YouTube playlist."));
-        return;
-    }
-
+    if (m_youtubePlaylistEntries.isEmpty())
+        return true;
     QVariantList &target = mutableQueue(QStringLiteral("soundtrack"));
     const int available = qMax(0, kMaxQueueEntries - target.size());
-    const QVariantList additions = importedEntries.mid(0, available);
-    if (additions.isEmpty()) {
-        emit youtubePlaylistImportFailed(QStringLiteral("The soundtrack queue is full."));
-        return;
-    }
+    const QVariantList additions = m_youtubePlaylistEntries.mid(0, available);
+    m_youtubePlaylistEntries.clear();
+    if (additions.isEmpty())
+        return true;
+
     const int previousSize = target.size();
     target.append(additions);
     if (!publishQueues(QStringLiteral("soundtrack"))) {
         while (target.size() > previousSize)
             target.removeLast();
+        return false;
+    }
+    m_youtubePlaylistAddedCount += additions.size();
+    emit youtubePlaylistImportProgress(m_youtubePlaylistAddedCount);
+    return true;
+}
+
+void LocalFilesBackend::onYouTubePlaylistJobCompleted(
+    YouTubeJob::Failure failure, int exitCode, const QString &safeError)
+{
+    Q_UNUSED(exitCode)
+    Q_UNUSED(safeError)
+    consumeYouTubePlaylistOutput(true);
+    if (!m_youtubePlaylistSaveFailed && !flushYouTubePlaylistEntries())
+        m_youtubePlaylistSaveFailed = true;
+
+    const bool helperSucceeded = failure == YouTubeJob::Failure::None;
+    const int addedCount = m_youtubePlaylistAddedCount;
+    const bool saveFailed = m_youtubePlaylistSaveFailed;
+    clearYouTubePlaylistProcess();
+    if (saveFailed) {
         emit youtubePlaylistImportFailed(
             QStringLiteral("Could not save the YouTube playlist."));
         return;
     }
-    emit youtubePlaylistImportFinished(additions.size());
+    if ((!helperSucceeded && addedCount == 0) || addedCount == 0) {
+        emit youtubePlaylistImportFailed(
+            QStringLiteral("Could not load playable videos from that YouTube playlist."));
+        return;
+    }
+    emit youtubePlaylistImportFinished(addedCount);
 }
 
 void LocalFilesBackend::clearYouTubePlaylistProcess()
 {
-    if (m_youtubePlaylistProcess) {
-        QProcess *process = m_youtubePlaylistProcess;
-        m_youtubePlaylistProcess = nullptr;
-        process->disconnect(this);
-        if (process->state() != QProcess::NotRunning) {
-            process->terminate();
-            if (!process->waitForFinished(1000)) {
-                process->kill();
-                process->waitForFinished(1000);
-            }
-        }
-        process->deleteLater();
-    }
+    if (m_youtubePlaylistJob)
+        m_youtubePlaylistJob->cancelSilently();
     m_youtubePlaylistOutputBuffer.clear();
     m_youtubePlaylistEntries.clear();
-    m_youtubePlaylistOutputOverflow = false;
+    m_youtubePlaylistAddedCount = 0;
+    m_youtubePlaylistSaveFailed = false;
 }
 
 void LocalFilesBackend::startAudio(const QStringList &paths, bool shuffle)
@@ -1236,8 +1155,7 @@ void LocalFilesBackend::launchAudioProcess()
     QFile::remove(m_audioSocketPath);
 
     QStringList arguments = m_audioPaths;
-    arguments << QStringLiteral("--no-video")
-              << QStringLiteral("--loop-playlist=inf")
+    arguments << QStringLiteral("--loop-playlist=inf")
               << QStringLiteral("--input-ipc-server=") + m_audioSocketPath;
     if (m_audioShuffle)
         arguments << QStringLiteral("--shuffle");
@@ -1246,8 +1164,12 @@ void LocalFilesBackend::launchAudioProcess()
         [](const QString &path) {
             return LocalFilesBackend::isCanonicalYouTubeVideoUrl(path);
         });
-    if (hasYouTube)
-        arguments << HelperResolver::youtubeMpvArguments(m_appRoot);
+    if (hasYouTube) {
+        arguments << YouTubePolicy::mpvArguments(
+            m_appRoot, YouTubePolicy::MediaProfile::AudioOnly);
+    } else {
+        arguments << QStringLiteral("--no-video");
+    }
     arguments << QStringLiteral("--no-terminal")
               << QStringLiteral("--really-quiet");
 

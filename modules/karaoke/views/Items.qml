@@ -15,12 +15,15 @@ FocusScope {
     signal queueEntryRequested(int index, string entryId)
     signal upcomingQueueCleared()
 
-    property var allSongs: []
     property var songs: []
+    property int catalogTotalCount: 0
+    property int resultTotalCount: 0
+    property int resultPageOffset: 0
+    readonly property int resultPageSize: 250
     property var queue: []
     property string filterText: navListState.filterText || ""
     property int activePane: navListState.activePane !== undefined ? navListState.activePane : 0
-    property bool catalogLoading: false
+    property bool catalogLoading: true
     property bool catalogRefreshing: false
     property string catalogError: ""
     property string statusMessage: ""
@@ -41,53 +44,35 @@ FocusScope {
         return -1
     }
 
-    function decoratedSongs(items) {
-        var decorated = []
-        for (var index = 0; index < items.length; ++index) {
-            var song = Object.assign({}, items[index])
-            song.searchKey = TextSearch.normalize((song.displayTitle || "") + " " + (song.rawTitle || ""))
-            song.sortKey = TextSearch.articleInsensitiveSortKey(song.displayTitle || "")
-            song.titleKey = TextSearch.normalize(song.displayTitle || "")
-            decorated.push(song)
-        }
-        return decorated
-    }
-
-    function replaceCatalog(items) {
-        allSongs = decoratedSongs(items || [])
-        applyFilter(navListState.searchIndex !== undefined ? navListState.searchIndex : searchList.currentIndex)
-    }
-
-    function appendCatalog(items) {
-        var merged = allSongs.slice()
-        var decorated = decoratedSongs(items || [])
-        for (var index = 0; index < decorated.length; ++index)
-            merged.push(decorated[index])
-        allSongs = merged
-        applyFilter(searchList.currentIndex)
+    function globalSearchIndex() {
+        return searchList.currentIndex >= 0 ? resultPageOffset + searchList.currentIndex : -1
     }
 
     function applyFilter(preferredIndex) {
-        var matches = []
-        for (var index = 0; index < allSongs.length; ++index) {
-            if (TextSearch.matchesNormalized(allSongs[index].searchKey, filterText))
-                matches.push(allSongs[index])
-        }
-        matches.sort(function(left, right) {
-            if (left.sortKey < right.sortKey) return -1
-            if (left.sortKey > right.sortKey) return 1
-            if (left.titleKey < right.titleKey) return -1
-            if (left.titleKey > right.titleKey) return 1
-            return String(left.videoId || "").localeCompare(String(right.videoId || ""))
-        })
-        songs = matches
+        var wanted = preferredIndex !== undefined ? Math.max(0, preferredIndex) : 0
+        var requestedOffset = Math.floor(wanted / resultPageSize) * resultPageSize
+        var result = karaokeBackend.searchCatalog(filterText, requestedOffset, resultPageSize)
+        songs = (result.items || []).slice()
+        resultTotalCount = result.total || 0
+        catalogTotalCount = result.catalogTotal || 0
+        resultPageOffset = result.offset || 0
         if (songs.length === 0) {
             searchList.currentIndex = -1
             return
         }
-        var nextIndex = preferredIndex !== undefined ? preferredIndex : searchList.currentIndex
-        searchList.currentIndex = Math.min(Math.max(0, nextIndex), songs.length - 1)
+        searchList.currentIndex = Math.min(Math.max(0, wanted - resultPageOffset), songs.length - 1)
         searchList.positionViewAtIndex(searchList.currentIndex, ListView.Contain)
+    }
+
+    function moveSearchSelection(direction) {
+        var current = globalSearchIndex()
+        var target = current < 0 ? 0 : current + direction
+        if (target < 0 || target >= resultTotalCount)
+            return
+        if (target < resultPageOffset || target >= resultPageOffset + songs.length)
+            applyFilter(target)
+        else
+            searchList.currentIndex = target - resultPageOffset
     }
 
     function queueEntryIdAt(index) {
@@ -185,7 +170,7 @@ FocusScope {
         }, {
             filterText: filterText,
             activePane: activePane,
-            searchIndex: searchList.currentIndex,
+            searchIndex: globalSearchIndex(),
             queueIndex: queueList.currentIndex
         })
     }
@@ -264,10 +249,10 @@ FocusScope {
                 activePane = 1
                 event.accepted = true
             } else if (event.key === Qt.Key_Up) {
-                if (searchList.currentIndex > 0) searchList.currentIndex--
+                moveSearchSelection(-1)
                 event.accepted = true
             } else if (event.key === Qt.Key_Down) {
-                if (searchList.currentIndex < searchList.count - 1) searchList.currentIndex++
+                moveSearchSelection(1)
                 event.accepted = true
             } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                 addSelectedSong()
@@ -348,15 +333,14 @@ FocusScope {
         target: karaokeBackend
 
         function onCatalogLoadStarted(hasCachedCatalog) {
-            catalogLoading = !hasCachedCatalog
-            catalogRefreshing = hasCachedCatalog
+            catalogLoading = catalogTotalCount === 0
+            catalogRefreshing = hasCachedCatalog && catalogTotalCount > 0
             catalogError = ""
         }
-        function onCatalogReset(items, fromCache) {
-            replaceCatalog(items)
-        }
-        function onCatalogItemsAppended(items) {
-            appendCatalog(items)
+        function onCatalogChanged(itemCount, fromCache) {
+            var restoreIndex = resultTotalCount === 0 && navListState.searchIndex !== undefined
+                             ? navListState.searchIndex : globalSearchIndex()
+            applyFilter(Math.max(0, restoreIndex))
         }
         function onCatalogLoadFinished(itemCount, fromCache) {
             catalogLoading = false
@@ -383,8 +367,11 @@ FocusScope {
     }
 
     Text {
-        text: "SEARCH " + songs.length + "/" + allSongs.length +
-              (catalogRefreshing ? " - REFRESHING" : "")
+        text: catalogLoading && catalogTotalCount === 0
+              ? "SEARCH - LOADING CATALOG..."
+              : "SEARCH " + resultTotalCount + "/" + catalogTotalCount +
+                (catalogLoading ? " - LOADING MORE" :
+                 (catalogRefreshing ? " - REFRESHING" : ""))
         color: activePane === 0 ? root.secondaryColor : root.tertiaryColor
         font.family: root.globalFont
         font.capitalization: Font.AllUppercase
@@ -463,7 +450,7 @@ FocusScope {
     }
 
     Text {
-        visible: catalogLoading && allSongs.length === 0
+        visible: catalogLoading && catalogTotalCount === 0
         text: "LOADING KARAOKE CATALOG..."
         color: root.tertiaryColor
         font.family: root.globalFont
@@ -559,10 +546,8 @@ FocusScope {
 
     Component.onCompleted: {
         syncQueue(karaokeBackend.getQueue())
-        karaokeBackend.loadCatalog()
-        var searchRestore = navListState.searchIndex !== undefined ? navListState.searchIndex : 0
+        karaokeBackend.loadCatalogDeferred()
         var queueRestore = navListState.queueIndex !== undefined ? navListState.queueIndex : 0
-        searchList.currentIndex = songs.length > 0 ? Math.min(searchRestore, songs.length - 1) : -1
         queueList.currentIndex = queue.length > 0 ? Math.min(queueRestore, queue.length - 1) : -1
     }
 }

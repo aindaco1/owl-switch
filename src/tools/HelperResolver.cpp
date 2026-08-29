@@ -1,4 +1,5 @@
 #include "HelperResolver.h"
+#include "YouTubePolicy.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -96,20 +97,8 @@ QString deno(const QString &appRoot)
 
 QStringList youtubeMpvArguments(const QString &appRoot)
 {
-    QStringList arguments{QStringLiteral("--no-config")};
-    const QString ytDlpPath = ytDlp(appRoot);
-    const QString denoPath = deno(appRoot);
-    if (!ytDlpPath.isEmpty()) {
-        arguments << QStringLiteral("--script-opts-append=ytdl_hook-ytdl_path=") + ytDlpPath
-                  << QStringLiteral("--ytdl-raw-options-append=ignore-config=")
-                  << QStringLiteral("--ytdl-raw-options-append=no-update=")
-                  << QStringLiteral("--ytdl-raw-options-append=no-cache-dir=")
-                  << QStringLiteral("--ytdl-raw-options-append=check-formats=");
-    }
-    if (!denoPath.isEmpty()) {
-        arguments << QStringLiteral("--ytdl-raw-options-append=js-runtimes=deno:") + denoPath;
-    }
-    return arguments;
+    return YouTubePolicy::mpvArguments(appRoot,
+                                       YouTubePolicy::MediaProfile::Video720p);
 }
 
 QProcessEnvironment processEnvironment(const QString &appRoot)

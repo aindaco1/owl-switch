@@ -106,7 +106,7 @@ jobs:
           CI_APP_ARTIFACT: ${{ runner.temp }}/240-mp-jellyfin-ci-app-${{ github.sha }}.tar.gz
         run: |
           ./scripts/package_ci_app.sh \
-            "$GITHUB_WORKSPACE/install/240-mp-jellyfin.app" \
+            "$GITHUB_WORKSPACE/install/OwlSwitch.app" \
             "$CI_APP_ARTIFACT" "$GITHUB_REPOSITORY" "$GITHUB_SHA" \
             "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"
 

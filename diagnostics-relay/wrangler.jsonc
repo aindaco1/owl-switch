@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "owlswitch-diagnostics-relay",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-29",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "owlswitch-crash.dustwave.xyz", "custom_domain": true }
+  ],
+  "vars": {
+    "REPORTS_ENABLED": "true",
+    "ALLOWED_APP_IDENTIFIER": "com.240mp.jellyfin",
+    "GITHUB_OWNER": "aindaco1",
+    "GITHUB_REPO": "240-mp-jellyfin",
+    "GITHUB_LABELS": "crash,automated-report,needs-triage",
+    "IP_LIMIT": "10",
+    "IP_WINDOW_SECONDS": "3600"
+  }
+}

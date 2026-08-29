@@ -13,6 +13,7 @@ Thumbs.db
 /build-*
 /dist
 /install
+/diagnostics-relay/node_modules
 
 # Local runtime state and credentials
 jellyfin_auth.json
