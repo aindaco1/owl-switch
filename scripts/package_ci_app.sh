@@ -46,11 +46,11 @@ cleanup() {
 trap cleanup EXIT
 bundle_root="$work_root/240-mp-jellyfin-ci-app"
 mkdir -p "$bundle_root/app"
-ditto --norsrc --noextattr "$app" "$bundle_root/app/240-mp-jellyfin.app"
+ditto --norsrc --noextattr "$app" "$bundle_root/app/OwlSwitch.app"
 
 app_manifest="$({
     python3 "$repo_root/scripts/ci_app_artifact.py" manifest \
-        "$bundle_root/app/240-mp-jellyfin.app"
+        "$bundle_root/app/OwlSwitch.app"
 })"
 source_tree="$(git -C "$repo_root" rev-parse 'HEAD^{tree}')"
 packaging_contract_sha256="$({
@@ -58,11 +58,13 @@ packaging_contract_sha256="$({
     shasum -a 256 \
         CMakeLists.txt \
         cmake/BundledHelpers.cmake \
+        cmake/helper-manifest.json.in \
         scripts/ci_app_artifact.py \
         scripts/macos_bundle_tool_deps.zsh \
         scripts/macos_prepare_release_bundle.zsh \
         scripts/macos_prune_qt_deployment.zsh \
         scripts/macos_verify_bundled_helpers.sh \
+        scripts/macos_youtube_canary.sh \
         scripts/macos_verify_bundle.zsh \
         scripts/package_ci_app.sh
 } | shasum -a 256 | awk '{print $1}')"

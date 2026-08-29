@@ -10,6 +10,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include "tools/YouTubeJob.h"
+
 class LocalFilesBackend final : public QObject {
     Q_OBJECT
 
@@ -61,6 +63,7 @@ signals:
     void dynamicOptionsReady(const QString &key, const QVariant &options);
     void queueChanged(const QString &kind, const QVariant &items);
     void youtubePlaylistImportStarted();
+    void youtubePlaylistImportProgress(int addedCount);
     void youtubePlaylistImportFinished(int addedCount);
     void youtubePlaylistImportFailed(const QString &message);
     void audioPlaybackStarted();
@@ -75,7 +78,8 @@ private slots:
     void onAudioProcessFinished();
     void tryConnectAudioIpc();
     void onAudioIpcReadyRead();
-    void onYouTubePlaylistProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
+    void onYouTubePlaylistJobCompleted(YouTubeJob::Failure failure, int exitCode,
+                                       const QString &safeError);
 
 private:
     static constexpr int kQueueSchemaVersion = 2;
@@ -111,6 +115,7 @@ private:
     QString writePlaybackPlaylist(const QVariantList &entries) const;
     void consumeYouTubePlaylistOutput(bool includeRemainder = false);
     void consumeYouTubePlaylistLine(const QByteArray &line);
+    bool flushYouTubePlaylistEntries();
     void clearYouTubePlaylistProcess();
 
     void launchAudioProcess();
@@ -142,9 +147,9 @@ private:
     QTimer *m_audioConnectTimer = nullptr;
     QString m_audioSocketPath;
 
-    QProcess *m_youtubePlaylistProcess = nullptr;
+    YouTubeJob *m_youtubePlaylistJob = nullptr;
     QByteArray m_youtubePlaylistOutputBuffer;
     QVariantList m_youtubePlaylistEntries;
-    bool m_youtubePlaylistOutputOverflow = false;
-    quint64 m_youtubePlaylistGeneration = 0;
+    int m_youtubePlaylistAddedCount = 0;
+    bool m_youtubePlaylistSaveFailed = false;
 };

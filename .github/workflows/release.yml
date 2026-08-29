@@ -67,7 +67,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          APP="${GITHUB_WORKSPACE}/install/240-mp-jellyfin.app"
+          APP="${GITHUB_WORKSPACE}/install/OwlSwitch.app"
           ./scripts/restore_ci_app.sh "$GITHUB_REPOSITORY" "$RELEASE_COMMIT" "$APP"
 
       - name: Import signing certificate
@@ -94,31 +94,30 @@ jobs:
 
       - name: Sign app
         run: |
-          APP="${GITHUB_WORKSPACE}/install/240-mp-jellyfin.app"
+          APP="${GITHUB_WORKSPACE}/install/OwlSwitch.app"
           find "$APP/Contents/Frameworks" \( -name "*.dylib" -o -name "*.framework" \) \
             -exec codesign --force --options runtime --timestamp \
               --keychain "$SIGNING_KEYCHAIN" --sign "$SIGNING_IDENTITY" {} \;
           if [ -d "$APP/Contents/Resources/bin" ]; then
-            find "$APP/Contents/Resources/bin" -type f | while read -r helper; do
-              if [ -x "$helper" ]; then
-                case "$(basename "$helper")" in
-                  mpv) entitlement_file="packaging/mpv.entitlements" ;;
-                  yt-dlp) entitlement_file="packaging/yt-dlp.entitlements" ;;
-                  *) entitlement_file="" ;;
-                esac
-                if [ -n "$entitlement_file" ]; then
-                  codesign --force --options runtime \
-                    --timestamp \
-                    --keychain "$SIGNING_KEYCHAIN" \
-                    --entitlements "$entitlement_file" \
-                    --sign "$SIGNING_IDENTITY" "$helper"
-                else
-                  codesign --force --options runtime \
-                    --timestamp \
-                    --keychain "$SIGNING_KEYCHAIN" \
-                    --preserve-metadata=entitlements \
-                    --sign "$SIGNING_IDENTITY" "$helper"
-                fi
+            find "$APP/Contents/Resources/bin" -depth -type f | while read -r helper; do
+              file -b "$helper" | grep -q 'Mach-O' || continue
+              entitlement_file=""
+              if [ "$helper" = "$APP/Contents/Resources/bin/mpv" ]; then
+                entitlement_file="packaging/mpv.entitlements"
+              elif [ "$helper" = "$APP/Contents/Resources/bin/yt-dlp" ]; then
+                entitlement_file="packaging/yt-dlp.entitlements"
+              fi
+              if [ -n "$entitlement_file" ]; then
+                codesign --force --options runtime \
+                  --timestamp \
+                  --keychain "$SIGNING_KEYCHAIN" \
+                  --entitlements "$entitlement_file" \
+                  --sign "$SIGNING_IDENTITY" "$helper"
+              else
+                codesign --force --options runtime \
+                  --timestamp \
+                  --keychain "$SIGNING_KEYCHAIN" \
+                  --sign "$SIGNING_IDENTITY" "$helper"
               fi
             done
           fi
@@ -135,12 +134,12 @@ jobs:
 
       - name: Verify signed runtime and live sources
         run: |
-          APP="${GITHUB_WORKSPACE}/install/240-mp-jellyfin.app"
+          APP="${GITHUB_WORKSPACE}/install/OwlSwitch.app"
           BIN="$APP/Contents/Resources/bin"
           HELPER_HOME="$RUNNER_TEMP/helper-home"
           ./scripts/macos_verify_bundled_helpers.sh \
             signed-runtime "$BIN" \
-            "${GITHUB_WORKSPACE}/cmake/BundledHelpers.cmake" "$HELPER_HOME"
+            "$APP/Contents/Resources/helper-manifest.json" "$HELPER_HOME"
 
           SMOKE_MEDIA="$RUNNER_TEMP/mpv-signing-smoke.mkv"
           "$BIN/ffmpeg" \
@@ -155,43 +154,7 @@ jobs:
             --script="$APP/Contents/Resources/scripts/screensaver.lua" \
             --vo=null --ao=null --frames=1
 
-          for channel_id in \
-            UCtPzvwooQ18YZ8Wq8Hka60g \
-            UCBfV298JqKc8o9CM0aANz5A \
-            UCoVB6wMm2pNGMKQTChKCiRQ \
-            UCIauImhx1GGrl7LubRCxXcg \
-            UCNU7LlZ_nKVaq9Lihj0sAHQ \
-            UCR0kPElUivbuZC7Myr7Tg1Q \
-            UCTQHT1Gj_D_Bc7P1REuMoAg \
-            UCPZsA3OSQreeZlKIo6jqUog \
-            UCvgYvYeZe-BANj-cVUd59mQ \
-            UCkXE7x417ME2iudNECaLUFA \
-            UC6m4V2RfKXs4dP3R7AfCK4g \
-            UCqspiYXbxpZpgWzzxUUbTiw \
-            UCdwO61VZMYpozDiAJ6ZI3pg \
-            UC4T6FfTdpvxUrf9-dd4kjpw \
-            UCxuk5azVGJ-aumAds7WMHmg \
-            UCg0i5aSL_2rhf4iztlLmLUQ \
-            UCM8kkIU5aIzCbyZawksZ2Bw \
-            UCbqcG1rdt9LMwOJN4PyGTKg; do
-            sample=$(env -i HOME="$HELPER_HOME" PATH=/usr/bin:/bin \
-              "$BIN/yt-dlp" --no-config --no-update --no-cache-dir --no-warnings \
-              --flat-playlist --lazy-playlist --playlist-end 1 \
-              --js-runtimes "deno:$BIN/deno" \
-              --print '%(id)s\t%(title)s' \
-              "https://www.youtube.com/channel/$channel_id/videos")
-            test -n "$sample"
-          done
-
-          local_playlist_sample=$(env -i HOME="$HELPER_HOME" PATH=/usr/bin:/bin \
-            "$BIN/yt-dlp" --no-config --no-update --no-cache-dir --no-warnings \
-            --no-progress --ignore-errors --flat-playlist --lazy-playlist \
-            --dump-json --playlist-end 1 \
-            --js-runtimes "deno:$BIN/deno" \
-            'https://www.youtube.com/playlist?list=PLt5yu3-wZAlSLRHmI1qNm0wjyVNWw1pCU' \
-            | /usr/bin/python3 -c \
-              'import json,sys; print(json.loads(sys.stdin.readline()).get("id", ""))')
-          test "$local_playlist_sample" = "aqz-KE-bpKQ"
+          ./scripts/macos_youtube_canary.sh sources "$APP" "$HELPER_HOME"
 
       # GitHub-hosted runner IPs can be denied by Google Video even when the
       # same signed bundle works on an end-user network. Keep the real stream
@@ -200,28 +163,10 @@ jobs:
       - name: Attempt actual YouTube audio open
         continue-on-error: true
         run: |
-          APP="${GITHUB_WORKSPACE}/install/240-mp-jellyfin.app"
+          APP="${GITHUB_WORKSPACE}/install/OwlSwitch.app"
           BIN="$APP/Contents/Resources/bin"
           HELPER_HOME="$RUNNER_TEMP/helper-home"
-          env -i HOME="$HELPER_HOME" PATH=/usr/bin:/bin /usr/bin/python3 - "$BIN" <<'PY'
-          import os
-          import subprocess
-          import sys
-
-          helper_bin = sys.argv[1]
-          subprocess.run([
-              os.path.join(helper_bin, "mpv"),
-              "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
-              "--no-video", "--ao=null", "--length=0.25", "--no-config",
-              "--no-terminal", "--msg-level=ytdl_hook=debug,ffmpeg=warn",
-              "--script-opts-append=ytdl_hook-ytdl_path=" + os.path.join(helper_bin, "yt-dlp"),
-              "--ytdl-raw-options-append=ignore-config=",
-              "--ytdl-raw-options-append=no-update=",
-              "--ytdl-raw-options-append=no-cache-dir=",
-              "--ytdl-raw-options-append=check-formats=",
-              "--ytdl-raw-options-append=js-runtimes=deno:" + os.path.join(helper_bin, "deno"),
-          ], check=True, timeout=90)
-          PY
+          ./scripts/macos_youtube_canary.sh playback "$APP" "$HELPER_HOME"
 
       - name: Prepare notarization credentials
         env:
@@ -235,7 +180,7 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
         run: |
-          APP="${GITHUB_WORKSPACE}/install/240-mp-jellyfin.app"
+          APP="${GITHUB_WORKSPACE}/install/OwlSwitch.app"
           APP_ZIP="$RUNNER_TEMP/240-mp-jellyfin-app.zip"
           ditto -c -k --keepParent "$APP" "$APP_ZIP"
           xcrun notarytool submit "$APP_ZIP" \
@@ -296,7 +241,7 @@ jobs:
         run: |
           mkdir -p install
           ditto -x -k artifacts/app/240-mp-jellyfin-notarized-app.zip install
-          APP="$GITHUB_WORKSPACE/install/240-mp-jellyfin.app"
+          APP="$GITHUB_WORKSPACE/install/OwlSwitch.app"
           test -d "$APP"
           codesign --verify --deep --strict --verbose=4 "$APP"
           xcrun stapler validate "$APP"
@@ -337,7 +282,7 @@ jobs:
       - name: Create and sign DMG
         run: |
           DMG="240-mp-jellyfin-${{ env.RELEASE_TAG }}-macOS-arm64.dmg"
-          APP="$GITHUB_WORKSPACE/install/240-mp-jellyfin.app"
+          APP="$GITHUB_WORKSPACE/install/OwlSwitch.app"
           staging_root="$RUNNER_TEMP/dmg-staging"
           if [[ -e "$staging_root" || -L "$staging_root" ]]; then
             echo "refusing to replace existing DMG staging output: $staging_root" >&2
@@ -346,7 +291,7 @@ jobs:
           trap 'rm -rf "$staging_root"' EXIT
           scripts/macos_dmg_contract.zsh stage "$APP" "$staging_root"
           hdiutil create \
-            -volname "240-mp-jellyfin" \
+            -volname "OwlSwitch" \
             -srcfolder "$staging_root" \
             -format UDZO \
             "$DMG"
@@ -461,14 +406,14 @@ jobs:
 
           ## Install
 
-          Download the Apple Silicon DMG below, open it, and drag \`240-mp-jellyfin.app\` onto the Applications shortcut. Existing settings, Jellyfin authentication, and Karaoke data are retained when replacing an older app bundle.
+          Download the Apple Silicon DMG below, open it, and drag \`OwlSwitch.app\` onto the Applications shortcut. Existing settings, Jellyfin authentication, and Karaoke data are retained. The DMG also includes a hidden compatibility alias for older automatic updaters.
           EOF
 
       - name: Publish
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          name: "240-mp-jellyfin ${{ env.RELEASE_TAG }}"
+          name: "OwlSwitch ${{ env.RELEASE_TAG }}"
           draft: false
           prerelease: ${{ contains(env.RELEASE_TAG, '-rc') || contains(env.RELEASE_TAG, '-beta') || contains(env.RELEASE_TAG, '-alpha') }}
           body_path: ${{ runner.temp }}/release-notes.md

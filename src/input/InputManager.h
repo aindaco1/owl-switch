@@ -4,6 +4,8 @@
 #include <QPointer>
 #include <QVariantMap>
 
+#include "RightShiftBackTracker.h"
+
 class QQuickWindow;
 
 class InputManager final : public QObject {
@@ -34,6 +36,7 @@ private:
 
     QPointer<QQuickWindow> m_window;
     int m_gamepadCount = 0;
+    RightShiftBackTracker m_rightShiftBackTracker;
     void *m_connectObserver = nullptr;
     void *m_disconnectObserver = nullptr;
 };

@@ -20,7 +20,7 @@ local function draw()
     ass:new_event()
     ass:append(string.format("{\\an7\\pos(0,0)\\bord0\\shad0\\1c&H000000&\\p1}m 0 0 l %d 0 l %d %d l 0 %d{\\p0}", width, width, height, height))
     ass:new_event()
-    ass:append(string.format("{\\an7\\pos(%d,%d)\\fnVCR OSD Mono\\fs48\\1c&HFFFFFF&\\bord0\\shad0}240-MP", x, y))
+    ass:append(string.format("{\\an7\\pos(%d,%d)\\fnVCR OSD Mono\\fs48\\1c&HFFFFFF&\\bord0\\shad0}OWLSWITCH", x, y))
     overlay.res_x = width
     overlay.res_y = height
     overlay.data = ass.text

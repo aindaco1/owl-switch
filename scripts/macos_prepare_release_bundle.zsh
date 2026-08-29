@@ -23,15 +23,53 @@ if [[ -e "$install_root" ]]; then
 fi
 
 cmake --install "$build_dir" --prefix "$install_root"
-app="$install_root/240-mp-jellyfin.app"
+app="$install_root/OwlSwitch.app"
 macdeployqt_log="${TMPDIR:-/tmp}/240-mp-jellyfin-macdeployqt.$$.log"
+helper_home=""
+helper_stage_root=""
+qml_scan_root=""
 cleanup() {
     rm -f "$macdeployqt_log"
+    if [[ -n "$helper_stage_root" && -d "$helper_stage_root/bin" &&
+          ! -e "$app/Contents/Resources/bin" ]]; then
+        /bin/mkdir -p "$app/Contents/Resources"
+        /bin/mv "$helper_stage_root/bin" "$app/Contents/Resources/bin"
+    fi
+    if [[ -n "$helper_stage_root" && -d "$helper_stage_root" &&
+          "$helper_stage_root" == "${TMPDIR:-/tmp}"/240-mp-jellyfin-helper-stage.* ]]; then
+        /bin/rm -rf -- "$helper_stage_root"
+    fi
+    if [[ -n "$helper_home" && -d "$helper_home" &&
+          "$helper_home" == "${TMPDIR:-/tmp}"/240-mp-jellyfin-helper-home.* ]]; then
+        /bin/rm -rf -- "$helper_home"
+    fi
+    if [[ -n "$qml_scan_root" && -d "$qml_scan_root" &&
+          "$qml_scan_root" == "${TMPDIR:-/tmp}"/240-mp-jellyfin-qml-scan.* ]]; then
+        /bin/rm -rf -- "$qml_scan_root"
+    fi
 }
 trap cleanup EXIT
 
+# macdeployqt recursively scans -qmldir. Give it only source QML instead of the
+# checkout root, which can contain large build trees and unrelated tooling.
+qml_scan_root="$(mktemp -d "${TMPDIR:-/tmp}/240-mp-jellyfin-qml-scan.XXXXXX")"
+/bin/cp -p "$source_root/Main.qml" "$qml_scan_root/Main.qml"
+for qml_source_dir in qml views modules; do
+    [[ -d "$source_root/$qml_source_dir" ]] || continue
+    /usr/bin/rsync -a --prune-empty-dirs \
+        --include='*/' --include='*.qml' --include='*.js' --include='qmldir' \
+        --exclude='*' \
+        "$source_root/$qml_source_dir/" "$qml_scan_root/$qml_source_dir/"
+done
+
+# The helper bundle is already dependency-normalized by CMake. Keep it outside
+# the app while macdeployqt performs its Qt-only pass so the multi-file yt-dlp
+# runtime is not redundantly inspected as application code.
+helper_stage_root="$(mktemp -d "${TMPDIR:-/tmp}/240-mp-jellyfin-helper-stage.XXXXXX")"
+/bin/mv "$app/Contents/Resources/bin" "$helper_stage_root/bin"
+
 if ! "$qt_root/bin/macdeployqt" "$app" \
-        -qmldir="$source_root" \
+        -qmldir="$qml_scan_root" \
         -libpath="$qt_root/lib" \
         -libpath="$(brew --prefix brotli)/lib" \
         -libpath="$(brew --prefix webp)/lib" \
@@ -40,6 +78,9 @@ if ! "$qt_root/bin/macdeployqt" "$app" \
     cat "$macdeployqt_log"
     exit 1
 fi
+/bin/mv "$helper_stage_root/bin" "$app/Contents/Resources/bin"
+/bin/rmdir "$helper_stage_root"
+helper_stage_root=""
 
 # macdeployqt can leave ad-hoc signatures on binaries whose load commands must
 # still be normalized. Remove only those signatures before editing the rpaths.
@@ -63,5 +104,9 @@ done < <(find "$app" -type f -print)
 qml_import_scanner="$("$qt_root/bin/qtpaths" --query QT_INSTALL_LIBEXECS)/qmlimportscanner"
 qml_import_path="$("$qt_root/bin/qtpaths" --query QT_INSTALL_QML)"
 "$source_root/scripts/macos_prune_qt_deployment.zsh" \
-    "$app" "$source_root" "$qml_import_scanner" "$qml_import_path"
+    "$app" "$qml_scan_root" "$qml_import_scanner" "$qml_import_path"
 "$source_root/scripts/macos_verify_bundle.zsh" "$app"
+helper_home="$(mktemp -d "${TMPDIR:-/tmp}/240-mp-jellyfin-helper-home.XXXXXX")"
+"$source_root/scripts/macos_verify_bundled_helpers.sh" \
+    pinned-only "$app/Contents/Resources/bin" \
+    "$app/Contents/Resources/helper-manifest.json" "$helper_home"

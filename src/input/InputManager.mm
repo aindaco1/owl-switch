@@ -100,8 +100,19 @@ bool InputManager::eventFilter(QObject *object, QEvent *event) {
     Q_UNUSED(object)
     if (event->type() == QEvent::KeyPress) {
         auto *key = static_cast<QKeyEvent *>(event);
-        // macOS virtual key code 60 is Right Shift. Treat it as a one-handed Back.
-        if (!key->isAutoRepeat() && key->key() == Qt::Key_Shift && key->nativeVirtualKey() == 60) {
+        // macOS virtual key code 60 is Right Shift. A tap remains a one-handed
+        // Back action, but holding it with another key must remain a real Shift
+        // modifier for queue reordering and text entry.
+        if (key->key() == Qt::Key_Shift && key->nativeVirtualKey() == 60) {
+            m_rightShiftBackTracker.press(key->isAutoRepeat());
+            return false;
+        }
+        if (m_rightShiftBackTracker.pressed())
+            m_rightShiftBackTracker.useAsModifier();
+    } else if (event->type() == QEvent::KeyRelease) {
+        auto *key = static_cast<QKeyEvent *>(event);
+        if (key->key() == Qt::Key_Shift && key->nativeVirtualKey() == 60 &&
+            m_rightShiftBackTracker.release(key->isAutoRepeat())) {
             deliverKey(Qt::Key_Escape, QStringLiteral("ESC"));
             return true;
         }

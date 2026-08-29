@@ -1,8 +1,10 @@
-# 240-mp-jellyfin
+# OwlSwitch
 
-240-mp-jellyfin is a macOS Apple Silicon fork of 240-MP: a retro VCR-style media shell built with C++ Qt 6 and QML. The fork keeps the CRT/240p-inspired interface, Local playback, Retro decade feeds, and a Tumblr image screensaver, adds Jellyfin as the main server-backed media module, an eighteen-source Karaoke queue, and an iNaturalist-powered Nature montage. Local incorporates the former Loop module's repeatable queue, soundtrack, shuffle, and auto-launch workflows.
+**OwlSwitch is a retro video controller — the owls are not what they seem.** It is a macOS Apple Silicon fork of 240-MP built with C++ Qt 6 and QML. OwlSwitch keeps the CRT/240p-inspired controller, Local playback, Retro decade feeds, and a Tumblr image screensaver; adds Jellyfin as the main server-backed module, an eighteen-source Karaoke queue, and an iNaturalist-powered Nature montage; and incorporates the former Loop module's repeatable queue, soundtrack, shuffle, and auto-launch workflows into Local.
 
-The app is a browsing shell, not an embedded video renderer. It launches `mpv` as a subprocess for playback and uses `ffprobe` to inspect local audio/subtitle tracks. CMake supplies pinned standalone `yt-dlp` and Deno helpers for YouTube extraction. Packaged macOS apps also bundle `ffmpeg` for high-quality Karaoke prefetch, along with all required non-system libraries, so end users do not need Homebrew or system helper installs.
+The app is a browsing and visuals-control shell, not an embedded video renderer. It launches `mpv` as a subprocess for playback and uses `ffprobe` to inspect local audio/subtitle tracks. CMake supplies a pinned, checksum-verified official yt-dlp onedir runtime and Deno for YouTube extraction. Packaged macOS apps also bundle `ffmpeg` for high-quality Karaoke prefetch, along with all required non-system libraries, so end users do not need Homebrew or system helper installs.
+
+Version 1.6.4 adopts the OwlSwitch name and ships as `OwlSwitch.app`. The DMG contains a hidden `240-mp-jellyfin.app` compatibility alias so installed 1.6.3 copies can still locate and validate the update. The bundle identifier, update channel, and Application Support directory remain unchanged, preserving settings, authentication, queues, caches, and updater trust.
 
 ## Supported Platform
 
@@ -37,6 +39,7 @@ Not yet implemented: music libraries and explicit watched/unwatched controls fro
 
 ### Karaoke
 
+- Entering Karaoke paints immediately before the saved catalog is parsed. Search and sorting live in the C++ backend, and QML receives only the current 250-song result page instead of a complete catalog copy.
 - Automatically indexes the Funbox, KaraokeNerds, JLo.Instru, Offbeat Karaoke, Peareoke, Karaoke Office, CCKaraokeX, Nicky Dee Karaoke, Karaoke Balka, Pants Karaoke, Karaokearr, ObsKure, 1Music Karaoke, Janet Email Karaoke, Couch Potato Karaoke, Lemmy Caution Karaoke, Just Sing Karaoke, and KaraFun Karaoke YouTube channels and keeps a persistent 24-hour catalog cache. After the first complete sync, later launches show saved results immediately while stale catalogs reconcile additions, removals, and metadata changes in the background.
 - Live accent-insensitive title search with article-insensitive alphabetical results and progressive results during a cold catalog load.
 - Cleans `(Funbox Karaoke, YEAR)` to `(YEAR)`; removes provider-specific Karaoke/Instrumental branding, including Karaoke Office's ordinary suffix and verified malformed/inverted aliases, Nicky Dee's parenthesized and Balka's bullet-delimited markers, plain parenthesized or bracketed Karaoke markers from Karaokearr and Pants Karaoke, and Just Sing's English and Portuguese quality/lyrics markers; accepts only KaraFun's current, alternate, and verified legacy karaoke-title grammars, converting its song-first forms to `Artist - Song` and excluding promos or internal/offline rows; converts Pants' quoted performance/byline, parody, live-cover, and attributed cover-version sentences to `Artist - Song (Qualifier)`, canonicalizes its animal-sound Eye of the Tiger uploads, and excludes the one unattributed `25 Minutes or Less` parody, while leaving any previously queued copy editable; strips split CCKaraokeX forms and ObsKure Best Karaoke Version forms; removes all Offbeat key-signature forms while retaining remix/cover qualifiers; converts JLo.Instru's variably spaced `Song - Artist - Instrumental[-Version] - Karaoke[-Lyrics]` conventions to `Artist - Song` while retaining verified artist-first exceptions; strips legacy 1Music `MusicKaraoke`/vocal-removal/instrumental-version/XRINA branding, repairs its unspaced or omitted separators through a centralized artist-prefix list, reorders edition-first titles to `Artist - Song (Edition)`, and collapses redundant `2Pac - Tupac Shakur` aliases; normalizes Janet's em-dash separators and Couch Potato's dash-delimited Karaoke markers; and retains meaningful qualifiers. Lemmy's trailing performance labels and repeated-artist live/year metadata become compact parentheticals such as `(Stop Making Sense)` and `(Live) (1969)`. Shared display cleanup also normalizes square brackets, quoted `"Weird Al"`, leading context tags such as `(Sonic Adventure 2)`, removes redundant leading or trailing `Version` from parenthetical edition labels, moves `YYYY Version; Edit` into `(Edit) (YYYY)`, shortens `7 Inch Version` to `(7")`, and canonicalizes `Featuring`/`Feat`/`Ft` credits as `Ft.` on the artist side, moving misplaced title-side credits there.
@@ -56,6 +59,7 @@ Not yet implemented: music libraries and explicit watched/unwatched controls fro
 - Fullscreen mpv playback of decoded YouTube clips, with no TV-frame overlay.
 - Keyboard channel surfing, clip skipping, feed filtering, and decade jumping.
 - CRT-style noise, glow, black-and-white, and static transition effects.
+- Channel and clip changes reuse the active mpv process through IPC, avoiding a new player startup for every switch.
 
 ### Local
 
@@ -64,6 +68,7 @@ Not yet implemented: music libraries and explicit watched/unwatched controls fro
 - Common video file support: `mp4`, `mkv`, `avi`, `mov`, `m4v`, `webm`, `wmv`, `flv`, `f4v`, `mpg`, `mpeg`, `vob`.
 - Still images and common audio files; audio can be collected in an independent soundtrack queue.
 - A pasteable YouTube playlist action in the soundtrack pane expands public or unlisted playlists into persistent, individually reorderable video entries in source order and streams them audio-only through the bundled helpers.
+- Valid playlist entries appear in the soundtrack queue as they arrive, so the first track is usable while the rest of a large import continues in the background.
 - Local-only `m3u` and `m3u8` imports expand into validated, root-contained queue entries with bounded nesting and queue size.
 - Persistent, duplicate-friendly media and soundtrack queues with reorder, remove, and clear controls. Completed media remains queued; failed media stays visibly marked.
 - Repeat Off, Repeat Queue, Repeat One, queue shuffle, soundtrack shuffle, and optional saved-queue auto-launch.
@@ -107,12 +112,12 @@ Quick macOS development build:
 brew install cmake qt mpv ffmpeg
 cmake -B build -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt .
 cmake --build build
-APP_ROOT=$(pwd) ./build/240-mp-jellyfin.app/Contents/MacOS/240-mp-jellyfin
+APP_ROOT=$(pwd) ./build/OwlSwitch.app/Contents/MacOS/OwlSwitch
 ```
 
 ## Install
 
-See [INSTALL.md](INSTALL.md). [Download 240-mp-jellyfin 1.6.3 for Apple Silicon](https://github.com/aindaco1/240-mp-jellyfin/releases/download/v1.6.3/240-mp-jellyfin-v1.6.3-macOS-arm64.dmg), open the notarized DMG, and drag the app onto its Applications shortcut. If EasyDMG is already configured as the Mac's default DMG handler, the same single-app image can automate that copy; no additional installer is required. Checksums and release notes remain available from [GitHub Releases](https://github.com/aindaco1/240-mp-jellyfin/releases).
+See [INSTALL.md](INSTALL.md). Once published, the 1.6.4 artifact will be [240-mp-jellyfin-v1.6.4-macOS-arm64.dmg](https://github.com/aindaco1/240-mp-jellyfin/releases/download/v1.6.4/240-mp-jellyfin-v1.6.4-macOS-arm64.dmg); the historical DMG asset name remains part of the existing updater contract. Until then, use the [latest published Apple Silicon release](https://github.com/aindaco1/240-mp-jellyfin/releases/latest). Open the notarized DMG and drag `OwlSwitch.app` onto its Applications shortcut. If EasyDMG is already configured as the Mac's default DMG handler, the same image can automate that copy; no additional installer is required.
 
 The app quietly checks for a newer signed GitHub release whenever it opens. A current or failed check stays out of the way; a valid newer Apple Silicon release presents **View** and **Later**, with **View** opening the existing **Settings → Software Update** screen. The manual check remains available there, and downloading and installation always require user action. The updater verifies GitHub's SHA-256 digest, Apple notarization, the Developer ID team, bundle identity, version, and Apple Silicon architecture before replacing the app.
 
@@ -138,6 +143,8 @@ User configuration is stored outside the app bundle:
   local_queue.json
   local_queue.m3u8
   nature_observations.json
+  diagnostics/
+    owlswitch.jsonl
 ```
 
 `jellyfin_auth.json` stores the Jellyfin server URL, access token, user ID, username, server identity, and client device ID. Passwords are not persisted. Karaoke files contain public catalog metadata, queue state, and validated canonical YouTube watch URLs; they contain no credentials. Local files contain owner-only resume state, root-contained local paths, queue UUIDs, track choices, validated YouTube video IDs/titles for imported soundtrack entries, and a generated local media playlist. `nature_observations.json` is a bounded metadata-only cache of validated public observations and CC0 photo URLs; image files are not stored.
@@ -148,6 +155,7 @@ User configuration is stored outside the app bundle:
 - Jellyfin playback tokens are sent to mpv through a temporary private mpv config include instead of command-line header arguments.
 - Jellyfin stream URLs do not include `api_key` tokens.
 - Playback logs redact known token query parameters.
+- Settings → Diagnostics shows the bounded, sanitized events that would be sent. Reports are never automatic; the user must select **Send Report**. The app and the independently sanitizing relay exclude media, screenshots, paths, URLs, emails, credentials, environment dumps, and unrestricted logs before aggregating matching reports into GitHub issues.
 - Local accepts remote soundtrack input only through validated public/unlisted YouTube playlist URLs and persists canonical video identities rather than submitted URLs.
 - Nature requests are anonymous and cached Nature photo URLs are revalidated against the CC0 and trusted-host policy before reuse.
 

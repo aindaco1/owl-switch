@@ -157,7 +157,7 @@ QString JellyfinBackend::deviceId() const {
 
 QString JellyfinBackend::authorizationValue(const QString &token) const {
     QStringList parts;
-    parts << "MediaBrowser Client=\"240-mp-jellyfin\"";
+    parts << "MediaBrowser Client=\"OwlSwitch\"";
     parts << QString("Device=\"%1\"").arg(QSysInfo::prettyProductName().isEmpty()
                                              ? QStringLiteral("macOS")
                                              : QSysInfo::prettyProductName());

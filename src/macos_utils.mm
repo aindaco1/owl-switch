@@ -23,7 +23,7 @@ static void releaseSleepAssertion() {
 
     IOPMAssertionRelease(sleepAssertion);
     sleepAssertion = kIOPMNullAssertionID;
-    NSLog(@"[240-MP] sleep prevention released");
+    NSLog(@"[OwlSwitch] sleep prevention released");
 }
 
 static void acquireSleepAssertion() {
@@ -33,14 +33,14 @@ static void acquireSleepAssertion() {
     IOReturn result = IOPMAssertionCreateWithName(
         kIOPMAssertionTypePreventUserIdleSystemSleep,
         kIOPMAssertionLevelOn,
-        CFSTR("240-mp-jellyfin is running"),
+        CFSTR("OwlSwitch is running"),
         &sleepAssertion);
     if (result != kIOReturnSuccess) {
         sleepAssertion = kIOPMNullAssertionID;
-        NSLog(@"[240-MP] sleep prevention assertion failed: 0x%x", result);
+        NSLog(@"[OwlSwitch] sleep prevention assertion failed: 0x%x", result);
         return;
     }
-    NSLog(@"[240-MP] sleep prevention active");
+    NSLog(@"[OwlSwitch] sleep prevention active");
 }
 
 static InternalBatteryState readInternalBatteryState() {
@@ -109,7 +109,7 @@ static void ensurePowerSourceNotifications() {
 
     powerSourceRunLoopSource = IOPSNotificationCreateRunLoopSource(powerSourceChanged, nullptr);
     if (!powerSourceRunLoopSource) {
-        NSLog(@"[240-MP] could not create power source notification");
+        NSLog(@"[OwlSwitch] could not create power source notification");
         return;
     }
     CFRunLoopAddSource(CFRunLoopGetMain(), powerSourceRunLoopSource, kCFRunLoopDefaultMode);
@@ -151,7 +151,7 @@ void stopMacSleepPrevention() {
 void forceWindowFullScreenOnScreen(void *handle, int screenIndex) {
     NSView   *view   = (__bridge NSView *)(void *)handle;
     NSWindow *win    = [view window];
-    if (!win) { NSLog(@"[240-MP] forceWindowFullScreen: no NSWindow"); return; }
+    if (!win) { NSLog(@"[OwlSwitch] forceWindowFullScreen: no NSWindow"); return; }
 
     NSArray<NSScreen *> *screens = [NSScreen screens];
     NSScreen *screen = nil;
@@ -159,9 +159,9 @@ void forceWindowFullScreenOnScreen(void *handle, int screenIndex) {
         screen = screens[screenIndex];
     if (!screen)
         screen = win.screen ?: [NSScreen mainScreen];
-    if (!screen) { NSLog(@"[240-MP] forceWindowFullScreen: no NSScreen"); return; }
+    if (!screen) { NSLog(@"[OwlSwitch] forceWindowFullScreen: no NSScreen"); return; }
 
-    NSLog(@"[240-MP] forceWindowFullScreen: index=%d screen.frame = {{%.0f,%.0f},{%.0f,%.0f}}",
+    NSLog(@"[OwlSwitch] forceWindowFullScreen: index=%d screen.frame = {{%.0f,%.0f},{%.0f,%.0f}}",
           screenIndex,
           screen.frame.origin.x, screen.frame.origin.y,
           screen.frame.size.width, screen.frame.size.height);

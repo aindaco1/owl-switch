@@ -64,11 +64,11 @@ def main() -> None:
         expected_manifest = module.tree_manifest(source_app)
         archive = root / "valid.tar.gz"
         with tarfile.open(archive, "w:gz") as tar:
-            tar.add(source_app, arcname=f"{module.EXPECTED_ROOT}/app/240-mp-jellyfin.app")
+            tar.add(source_app, arcname=f"{module.EXPECTED_ROOT}/app/OwlSwitch.app")
             add_file(tar, f"{module.EXPECTED_ROOT}/metadata.json", b"{}\n")
         extracted = root / "valid-extracted"
         module.extract(archive, extracted)
-        restored_app = extracted / module.EXPECTED_ROOT / "app" / "240-mp-jellyfin.app"
+        restored_app = extracted / module.EXPECTED_ROOT / "app" / "OwlSwitch.app"
         assert module.tree_manifest(restored_app) == expected_manifest
         assert (restored_app / "Contents" / "Frameworks" / "Example.framework" / "Example").is_symlink()
 

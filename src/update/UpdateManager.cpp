@@ -19,6 +19,8 @@ namespace {
 constexpr auto kReleaseApi = "https://api.github.com/repos/" APP_UPDATE_REPOSITORY "/releases/latest";
 constexpr auto kBundleIdentifier = APP_BUNDLE_IDENTIFIER;
 constexpr auto kExpectedTeamIdentifier = APP_UPDATE_TEAM_ID;
+constexpr auto kPrimaryBundleName = APP_BUNDLE_NAME;
+constexpr auto kLegacyBundleName = APP_LEGACY_BUNDLE_NAME;
 
 struct MountedImage {
     QString mountPoint;
@@ -64,12 +66,14 @@ MountedImage mountDiskImage(const QString &path, QString *errorMessage) {
         return {};
     }
 
-    const QString appPath = QDir(mountPoint).filePath(QStringLiteral("240-mp-jellyfin.app"));
-    if (appPath.isEmpty() || !QDir(appPath).exists()) {
+    QString appPath = QDir(mountPoint).filePath(QString::fromLatin1(kPrimaryBundleName));
+    if (!QDir(appPath).exists())
+        appPath = QDir(mountPoint).filePath(QString::fromLatin1(kLegacyBundleName));
+    if (!QDir(appPath).exists()) {
         processOutput(QStringLiteral("/usr/bin/hdiutil"),
                       {QStringLiteral("detach"), mountPoint, QStringLiteral("-force")});
         if (errorMessage)
-            *errorMessage = QStringLiteral("The disk image does not contain 240-mp-jellyfin.app.");
+            *errorMessage = QStringLiteral("The disk image does not contain OwlSwitch.app.");
         return {};
     }
     return {mountPoint, appPath};
@@ -175,7 +179,7 @@ void UpdateManager::startCheck(bool startedOnLaunch) {
 
     QNetworkRequest request(QUrl(QString::fromLatin1(kReleaseApi)));
     request.setHeader(QNetworkRequest::UserAgentHeader,
-                      QStringLiteral("240-mp-jellyfin/%1").arg(currentVersion()));
+                      QStringLiteral("OwlSwitch/%1").arg(currentVersion()));
     request.setRawHeader("Accept", "application/vnd.github+json");
     request.setRawHeader("X-GitHub-Api-Version", "2022-11-28");
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
@@ -258,7 +262,7 @@ void UpdateManager::downloadUpdate() {
 
     QNetworkRequest request(m_assetUrl);
     request.setHeader(QNetworkRequest::UserAgentHeader,
-                      QStringLiteral("240-mp-jellyfin/%1").arg(currentVersion()));
+                      QStringLiteral("OwlSwitch/%1").arg(currentVersion()));
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::NoLessSafeRedirectPolicy);
     QNetworkReply *reply = m_network->get(request);
@@ -476,8 +480,10 @@ void UpdateManager::installAndRestart() {
               "/usr/bin/codesign --verify \"$dmg\"\n"
               "/usr/sbin/spctl -a -t open --context context:primary-signature \"$dmg\"\n"
               "attach_output=$(/usr/bin/hdiutil attach -nobrowse -readonly -noautoopen \"$dmg\")\n"
-              "mount_point=$(print -r -- \"$attach_output\" | /usr/bin/awk -F '\\t' '/\\/Volumes\\// { value=$NF } END { print value }')\n"
-              "source_app=\"$mount_point/240-mp-jellyfin.app\"\n"
+              "mount_point=$(print -r -- \"$attach_output\" | /usr/bin/awk -F '\\t' '/\\/Volumes\\// { value=$NF } END { print value }')\n";
+    stream << "source_app=\"$mount_point/" << QString::fromLatin1(kPrimaryBundleName) << "\"\n"
+              "if [[ ! -d \"$source_app\" ]]; then source_app=\"$mount_point/"
+           << QString::fromLatin1(kLegacyBundleName) << "\"; fi\n"
               "[[ -d \"$source_app\" ]]\n"
               "/usr/bin/codesign --verify --deep --strict \"$source_app\"\n"
               "/usr/sbin/spctl -a -t exec \"$source_app\"\n"
@@ -488,7 +494,9 @@ void UpdateManager::installAndRestart() {
               "actual_version=$(/usr/bin/plutil -extract CFBundleShortVersionString raw -o - \"$source_app/Contents/Info.plist\")\n"
               "canonical_version() { local value=${1#v}; while [[ \"$value\" == *'.0' ]]; do value=${value%.0}; done; print -r -- \"$value\"; }\n"
               "[[ \"$(canonical_version \"$actual_version\")\" == \"$(canonical_version \"$expected_version\")\" ]]\n"
-              "/usr/bin/lipo -archs \"$source_app/Contents/MacOS/240-mp-jellyfin\" | /usr/bin/grep -qw arm64\n"
+              "source_executable=$(/usr/bin/plutil -extract CFBundleExecutable raw -o - \"$source_app/Contents/Info.plist\")\n"
+              "[[ -n \"$source_executable\" ]]\n"
+              "/usr/bin/lipo -archs \"$source_app/Contents/MacOS/$source_executable\" | /usr/bin/grep -qw arm64\n"
               "/bin/rm -rf \"$new_app\" \"$old_app\"\n"
               "/usr/bin/ditto \"$source_app\" \"$new_app\"\n"
               "/usr/bin/codesign --verify --deep --strict \"$new_app\"\n"

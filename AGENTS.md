@@ -1,8 +1,8 @@
-# 240-mp-jellyfin Development Guidelines
+# OwlSwitch Development Guidelines
 
-240-mp-jellyfin is a macOS Apple Silicon fork of 240-MP. It keeps the retro VHS/CRT-style Qt 6 + QML shell, keeps Local, Retro, Tumblr, and Nature, hides Plex, adds Jellyfin as the primary server-backed module, and adds a Funbox-backed Karaoke queue. Local incorporates the former Loop behavior.
+OwlSwitch is a macOS Apple Silicon fork of 240-MP. It builds as `OwlSwitch.app`; hidden legacy aliases preserve the historical updater contract, while module IDs, updater identity, and the Application Support path remain unchanged. It keeps the retro VHS/CRT-style Qt 6 + QML video controller, keeps Local, Retro, Tumblr, and Nature, hides Plex, adds Jellyfin as the primary server-backed module, and adds a multi-source Karaoke queue. Local incorporates the former Loop behavior.
 
-**Playback engine**: the app launches `mpv` as a subprocess through `MpvController`. Local track probing uses `ffprobe`. CMake downloads pinned, checksum-verified standalone `yt-dlp` and Deno helpers for YouTube extraction. Packaged macOS apps bundle all four helpers; end users do not need system copies.
+**Playback engine**: the app launches `mpv` as a subprocess through `MpvController`. Local track probing uses `ffprobe`. CMake downloads a pinned, checksum-verified official yt-dlp onedir runtime and Deno for YouTube extraction. Packaged macOS apps bundle all helpers; end users do not need system copies.
 
 ---
 
@@ -16,7 +16,7 @@ cmake -B build -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt . && cmake --build build
 cmake --build build
 
 # Run:
-APP_ROOT=$(pwd) ./build/240-mp-jellyfin.app/Contents/MacOS/240-mp-jellyfin
+APP_ROOT=$(pwd) ./build/OwlSwitch.app/Contents/MacOS/OwlSwitch
 ```
 
 For packaging, CI, and config paths, see **[BUILDING.md](BUILDING.md)** and **[INSTALL.md](INSTALL.md)**.

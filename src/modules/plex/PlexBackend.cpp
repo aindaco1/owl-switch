@@ -109,10 +109,10 @@ QNetworkRequest PlexBackend::plexRequest(const QUrl &url, const QString &token) 
     QNetworkRequest req(url);
     req.setRawHeader("Accept", "application/json");
     req.setRawHeader("X-Plex-Client-Identifier", clientId().toLatin1());
-    req.setRawHeader("X-Plex-Product", "240-MP");
+    req.setRawHeader("X-Plex-Product", "OwlSwitch");
     req.setRawHeader("X-Plex-Version", QCoreApplication::applicationVersion().toLatin1());
     req.setRawHeader("X-Plex-Platform", kPlexPlatform.toLatin1());
-    req.setRawHeader("X-Plex-Device", "240-MP");
+    req.setRawHeader("X-Plex-Device", "OwlSwitch");
     req.setRawHeader("X-Plex-Device-Name", QSysInfo::machineHostName().toLatin1());
     if (!token.isEmpty())
         req.setRawHeader("X-Plex-Token", token.toLatin1());

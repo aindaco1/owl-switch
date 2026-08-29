@@ -6,7 +6,7 @@ Row {
 
     // Custom Properties
     property url iconSource: "../../assets/images/logo.svg"
-    property string title: "240-mp-jellyfin"
+    property string title: "OwlSwitch"
     property string subtitle: ""
 
     spacing: root.sw * 0.025 //16

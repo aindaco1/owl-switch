@@ -74,6 +74,9 @@ public:
     Q_INVOKABLE void appendPlaylistItem(const QString &url);
     Q_INVOKABLE void playPlaylistItem(int index);
     Q_INVOKABLE void replacePlaylistItem(int index, const QString &url);
+    // Reuses the active mpv process for module-owned channel/clip switching.
+    // Returns false when no reusable playback session exists.
+    Q_INVOKABLE bool replaceCurrentMedia(const QString &url);
     Q_INVOKABLE void removePlaylistItem(int index);
     Q_INVOKABLE void movePlaylistItem(int fromIndex, int toIndex);
     Q_INVOKABLE void clearPlaylistExceptCurrent();

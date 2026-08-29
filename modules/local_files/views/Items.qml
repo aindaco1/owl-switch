@@ -288,6 +288,10 @@ FocusScope {
             statusMessage = "LOADING YOUTUBE PLAYLIST"
             statusTimer.stop()
         }
+        function onYoutubePlaylistImportProgress(addedCount) {
+            statusMessage = addedCount === 1 ? "ADDED 1 TRACK - LOADING MORE"
+                                             : "ADDED " + addedCount + " TRACKS - LOADING MORE"
+        }
         function onYoutubePlaylistImportFinished(addedCount) {
             youtubeImporting = false
             youtubeInputVisible = false

@@ -79,7 +79,7 @@ extract_root="$work_root/extracted"
 python3 "$repo_root/scripts/ci_app_artifact.py" extract "$archive" "$extract_root"
 bundle_root="$extract_root/240-mp-jellyfin-ci-app"
 metadata="$bundle_root/metadata.json"
-app="$bundle_root/app/240-mp-jellyfin.app"
+app="$bundle_root/app/OwlSwitch.app"
 source_tree="$(git -C "$repo_root" rev-parse 'HEAD^{tree}')"
 if [[ ! -f "$metadata" || -L "$metadata" ]] || ! jq -e \
     --arg repository "$repository" \
@@ -116,11 +116,13 @@ packaging_contract_sha256="$({
     shasum -a 256 \
         CMakeLists.txt \
         cmake/BundledHelpers.cmake \
+        cmake/helper-manifest.json.in \
         scripts/ci_app_artifact.py \
         scripts/macos_bundle_tool_deps.zsh \
         scripts/macos_prepare_release_bundle.zsh \
         scripts/macos_prune_qt_deployment.zsh \
         scripts/macos_verify_bundled_helpers.sh \
+        scripts/macos_youtube_canary.sh \
         scripts/macos_verify_bundle.zsh \
         scripts/package_ci_app.sh
 } | shasum -a 256 | awk '{print $1}')"
@@ -150,7 +152,7 @@ fi
 bin="$app/Contents/Resources/bin"
 helper_home="$work_root/helper-home"
 "$repo_root/scripts/macos_verify_bundled_helpers.sh" \
-    pinned-only "$bin" "$repo_root/cmake/BundledHelpers.cmake" "$helper_home"
+    pinned-only "$bin" "$app/Contents/Resources/helper-manifest.json" "$helper_home"
 
 mkdir -p "$(dirname "$app_destination")"
 mv "$app" "$app_destination"

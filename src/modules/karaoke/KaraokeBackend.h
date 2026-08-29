@@ -8,6 +8,9 @@
 #include <QProcess>
 #include <QSet>
 #include <QVariantList>
+#include <QVector>
+
+#include "tools/YouTubeJob.h"
 
 class KaraokeBackend : public QObject {
     Q_OBJECT
@@ -17,7 +20,11 @@ public:
     ~KaraokeBackend() override;
 
     Q_INVOKABLE void loadCatalog();
+    Q_INVOKABLE void loadCatalogDeferred();
     Q_INVOKABLE void refreshCatalog();
+    Q_INVOKABLE QVariantMap searchCatalog(const QString &query,
+                                          int offset = 0,
+                                          int limit = 250) const;
     Q_INVOKABLE QVariantList getQueue() const;
     Q_INVOKABLE bool enqueue(const QVariantMap &song);
     Q_INVOKABLE bool removeQueueEntry(const QString &entryId);
@@ -46,6 +53,7 @@ signals:
     void catalogItemsAppended(const QVariant &items);
     void catalogLoadFinished(int itemCount, bool fromCache);
     void catalogLoadFailed(const QString &message, bool usingCache);
+    void catalogChanged(int itemCount, bool fromCache);
     void queueChanged(const QVariant &items);
     void queueEntryPrefetchStarted(const QString &entryId);
     void queueEntryPrefetched(const QString &entryId, const QString &filePath);
@@ -69,7 +77,9 @@ private:
     void consumeCatalogOutput(bool includeRemainder = false);
     void consumeCatalogLine(const QByteArray &line);
     void flushCatalogBatch();
-    void finishCatalogRefresh(int exitCode, QProcess::ExitStatus exitStatus);
+    void rebuildCatalogIndex(const QVariantList &items, bool refreshItems);
+    void finishCatalogRefresh(YouTubeJob::Failure failure, int exitCode,
+                              const QString &safeError);
     bool catalogCacheIsStale() const;
     bool catalogSourcesArePlausible() const;
 
@@ -81,7 +91,8 @@ private:
     bool publishQueue();
     void stopPrefetchProcess(bool removeArtifacts);
     void cleanupPrefetchArtifacts(const QString &videoId) const;
-    void finishPrefetch(int exitCode, QProcess::ExitStatus exitStatus);
+    void finishPrefetch(YouTubeJob::Failure failure, int exitCode,
+                        const QString &safeError);
     void prunePlaybackCache();
 
     QString m_appRoot;
@@ -91,11 +102,11 @@ private:
     QHash<QString, int> m_catalogSourceCounts;
     QDateTime m_catalogFetchedAt;
     bool m_catalogLoaded = false;
+    bool m_catalogLoadScheduled = false;
     bool m_autoRefreshChecked = false;
 
-    QProcess *m_catalogProcess = nullptr;
+    YouTubeJob *m_catalogJob = nullptr;
     QByteArray m_catalogOutputBuffer;
-    QByteArray m_catalogErrorBuffer;
     QVariantList m_refreshItems;
     QVariantList m_refreshBatch;
     QSet<QString> m_refreshIds;
@@ -103,8 +114,17 @@ private:
     QHash<QString, int> m_refreshSourceCounts;
     bool m_refreshHadCache = false;
 
-    QProcess *m_prefetchProcess = nullptr;
+    struct CatalogSearchEntry {
+        int itemIndex = -1;
+        QString searchKey;
+        QString sortKey;
+        QString titleKey;
+        QString videoId;
+    };
+    QVector<CatalogSearchEntry> m_catalogSearchIndex;
+    bool m_catalogIndexUsesRefreshItems = false;
+
+    YouTubeJob *m_prefetchJob = nullptr;
     QString m_prefetchEntryId;
     QString m_prefetchVideoId;
-    QByteArray m_prefetchErrorBuffer;
 };

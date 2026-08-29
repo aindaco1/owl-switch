@@ -316,7 +316,7 @@ void TumblrScreensaverBackend::fetchPage(const QUrl &blogUrl, int start, int gen
     QNetworkRequest request(apiUrlForPage(blogUrl, start));
     request.setRawHeader("Accept", "application/json,text/javascript,*/*");
     request.setRawHeader("User-Agent",
-                         QStringLiteral("240-mp-jellyfin/%1")
+                         QStringLiteral("OwlSwitch/%1")
                              .arg(QCoreApplication::applicationVersion()).toUtf8());
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::NoLessSafeRedirectPolicy);

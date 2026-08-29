@@ -119,7 +119,14 @@ void MpvControllerTest::repeatModesUseNarrowMpvArguments()
     MpvController controller(appRoot);
     controller.loadAndPlayWithOptions(QStringLiteral("/tmp/local-queue.m3u8"),
                                       {{QStringLiteral("repeatMode"), repeatMode}});
-    QTRY_VERIFY_WITH_TIMEOUT(QFile::exists(markerPath), 3000);
+    QTRY_VERIFY_WITH_TIMEOUT([&]() {
+        QFile pendingMarker(markerPath);
+        if (!pendingMarker.open(QIODevice::ReadOnly | QIODevice::Text))
+            return false;
+        return QString::fromUtf8(pendingMarker.readAll())
+            .split('\n', Qt::SkipEmptyParts)
+            .contains(expectedArgument);
+    }(), 3000);
     QFile marker(markerPath);
     QVERIFY(marker.open(QIODevice::ReadOnly | QIODevice::Text));
     const QStringList arguments = QString::fromUtf8(marker.readAll())
@@ -203,7 +210,7 @@ void MpvControllerTest::trackSelectionPreservesLaunchMute()
             "                command = json.loads(line).get('command', [])\n"
             "            except Exception:\n"
             "                command = []\n"
-            "            if command[:2] == ['set_property', 'aid']:\n"
+            "            if isinstance(command, list) and command[:2] == ['set_property', 'aid']:\n"
             "                time.sleep(0.1)\n"
             "                sys.exit(0)\n"
             "sys.exit(1)\n"
@@ -215,6 +222,28 @@ void MpvControllerTest::trackSelectionPreservesLaunchMute()
     controller.loadAndPlayWithOptions(QStringLiteral("/tmp/local-queue.m3u8"),
                                       {{QStringLiteral("muteAudio"), true}});
     QTRY_COMPARE_WITH_TIMEOUT(loadedSpy.count(), 1, 5000);
+
+    const QString replacementUrl =
+        QStringLiteral("https://www.youtube.com/watch?v=abcdefghijk");
+    QVERIFY(!controller.replaceCurrentMedia(QString{}));
+    QVERIFY(controller.replaceCurrentMedia(replacementUrl));
+    const auto markerContainsReplacement = [&markerPath, &replacementUrl] {
+        QFile marker(markerPath);
+        if (!marker.open(QIODevice::ReadOnly | QIODevice::Text))
+            return false;
+        while (!marker.atEnd()) {
+            const QJsonArray command = QJsonDocument::fromJson(marker.readLine())
+                                           .object().value(QStringLiteral("command")).toArray();
+            if (command.size() >= 3 &&
+                command.at(0).toString() == QLatin1String("loadfile") &&
+                command.at(1).toString() == replacementUrl &&
+                command.at(2).toString() == QLatin1String("replace")) {
+                return true;
+            }
+        }
+        return false;
+    };
+    QTRY_VERIFY_WITH_TIMEOUT(markerContainsReplacement(), 5000);
 
     controller.selectPlaybackTracks(1, -2, {});
     const auto markerContainsMutedSelection = [&markerPath] {

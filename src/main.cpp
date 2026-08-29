@@ -7,6 +7,7 @@
 #include <QTimer>
 #include <QCursor>
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QWindow>
 #include <QQuickWindow>
 #include <QScreen>
@@ -25,6 +26,8 @@
 #include "input/IdleTracker.h"
 #include "input/InputManager.h"
 #include "update/UpdateManager.h"
+#include "tools/YouTubeJob.h"
+#include "diagnostics/DiagnosticsManager.h"
 #ifdef Q_OS_MAC
 #include "macos_utils.h"
 #endif
@@ -77,7 +80,10 @@ static int lowBatteryThresholdFromSettings(AppCore &appCore) {
 
 int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
+    // Keep the internal application name stable so 1.6.4 reuses the existing
+    // Application Support directory. The visible product name is OwlSwitch.
     app.setApplicationName("240-mp-jellyfin");
+    app.setApplicationDisplayName(QStringLiteral("OwlSwitch"));
 #ifdef APP_VERSION
     app.setApplicationVersion(QStringLiteral(APP_VERSION));
 #else
@@ -99,6 +105,7 @@ int main(int argc, char *argv[]) {
 
     const QString appRoot  = resolveAppRoot();
     const QString dataRoot = resolveDataRoot();
+    DiagnosticsManager diagnosticsManager(dataRoot);
     qDebug("[main] appRoot  = %s", qPrintable(appRoot));
     qDebug("[main] dataRoot = %s", qPrintable(dataRoot));
 
@@ -178,6 +185,7 @@ int main(int argc, char *argv[]) {
     ctx->setContextProperty("idleTracker",   &idleTracker);
     ctx->setContextProperty("inputManager",  &inputManager);
     ctx->setContextProperty("updateManager", &updateManager);
+    ctx->setContextProperty("diagnosticsManager", &diagnosticsManager);
     ctx->setContextProperty("hasExternalMediaScreen", displaySelection.hasSeparateMediaScreen());
     ctx->setContextProperty("externalMediaScreenX", mediaGeometry.x());
     ctx->setContextProperty("externalMediaScreenY", mediaGeometry.y());
@@ -200,6 +208,30 @@ int main(int argc, char *argv[]) {
     if (QQuickWindow *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first()))
         inputManager.setTargetWindow(window);
     QTimer::singleShot(0, &updateManager, &UpdateManager::checkForUpdatesOnLaunch);
+
+    // The official yt-dlp onedir build starts quickly after its runtime pages
+    // have been touched once. Prime it after the controller is interactive;
+    // this is a local --version invocation and never contacts YouTube.
+    auto *youtubeWarmup = new YouTubeJob(appRoot, &app);
+    auto *youtubeWarmupTimer = new QElapsedTimer;
+    QObject::connect(youtubeWarmup, &YouTubeJob::completed, &app,
+                     [youtubeWarmup, youtubeWarmupTimer](YouTubeJob::Failure failure,
+                                                        int, const QString &safeError) {
+        const qint64 elapsedMs = youtubeWarmupTimer->isValid()
+            ? youtubeWarmupTimer->elapsed() : -1;
+        if (failure == YouTubeJob::Failure::None) {
+            qInfo("[YouTube] helper warm-up completed in %lld ms", elapsedMs);
+        } else {
+            qWarning("[YouTube] helper warm-up failed in %lld ms: %s",
+                     elapsedMs, qPrintable(safeError));
+        }
+        delete youtubeWarmupTimer;
+        youtubeWarmup->deleteLater();
+    });
+    QTimer::singleShot(0, &app, [youtubeWarmup, youtubeWarmupTimer] {
+        youtubeWarmupTimer->start();
+        youtubeWarmup->start({QStringLiteral("--version")}, 10000, 4096, 4096);
+    });
 
 #ifdef Q_OS_MAC
     if (QWindow *win = qobject_cast<QWindow *>(engine.rootObjects().first())) {

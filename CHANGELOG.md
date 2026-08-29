@@ -1,8 +1,32 @@
 # Changelog
 
-All notable changes to 240-mp-jellyfin are documented here.
+All notable OwlSwitch changes are documented here. Releases through 1.6.3 used the 240-mp-jellyfin product name; 1.6.4 introduces the renamed bundle while retaining compatibility aliases and trusted identifiers.
 
 ## [Unreleased]
+
+## [1.6.4] - 2026-08-29
+
+### Added
+
+- Renamed the product and physical bundle to **OwlSwitch**, a retro video controller inspired by “the owls are not what they seem,” while preserving a hidden legacy updater alias, the existing identifier, updater channel, and Application Support directory.
+- Added a Settings diagnostics screen with owner-only rotating structured logs, strict path/URL/email/credential redaction, a bounded report preview, explicit send/clear actions, and no automatic reporting.
+- Added a separately deployable Cloudflare diagnostics relay that independently validates, sanitizes, rate-limits, fingerprints, and aggregates matching user reports into GitHub issues using a short-lived GitHub App installation token.
+- Added one source-controlled helper manifest and reusable Karaoke, Local playlist, audio, and 720p video YouTube canaries for packaged-app verification.
+
+### Changed
+
+- Replaced yt-dlp's self-extracting executable with the official checksum-pinned onedir archive and added one local, no-network helper warm-up after the controller becomes interactive.
+- Centralized YouTube input identity, video/audio format profiles, subprocess limits, cancellation, sanitization, and mpv arguments across Karaoke, Retro, and Local.
+- Karaoke now paints its first frame before cache parsing, searches and sorts in C++, pages only 250 results into QML, and exposes progressive cold-refresh results in larger bounded batches.
+- Karaoke now labels the initial catalog state as loading instead of briefly displaying `0/0`; Right Shift works as a queue-reorder modifier and triggers Back only when tapped by itself.
+- Diagnostics omit routine mpv progress and normal quit telemetry while retaining actionable playback warnings and failures.
+- Local YouTube playlist import persists the first valid song immediately and continues adding bounded batches in source order while extraction remains active.
+- Retro keeps one mpv process alive and replaces clips/channels through IPC instead of restarting the player for every switch.
+
+### Security
+
+- The helper manifest records the exact yt-dlp/Deno versions, archive checksums, installed paths, and onedir layout. Release signing now covers every nested Mach-O file in the yt-dlp runtime.
+- Diagnostic payloads are capped at 20 reviewed structured events and are sanitized on both sides of the network boundary. The desktop app contains no GitHub credentials.
 
 ## [1.6.3] - 2026-08-28
 

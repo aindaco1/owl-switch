@@ -198,7 +198,7 @@ QNetworkReply *NatureBackend::getJson(const QUrl &url)
     request.setRawHeader("Accept", "application/json");
     request.setRawHeader(
         "User-Agent",
-        QStringLiteral("240-mp-jellyfin/%1 (+https://github.com/aindaco1/240-mp-jellyfin)")
+        QStringLiteral("OwlSwitch/%1 (+https://github.com/aindaco1/240-mp-jellyfin)")
             .arg(QCoreApplication::applicationVersion()).toUtf8());
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::NoLessSafeRedirectPolicy);

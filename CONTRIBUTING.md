@@ -1,6 +1,6 @@
-# Contributing to 240-mp-jellyfin
+# Contributing to OwlSwitch
 
-240-mp-jellyfin is a focused macOS Apple Silicon fork of 240-MP. The goal is to keep the retro CRT-style media shell, keep Local, Retro, Tumblr, Nature, and Karaoke user-facing, and make Jellyfin the primary server-backed integration. Local owns the former Loop behavior.
+OwlSwitch is a focused macOS Apple Silicon fork of 240-MP. The repository and compatibility identifiers retain their historical 240-mp-jellyfin names. The goal is to keep the retro CRT-style video controller, keep Local, Retro, Tumblr, Nature, and Karaoke user-facing, and make Jellyfin the primary server-backed integration. Local owns the former Loop behavior.
 
 ## Getting Started
 

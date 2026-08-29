@@ -1,8 +1,10 @@
 #include "KaraokeBackend.h"
 
 #include "tools/HelperResolver.h"
+#include "tools/YouTubePolicy.h"
 
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QFileInfoList>
@@ -161,17 +163,46 @@ const QList<CatalogSource> kCatalogSources{
         12
     }
 };
-constexpr int kCatalogBatchSize = 64;
+constexpr int kCatalogBatchSize = 256;
 constexpr int kMaxHelperErrorBytes = 8192;
 constexpr int kMaxCachedPlaybackFiles = 8;
 constexpr qint64 kMaxCachedPlaybackBytes = 1024LL * 1024LL * 1024LL;
 
 QString safeErrorText(const QByteArray &value)
 {
-    QString text = QString::fromUtf8(value).trimmed();
-    text.replace(QRegularExpression(QStringLiteral("https?://\\S+")),
-                 QStringLiteral("<url>"));
-    return text.left(600);
+    return YouTubePolicy::safeHelperError(value).left(600);
+}
+
+QString normalizedSearchText(QString text)
+{
+    text = text.toLower().normalized(QString::NormalizationForm_D);
+    QString normalized;
+    normalized.reserve(text.size());
+    for (const QChar character : std::as_const(text)) {
+        if (character.category() == QChar::Mark_NonSpacing)
+            continue;
+        switch (character.unicode()) {
+        case 0x00E6: case 0x01FD: normalized += QStringLiteral("ae"); break;
+        case 0x0153: normalized += QStringLiteral("oe"); break;
+        case 0x00F8: normalized += QLatin1Char('o'); break;
+        case 0x00F0: case 0x0111: normalized += QLatin1Char('d'); break;
+        case 0x00FE: normalized += QStringLiteral("th"); break;
+        case 0x00DF: normalized += QStringLiteral("ss"); break;
+        case 0x0142: normalized += QLatin1Char('l'); break;
+        case 0x0131: normalized += QLatin1Char('i'); break;
+        default: normalized += character; break;
+        }
+    }
+    return normalized;
+}
+
+QString articleInsensitiveSortKey(const QString &title)
+{
+    QString key = normalizedSearchText(title).trimmed();
+    static const QRegularExpression article(
+        QStringLiteral("^(?:a|an|the)\\s+"));
+    key.remove(article);
+    return key;
 }
 
 QString titleCasedIfAllCaps(QString title)
@@ -628,6 +659,11 @@ QString normalizedTitleSeparators(QString title)
                 "^(.+?)\\s+(?:Featuring|Feat|Ft)\\.?\\s+([^()]+?)"
                 "(\\s+(?:\\([^()]*\\)\\s*)*)?$"),
             QRegularExpression::CaseInsensitiveOption);
+        static const QRegularExpression leadingTitleCredit(
+            QStringLiteral(
+                "^\\s*(?:Featuring|Feat|Ft)\\.?\\s+(.+?)"
+                "\\s+(?:-|–|—)\\s+(.+?)\\s*$"),
+            QRegularExpression::CaseInsensitiveOption);
         const QRegularExpressionMatch parenthesizedMatch =
             parenthesizedTitleCredit.match(song);
         if (parenthesizedMatch.hasMatch()) {
@@ -640,13 +676,20 @@ QString normalizedTitleSeparators(QString title)
             if (!suffix.isEmpty())
                 song += QLatin1Char(' ') + suffix;
         } else {
-            const QRegularExpressionMatch trailingMatch =
-                trailingTitleCredit.match(song);
-            if (trailingMatch.hasMatch()) {
-                guest = trailingMatch.captured(2).trimmed();
-                song = (trailingMatch.captured(1).trimmed()
-                        + QLatin1Char(' ')
-                        + trailingMatch.captured(3).trimmed()).trimmed();
+            const QRegularExpressionMatch leadingMatch =
+                leadingTitleCredit.match(song);
+            if (leadingMatch.hasMatch()) {
+                guest = leadingMatch.captured(1).trimmed();
+                song = leadingMatch.captured(2).trimmed();
+            } else {
+                const QRegularExpressionMatch trailingMatch =
+                    trailingTitleCredit.match(song);
+                if (trailingMatch.hasMatch()) {
+                    guest = trailingMatch.captured(2).trimmed();
+                    song = (trailingMatch.captured(1).trimmed()
+                            + QLatin1Char(' ')
+                            + trailingMatch.captured(3).trimmed()).trimmed();
+                }
             }
         }
         if (!guest.isEmpty()) {
@@ -904,15 +947,26 @@ KaraokeBackend::KaraokeBackend(const QString &appRoot, const QString &dataRoot,
     , m_appRoot(appRoot)
     , m_dataRoot(dataRoot)
 {
+    m_catalogJob = new YouTubeJob(m_appRoot, this);
+    connect(m_catalogJob, &YouTubeJob::outputReady, this,
+            [this](const QByteArray &output) {
+        m_catalogOutputBuffer += output;
+        consumeCatalogOutput();
+    });
+    connect(m_catalogJob, &YouTubeJob::completed, this,
+            &KaraokeBackend::finishCatalogRefresh);
+
+    m_prefetchJob = new YouTubeJob(m_appRoot, this);
+    connect(m_prefetchJob, &YouTubeJob::outputReady, this,
+            [](const QByteArray &) {});
+    connect(m_prefetchJob, &YouTubeJob::completed, this,
+            &KaraokeBackend::finishPrefetch);
     loadQueue();
 }
 
 KaraokeBackend::~KaraokeBackend()
 {
-    if (m_catalogProcess && m_catalogProcess->state() != QProcess::NotRunning) {
-        m_catalogProcess->kill();
-        m_catalogProcess->waitForFinished(1000);
-    }
+    m_catalogJob->cancelSilently();
     stopPrefetchProcess(true);
 }
 
@@ -1217,8 +1271,7 @@ QVariantList KaraokeBackend::deduplicatedCatalog(const QVariantList &items)
 
 bool KaraokeBackend::isValidVideoId(const QString &videoId)
 {
-    static const QRegularExpression valid(QStringLiteral("^[A-Za-z0-9_-]{11}$"));
-    return valid.match(videoId).hasMatch();
+    return YouTubePolicy::isValidVideoId(videoId);
 }
 
 bool KaraokeBackend::isPlausibleCatalogSize(int candidateItemCount, int cachedItemCount,
@@ -1261,12 +1314,18 @@ QVariantMap KaraokeBackend::catalogSongFromJson(const QJsonObject &object)
 
 void KaraokeBackend::loadCatalog()
 {
+    m_catalogLoadScheduled = false;
+    QElapsedTimer loadTimer;
+    loadTimer.start();
     if (!m_catalogLoaded) {
         loadCatalogCache();
         m_catalogLoaded = true;
     }
 
     if (!m_catalog.isEmpty()) {
+        qInfo("[Karaoke] catalog ready with %lld songs in %lld ms",
+              m_catalog.size(), loadTimer.elapsed());
+        emit catalogChanged(m_catalog.size(), true);
         emit catalogReset(m_catalog, true);
         emit catalogLoadFinished(m_catalog.size(), true);
     }
@@ -1275,10 +1334,74 @@ void KaraokeBackend::loadCatalog()
         m_autoRefreshChecked = true;
         if (m_catalog.isEmpty() || catalogCacheIsStale())
             startCatalogRefresh();
-    } else if (m_catalog.isEmpty() &&
-               (!m_catalogProcess || m_catalogProcess->state() == QProcess::NotRunning)) {
+    } else if (m_catalog.isEmpty() && !m_catalogJob->isRunning()) {
         startCatalogRefresh();
     }
+}
+
+void KaraokeBackend::loadCatalogDeferred()
+{
+    if (m_catalogLoadScheduled)
+        return;
+    m_catalogLoadScheduled = true;
+    // Let the module's first frame reach the screen before parsing a large
+    // catalog cache. The work itself remains on the owning Qt thread.
+    QTimer::singleShot(16, this, &KaraokeBackend::loadCatalog);
+}
+
+QVariantMap KaraokeBackend::searchCatalog(const QString &query, int offset,
+                                           int limit) const
+{
+    const QString normalizedQuery = normalizedSearchText(query);
+    const QVariantList &items = m_catalogIndexUsesRefreshItems
+        ? m_refreshItems : m_catalog;
+    const int boundedOffset = qMax(0, offset);
+    const int boundedLimit = qBound(1, limit, 500);
+    QVariantList matches;
+    matches.reserve(boundedLimit);
+    int total = 0;
+    for (const CatalogSearchEntry &entry : m_catalogSearchIndex) {
+        if (!normalizedQuery.isEmpty() && !entry.searchKey.contains(normalizedQuery))
+            continue;
+        if (total >= boundedOffset && matches.size() < boundedLimit &&
+            entry.itemIndex >= 0 && entry.itemIndex < items.size()) {
+            matches.append(items.at(entry.itemIndex));
+        }
+        ++total;
+    }
+    return {
+        {QStringLiteral("items"), matches},
+        {QStringLiteral("total"), total},
+        {QStringLiteral("catalogTotal"), m_catalogSearchIndex.size()},
+        {QStringLiteral("offset"), boundedOffset}
+    };
+}
+
+void KaraokeBackend::rebuildCatalogIndex(const QVariantList &items,
+                                         bool refreshItems)
+{
+    QVector<CatalogSearchEntry> index;
+    index.reserve(items.size());
+    for (int itemIndex = 0; itemIndex < items.size(); ++itemIndex) {
+        const QVariantMap song = items.at(itemIndex).toMap();
+        const QString displayTitle = song.value(QStringLiteral("displayTitle")).toString();
+        const QString rawTitle = song.value(QStringLiteral("rawTitle")).toString();
+        index.append({itemIndex,
+                      normalizedSearchText(displayTitle + QLatin1Char(' ') + rawTitle),
+                      articleInsensitiveSortKey(displayTitle),
+                      normalizedSearchText(displayTitle),
+                      song.value(QStringLiteral("videoId")).toString()});
+    }
+    std::sort(index.begin(), index.end(), [](const CatalogSearchEntry &left,
+                                             const CatalogSearchEntry &right) {
+        if (left.sortKey != right.sortKey)
+            return left.sortKey < right.sortKey;
+        if (left.titleKey != right.titleKey)
+            return left.titleKey < right.titleKey;
+        return left.videoId < right.videoId;
+    });
+    m_catalogSearchIndex = std::move(index);
+    m_catalogIndexUsesRefreshItems = refreshItems;
 }
 
 void KaraokeBackend::refreshCatalog()
@@ -1312,9 +1435,7 @@ QString KaraokeBackend::playbackCacheDirectory() const
 
 QString KaraokeBackend::canonicalVideoUrl(const QString &videoId) const
 {
-    return isValidVideoId(videoId)
-        ? QStringLiteral("https://www.youtube.com/watch?v=") + videoId
-        : QString{};
+    return YouTubePolicy::canonicalVideoUrl(videoId);
 }
 
 QString KaraokeBackend::findCachedPlaybackPath(const QString &videoId) const
@@ -1421,6 +1542,7 @@ bool KaraokeBackend::loadCatalogCache()
         return false;
 
     m_catalog = deduplicatedCatalog(loaded);
+    rebuildCatalogIndex(m_catalog, false);
     m_catalogSourceCounts = sourceCounts(loaded);
     if (!legacyFunboxCache) {
         const QJsonObject cachedCounts = root.value(
@@ -1494,25 +1616,23 @@ bool KaraokeBackend::catalogSourcesArePlausible() const
 
 void KaraokeBackend::startCatalogRefresh()
 {
-    if (m_catalogProcess && m_catalogProcess->state() != QProcess::NotRunning)
+    if (m_catalogJob->isRunning())
         return;
 
+    QStringList sourceUrls;
+    sourceUrls.reserve(int(std::size(kCatalogSources)));
+    for (const CatalogSource &source : kCatalogSources)
+        sourceUrls.append(source.url);
     const QString ytDlp = HelperResolver::ytDlp(m_appRoot);
-    const QString deno = HelperResolver::deno(m_appRoot);
-    if (ytDlp.isEmpty() || deno.isEmpty()) {
+    const QStringList arguments = YouTubePolicy::playlistInventoryArguments(
+        m_appRoot, sourceUrls);
+    if (ytDlp.isEmpty() || arguments.isEmpty()) {
         emit catalogLoadFailed(QStringLiteral("Bundled YouTube helpers are unavailable."),
                                !m_catalog.isEmpty());
         return;
     }
 
-    if (m_catalogProcess)
-        m_catalogProcess->deleteLater();
-    m_catalogProcess = new QProcess(this);
-    m_catalogProcess->setProcessEnvironment(HelperResolver::processEnvironment(m_appRoot));
-    m_catalogProcess->setProcessChannelMode(QProcess::SeparateChannels);
-
     m_catalogOutputBuffer.clear();
-    m_catalogErrorBuffer.clear();
     m_refreshItems.clear();
     m_refreshBatch.clear();
     m_refreshIds.clear();
@@ -1520,45 +1640,14 @@ void KaraokeBackend::startCatalogRefresh()
     m_refreshSourceCounts.clear();
     m_refreshHadCache = !m_catalog.isEmpty();
 
-    connect(m_catalogProcess, &QProcess::readyReadStandardOutput, this, [this] {
-        m_catalogOutputBuffer += m_catalogProcess->readAllStandardOutput();
-        consumeCatalogOutput();
-    });
-    connect(m_catalogProcess, &QProcess::readyReadStandardError, this, [this] {
-        m_catalogErrorBuffer += m_catalogProcess->readAllStandardError();
-        if (m_catalogErrorBuffer.size() > kMaxHelperErrorBytes)
-            m_catalogErrorBuffer = m_catalogErrorBuffer.right(kMaxHelperErrorBytes);
-    });
-    connect(m_catalogProcess,
-            QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, &KaraokeBackend::finishCatalogRefresh);
-    connect(m_catalogProcess, &QProcess::errorOccurred, this,
-            [this](QProcess::ProcessError error) {
-        if (error != QProcess::FailedToStart)
-            return;
-        m_catalogErrorBuffer += m_catalogProcess->errorString().toUtf8();
-        finishCatalogRefresh(-1, QProcess::CrashExit);
-    });
-
     emit catalogLoadStarted(m_refreshHadCache);
-    QStringList arguments{
-        QStringLiteral("--no-config"),
-        QStringLiteral("--no-update"),
-        QStringLiteral("--no-warnings"),
-        QStringLiteral("--no-progress"),
-        QStringLiteral("--ignore-errors"),
-        QStringLiteral("--flat-playlist"),
-        QStringLiteral("--lazy-playlist"),
-        QStringLiteral("--dump-json"),
-        QStringLiteral("--js-runtimes"),
-        QStringLiteral("deno:") + deno
-    };
     // The registry order is the duplicate preference order, allowing cold-load
     // batches to suppress lower-ranked equivalents before they reach the UI.
     // Final reconciliation applies the same ranking independent of fetch order.
-    for (const CatalogSource &source : kCatalogSources)
-        arguments.append(source.url);
-    m_catalogProcess->start(ytDlp, arguments);
+    if (!m_catalogJob->start(arguments, 10 * 60 * 1000,
+                             96LL * 1024LL * 1024LL, kMaxHelperErrorBytes)) {
+        finishCatalogRefresh(YouTubeJob::Failure::Unavailable, -1, {});
+    }
 }
 
 void KaraokeBackend::consumeCatalogOutput(bool includeRemainder)
@@ -1614,6 +1703,8 @@ void KaraokeBackend::flushCatalogBatch()
     if (m_refreshBatch.isEmpty())
         return;
     if (!m_refreshHadCache) {
+        rebuildCatalogIndex(m_refreshItems, true);
+        emit catalogChanged(m_refreshItems.size(), false);
         if (m_refreshItems.size() == m_refreshBatch.size())
             emit catalogReset(m_refreshBatch, false);
         else
@@ -1622,16 +1713,14 @@ void KaraokeBackend::flushCatalogBatch()
     m_refreshBatch.clear();
 }
 
-void KaraokeBackend::finishCatalogRefresh(int exitCode, QProcess::ExitStatus exitStatus)
+void KaraokeBackend::finishCatalogRefresh(YouTubeJob::Failure failure, int exitCode,
+                                           const QString &safeError)
 {
-    if (m_catalogProcess) {
-        m_catalogOutputBuffer += m_catalogProcess->readAllStandardOutput();
-        m_catalogErrorBuffer += m_catalogProcess->readAllStandardError();
-    }
+    Q_UNUSED(exitCode)
     consumeCatalogOutput(true);
     flushCatalogBatch();
 
-    const bool helperSucceeded = exitStatus == QProcess::NormalExit && exitCode == 0;
+    const bool helperSucceeded = failure == YouTubeJob::Failure::None;
     const QVariantList reconciledItems = deduplicatedCatalog(m_refreshItems);
     const bool catalogSizeIsPlausible = isPlausibleCatalogSize(
         reconciledItems.size(), m_catalog.size());
@@ -1641,21 +1730,27 @@ void KaraokeBackend::finishCatalogRefresh(int exitCode, QProcess::ExitStatus exi
     if (successful) {
         const bool progressiveItemsChanged = reconciledItems.size() != m_refreshItems.size();
         m_catalog = reconciledItems;
+        rebuildCatalogIndex(m_catalog, false);
         m_catalogSourceCounts = m_refreshSourceCounts;
         m_catalogFetchedAt = QDateTime::currentDateTimeUtc();
         saveCatalogCache();
         if (m_refreshHadCache || progressiveItemsChanged)
             emit catalogReset(m_catalog, false);
+        emit catalogChanged(m_catalog.size(), false);
         emit catalogLoadFinished(m_catalog.size(), false);
     } else {
-        QString detail = safeErrorText(m_catalogErrorBuffer);
+        QString detail = safeError;
         QString message = QStringLiteral("Could not refresh the Karaoke catalog.");
         if (helperSucceeded && (!catalogSizeIsPlausible || !sourcesArePlausible))
             detail = QStringLiteral("The catalog response was incomplete.");
         if (!detail.isEmpty())
             message += QStringLiteral(" ") + detail;
-        if (!m_refreshHadCache && !m_refreshItems.isEmpty())
+        if (!m_refreshHadCache && !m_refreshItems.isEmpty()) {
+            m_catalogSearchIndex.clear();
+            m_catalogIndexUsesRefreshItems = false;
             emit catalogReset(QVariantList{}, false);
+            emit catalogChanged(0, false);
+        }
         emit catalogLoadFailed(message, !m_catalog.isEmpty());
     }
 
@@ -1880,22 +1975,12 @@ void KaraokeBackend::cleanupPrefetchArtifacts(const QString &videoId) const
 
 void KaraokeBackend::stopPrefetchProcess(bool removeArtifacts)
 {
-    QProcess *process = m_prefetchProcess;
-    if (!process)
-        return;
-
-    disconnect(process, nullptr, this, nullptr);
-    if (process->state() != QProcess::NotRunning) {
-        process->kill();
-        process->waitForFinished(1000);
-    }
-    process->deleteLater();
-    m_prefetchProcess = nullptr;
+    if (m_prefetchJob)
+        m_prefetchJob->cancelSilently();
     if (removeArtifacts)
         cleanupPrefetchArtifacts(m_prefetchVideoId);
     m_prefetchEntryId.clear();
     m_prefetchVideoId.clear();
-    m_prefetchErrorBuffer.clear();
 }
 
 void KaraokeBackend::prefetchQueueEntry(const QString &entryId)
@@ -1916,24 +2001,14 @@ void KaraokeBackend::prefetchQueueEntry(const QString &entryId)
         return;
     }
 
-    if (m_prefetchProcess && m_prefetchProcess->state() != QProcess::NotRunning) {
+    if (m_prefetchJob->isRunning()) {
         if (m_prefetchVideoId == videoId) {
             m_prefetchEntryId = entryId;
             return;
         }
         stopPrefetchProcess(true);
-    } else if (m_prefetchProcess) {
-        stopPrefetchProcess(false);
     }
 
-    const QString ytDlp = HelperResolver::ytDlp(m_appRoot);
-    const QString deno = HelperResolver::deno(m_appRoot);
-    const QString ffmpeg = HelperResolver::ffmpeg(m_appRoot);
-    if (ytDlp.isEmpty() || deno.isEmpty() || ffmpeg.isEmpty()) {
-        emit queueEntryPrefetchFailed(
-            entryId, QStringLiteral("Bundled Karaoke prefetch helpers are unavailable."));
-        return;
-    }
     if (!QDir().mkpath(playbackCacheDirectory())) {
         emit queueEntryPrefetchFailed(
             entryId, QStringLiteral("Could not create the Karaoke playback cache."));
@@ -1943,90 +2018,46 @@ void KaraokeBackend::prefetchQueueEntry(const QString &entryId)
     cleanupPrefetchArtifacts(videoId);
     m_prefetchEntryId = entryId;
     m_prefetchVideoId = videoId;
-    m_prefetchErrorBuffer.clear();
-
-    QProcess *process = new QProcess(this);
-    m_prefetchProcess = process;
-    process->setProcessEnvironment(HelperResolver::processEnvironment(m_appRoot));
-    process->setProcessChannelMode(QProcess::SeparateChannels);
-    connect(process, &QProcess::readyReadStandardOutput, this, [process] {
-        process->readAllStandardOutput();
-    });
-    connect(process, &QProcess::readyReadStandardError, this, [this, process] {
-        if (m_prefetchProcess != process)
-            return;
-        m_prefetchErrorBuffer += process->readAllStandardError();
-        if (m_prefetchErrorBuffer.size() > kMaxHelperErrorBytes)
-            m_prefetchErrorBuffer = m_prefetchErrorBuffer.right(kMaxHelperErrorBytes);
-    });
-    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, process](int exitCode, QProcess::ExitStatus exitStatus) {
-        if (m_prefetchProcess == process)
-            finishPrefetch(exitCode, exitStatus);
-    });
-    connect(process, &QProcess::errorOccurred, this,
-            [this, process](QProcess::ProcessError error) {
-        if (m_prefetchProcess != process || error != QProcess::FailedToStart)
-            return;
-        m_prefetchErrorBuffer += process->errorString().toUtf8();
-        finishPrefetch(-1, QProcess::CrashExit);
-    });
 
     emit queueEntryPrefetchStarted(entryId);
     const QString outputTemplate = QDir(playbackCacheDirectory()).filePath(
         videoId + QStringLiteral(".%(ext)s"));
-    const QStringList arguments{
-        QStringLiteral("--no-config"),
-        QStringLiteral("--no-update"),
-        QStringLiteral("--no-playlist"),
-        QStringLiteral("--no-progress"),
-        QStringLiteral("--no-warnings"),
-        QStringLiteral("--js-runtimes"),
-        QStringLiteral("deno:") + deno,
-        QStringLiteral("--ffmpeg-location"),
-        ffmpeg,
-        QStringLiteral("--format"),
-        QStringLiteral("bestvideo[ext=mp4][height<=720]+bestaudio[ext=m4a]/best[ext=mp4][height<=720]/best"),
-        QStringLiteral("--merge-output-format"),
-        QStringLiteral("mp4"),
-        QStringLiteral("--output"),
-        outputTemplate,
-        canonicalVideoUrl(videoId)
-    };
-    process->start(ytDlp, arguments);
+    const QStringList arguments = YouTubePolicy::videoPrefetchArguments(
+        m_appRoot, outputTemplate, videoId);
+    if (arguments.isEmpty() ||
+        !m_prefetchJob->start(arguments, 15 * 60 * 1000,
+                              1024 * 1024, kMaxHelperErrorBytes)) {
+        stopPrefetchProcess(true);
+        emit queueEntryPrefetchFailed(
+            entryId, QStringLiteral("Bundled Karaoke prefetch helpers are unavailable."));
+        return;
+    }
 }
 
-void KaraokeBackend::finishPrefetch(int exitCode, QProcess::ExitStatus exitStatus)
+void KaraokeBackend::finishPrefetch(YouTubeJob::Failure failure, int exitCode,
+                                    const QString &safeError)
 {
-    QProcess *process = m_prefetchProcess;
-    if (!process)
+    Q_UNUSED(exitCode)
+    if (m_prefetchEntryId.isEmpty())
         return;
-    m_prefetchErrorBuffer += process->readAllStandardError();
-    if (m_prefetchErrorBuffer.size() > kMaxHelperErrorBytes)
-        m_prefetchErrorBuffer = m_prefetchErrorBuffer.right(kMaxHelperErrorBytes);
 
     const QString entryId = m_prefetchEntryId;
     const QString videoId = m_prefetchVideoId;
-    const bool helperSucceeded = exitStatus == QProcess::NormalExit && exitCode == 0;
+    const bool helperSucceeded = failure == YouTubeJob::Failure::None;
     const QString cached = helperSucceeded ? findCachedPlaybackPath(videoId) : QString{};
 
-    disconnect(process, nullptr, this, nullptr);
-    process->deleteLater();
-    m_prefetchProcess = nullptr;
     m_prefetchEntryId.clear();
     m_prefetchVideoId.clear();
 
     if (!cached.isEmpty()) {
         QFile::setPermissions(cached, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
         prunePlaybackCache();
-        m_prefetchErrorBuffer.clear();
         emit queueEntryPrefetched(entryId, cached);
         return;
     }
 
     cleanupPrefetchArtifacts(videoId);
-    QString detail = safeErrorText(m_prefetchErrorBuffer);
-    m_prefetchErrorBuffer.clear();
+    const QString detail = safeError;
     QString message = QStringLiteral("Could not prepare the next Karaoke song.");
     if (!detail.isEmpty())
         message += QStringLiteral(" ") + detail;

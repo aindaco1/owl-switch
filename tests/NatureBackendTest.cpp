@@ -344,7 +344,7 @@ void NatureBackendTest::fetchIsAnonymousAndBounded()
     const QUrlQuery query(requested);
     QCOMPARE(query.queryItemValue(QStringLiteral("per_page")), QStringLiteral("100"));
     QVERIFY(server.requests.constFirst().contains("Accept: application/json"));
-    QVERIFY(server.requests.constFirst().contains("User-Agent: 240-mp-jellyfin/"));
+    QVERIFY(server.requests.constFirst().contains("User-Agent: OwlSwitch/"));
     QVERIFY(!server.requests.constFirst().contains("Authorization:"));
 
     const QList<QByteArray> placeLines = server.requests.at(1).split('\n');
