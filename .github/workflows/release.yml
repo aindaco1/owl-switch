@@ -95,20 +95,41 @@ jobs:
       - name: Sign app
         run: |
           APP="${GITHUB_WORKSPACE}/install/OwlSwitch.app"
+          PYTHON_FRAMEWORK="$APP/Contents/Resources/bin/_internal/Python.framework"
+          if [ -d "$PYTHON_FRAMEWORK" ]; then
+            python_version_root=$(find "$PYTHON_FRAMEWORK/Versions" \
+              -mindepth 1 -maxdepth 1 -type d ! -name Current -print)
+            python_version_count=$(printf '%s\n' "$python_version_root" \
+              | sed '/^$/d' | wc -l | tr -d ' ')
+            test "$python_version_count" = 1
+            test -f "$python_version_root/Python"
+            test -d "$python_version_root/Resources"
+
+            # PyInstaller's onedir archive flattens the canonical framework
+            # symlinks into duplicate files and directories. Validate that
+            # every duplicate matches before restoring the standard layout;
+            # otherwise Apple's notary service scans an ambiguous extra Mach-O.
+            if [ ! -L "$PYTHON_FRAMEWORK/Python" ]; then
+              cmp -s "$PYTHON_FRAMEWORK/Python" "$python_version_root/Python"
+              cmp -s "$PYTHON_FRAMEWORK/Versions/Current/Python" "$python_version_root/Python"
+              diff -qr "$PYTHON_FRAMEWORK/Resources" "$python_version_root/Resources"
+              diff -qr "$PYTHON_FRAMEWORK/Versions/Current/Resources" "$python_version_root/Resources"
+              /bin/rm -f "$PYTHON_FRAMEWORK/Python"
+              /bin/rm -rf "$PYTHON_FRAMEWORK/Resources" "$PYTHON_FRAMEWORK/Versions/Current"
+              /bin/ln -s "$(basename "$python_version_root")" "$PYTHON_FRAMEWORK/Versions/Current"
+              /bin/ln -s Versions/Current/Python "$PYTHON_FRAMEWORK/Python"
+              /bin/ln -s Versions/Current/Resources "$PYTHON_FRAMEWORK/Resources"
+            fi
+            test "$(readlink "$PYTHON_FRAMEWORK/Versions/Current")" = "$(basename "$python_version_root")"
+            test "$(readlink "$PYTHON_FRAMEWORK/Python")" = Versions/Current/Python
+            test "$(readlink "$PYTHON_FRAMEWORK/Resources")" = Versions/Current/Resources
+          fi
           find "$APP/Contents/Frameworks" \( -name "*.dylib" -o -name "*.framework" \) \
             -exec codesign --force --options runtime --timestamp \
               --keychain "$SIGNING_KEYCHAIN" --sign "$SIGNING_IDENTITY" {} \;
           if [ -d "$APP/Contents/Resources/bin" ]; then
             find "$APP/Contents/Resources/bin" -depth -type f | while read -r helper; do
               file -b "$helper" | grep -q 'Mach-O' || continue
-              # PyInstaller's onedir archive includes a flattened top-level
-              # Python.framework/Python compatibility copy. codesign treats
-              # that one path as an ambiguous bundle; the versioned framework
-              # binaries are signed below, and the final strict deep verify
-              # still validates the complete app.
-              if [ "$helper" = "$APP/Contents/Resources/bin/_internal/Python.framework/Python" ]; then
-                continue
-              fi
               entitlement_file=""
               if [ "$helper" = "$APP/Contents/Resources/bin/mpv" ]; then
                 entitlement_file="packaging/mpv.entitlements"
@@ -128,6 +149,11 @@ jobs:
                   --sign "$SIGNING_IDENTITY" "$helper"
               fi
             done
+          fi
+          if [ -d "$PYTHON_FRAMEWORK" ]; then
+            codesign --force --options runtime --timestamp \
+              --keychain "$SIGNING_KEYCHAIN" --sign "$SIGNING_IDENTITY" \
+              "$PYTHON_FRAMEWORK"
           fi
           codesign --force --deep --options runtime \
             --timestamp \
@@ -191,11 +217,23 @@ jobs:
           APP="${GITHUB_WORKSPACE}/install/OwlSwitch.app"
           APP_ZIP="$RUNNER_TEMP/240-mp-jellyfin-app.zip"
           ditto -c -k --keepParent "$APP" "$APP_ZIP"
-          xcrun notarytool submit "$APP_ZIP" \
+          submission_json=$(xcrun notarytool submit "$APP_ZIP" \
             --key "$RUNNER_TEMP/notary-key.p8" \
             --key-id "$APPLE_API_KEY_ID" \
             --issuer "$APPLE_API_ISSUER_ID" \
-            --wait
+            --wait --output-format json)
+          printf '%s\n' "$submission_json"
+          submission_id=$(printf '%s' "$submission_json" \
+            | plutil -extract id raw -o - -- -)
+          submission_status=$(printf '%s' "$submission_json" \
+            | plutil -extract status raw -o - -- -)
+          if [ "$submission_status" != Accepted ]; then
+            xcrun notarytool log "$submission_id" \
+              --key "$RUNNER_TEMP/notary-key.p8" \
+              --key-id "$APPLE_API_KEY_ID" \
+              --issuer "$APPLE_API_ISSUER_ID" || true
+            exit 1
+          fi
           xcrun stapler staple "$APP"
           xcrun stapler validate "$APP"
           spctl -a -t exec -vv "$APP"
