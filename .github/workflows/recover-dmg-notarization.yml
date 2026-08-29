@@ -43,7 +43,7 @@ jobs:
         run: |
           release_version="${RELEASE_TAG#v}"
           release_base_version="${release_version%%-*}"
-          project_version=$(sed -nE 's/^project\(240mp VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' CMakeLists.txt)
+          project_version=$(sed -nE 's/^project\(OwlSwitch VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' CMakeLists.txt)
           declared_release_tag=$(sed -nE 's/^set\(APP_RELEASE_TAG "([^"]+)"\).*/\1/p' CMakeLists.txt)
           test -n "$project_version"
           test -n "$declared_release_tag"
@@ -56,7 +56,7 @@ jobs:
 
       - name: Download signed draft DMG
         run: |
-          DMG="240-mp-jellyfin-${RELEASE_TAG}-macOS-arm64.dmg"
+          DMG="owl-switch-${RELEASE_TAG}-macOS-arm64.dmg"
           gh release download "$RELEASE_TAG" --pattern "$DMG" --dir "$RUNNER_TEMP/release"
           test -s "$RUNNER_TEMP/release/$DMG"
           echo "DMG=$RUNNER_TEMP/release/$DMG" >> "$GITHUB_ENV"

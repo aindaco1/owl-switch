@@ -54,15 +54,15 @@ ci_run="$(
 ci_run_id="${ci_run%%$'\t'*}"
 ci_run_attempt="${ci_run#*$'\t'}"
 
-work_root="$(mktemp -d "${TMPDIR:-/tmp}/240-mp-jellyfin-ci-app-restore.XXXXXX")"
+work_root="$(mktemp -d "${TMPDIR:-/tmp}/owl-switch-ci-app-restore.XXXXXX")"
 cleanup() {
     /bin/rm -rf -- "$work_root"
 }
 trap cleanup EXIT
-artifact_name="240-mp-jellyfin-verified-app-$commit"
+artifact_name="owl-switch-verified-app-$commit"
 gh run download "$ci_run_id" --repo "$repository" \
     --name "$artifact_name" --dir "$work_root/download"
-archive="$work_root/download/240-mp-jellyfin-ci-app-$commit.tar.gz"
+archive="$work_root/download/owl-switch-ci-app-$commit.tar.gz"
 if [[ ! -f "$archive" || -L "$archive" ]]; then
     echo "exact CI app artifact is missing or unsafe" >&2
     exit 1
@@ -77,7 +77,7 @@ gh attestation verify "$archive" \
 
 extract_root="$work_root/extracted"
 python3 "$repo_root/scripts/ci_app_artifact.py" extract "$archive" "$extract_root"
-bundle_root="$extract_root/240-mp-jellyfin-ci-app"
+bundle_root="$extract_root/owl-switch-ci-app"
 metadata="$bundle_root/metadata.json"
 app="$bundle_root/app/OwlSwitch.app"
 source_tree="$(git -C "$repo_root" rev-parse 'HEAD^{tree}')"
@@ -93,7 +93,7 @@ if [[ ! -f "$metadata" || -L "$metadata" ]] || ! jq -e \
         "qtVersion", "repository", "runAttempt", "runID", "runner", "schema",
         "sourceTree", "workflow", "xcodeVersion"
       ] and
-      .schema == "240-mp-jellyfin-ci-app-v1" and
+      .schema == "owl-switch-ci-app-v1" and
       .repository == $repository and .commit == $commit and
       .workflow == ".github/workflows/ci.yml" and
       .runID == $runID and .runAttempt == $runAttempt and
@@ -141,7 +141,7 @@ executable_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$info
 actual_bundle="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$info_plist")"
 actual_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info_plist")"
 expected_bundle="$(sed -nE 's/^set\(APP_BUNDLE_IDENTIFIER "([^"]+)".*/\1/p' "$repo_root/CMakeLists.txt")"
-expected_version="$(sed -nE 's/^project\(240mp VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' "$repo_root/CMakeLists.txt")"
+expected_version="$(sed -nE 's/^project\(OwlSwitch VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' "$repo_root/CMakeLists.txt")"
 if [[ "$actual_bundle" != "$expected_bundle" || "$actual_version" != "$expected_version" || \
       ! -x "$app/Contents/MacOS/$executable_name" || \
       "$(lipo -archs "$app/Contents/MacOS/$executable_name")" != "arm64" ]]; then

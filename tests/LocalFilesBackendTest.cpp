@@ -51,10 +51,10 @@ static bool writeExecutable(const QString &path, const QByteArray &contents)
 static bool writeLocalConfig(const QString &dataRoot, const QString &mediaRoot)
 {
     const QJsonObject config{{QStringLiteral("modules"), QJsonObject{
-        {QStringLiteral("com.240mp.local_files"), QJsonObject{
+        {QStringLiteral("com.owlswitch.local_files"), QJsonObject{
             {QStringLiteral("media_directory"), mediaRoot}
         }},
-        {QStringLiteral("com.240mp.ambient_mode"), QJsonObject{
+        {QStringLiteral("com.owlswitch.ambient_mode"), QJsonObject{
             {QStringLiteral("media_directory"), QStringLiteral("/ignored/legacy/loop")}
         }}
     }}};

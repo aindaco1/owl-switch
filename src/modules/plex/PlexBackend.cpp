@@ -605,7 +605,7 @@ QString PlexBackend::userToken() const {
 
 QString PlexBackend::videoQuality() const {
     QJsonObject cfg = loadConfig();
-    return cfg["modules"].toObject()["com.240mp.plex"].toObject()["video_quality"].toString("auto");
+    return cfg["modules"].toObject()["com.owlswitch.plex"].toObject()["video_quality"].toString("auto");
 }
 
 // ---------------------------------------------------------------------------
@@ -1039,9 +1039,9 @@ void PlexBackend::select_user(const QString &userId) {
     activateUser(userId, [this, userId](const QVariantList &accessibleServers) {
         QJsonObject cfg = loadConfig();
         QJsonObject mods = cfg["modules"].toObject();
-        QJsonObject plexCfg = mods["com.240mp.plex"].toObject();
+        QJsonObject plexCfg = mods["com.owlswitch.plex"].toObject();
         plexCfg["current_user_id"] = userId;
-        mods["com.240mp.plex"] = plexCfg;
+        mods["com.owlswitch.plex"] = plexCfg;
         cfg["modules"] = mods;
         saveConfig(cfg);
         emit serversLoaded(accessibleServers);
@@ -1067,9 +1067,9 @@ void PlexBackend::select_server(const QString &machineId) {
 
     QJsonObject cfg = loadConfig();
     QJsonObject mods = cfg["modules"].toObject();
-    QJsonObject plexCfg = mods["com.240mp.plex"].toObject();
+    QJsonObject plexCfg = mods["com.owlswitch.plex"].toObject();
     plexCfg["server_machine_id"] = machineId;
-    mods["com.240mp.plex"] = plexCfg;
+    mods["com.owlswitch.plex"] = plexCfg;
     cfg["modules"] = mods;
     saveConfig(cfg);
 
@@ -1183,7 +1183,7 @@ void PlexBackend::load_libraries_impl() {
             QJsonObject auth = loadAuth();
             QString machineId = auth["active_server_machine_id"].toString();
             QJsonObject libEnabled = loadConfig()["modules"].toObject()
-                                     ["com.240mp.plex"].toObject()["libraries"].toObject();
+                                     ["com.owlswitch.plex"].toObject()["libraries"].toObject();
 
             QVariantList items;
             if (hasCw)
@@ -1847,7 +1847,7 @@ void PlexBackend::getLibraries() {
 
 void PlexBackend::applyCurrentUserSetting() {
     QString userId = loadConfig()["modules"].toObject()
-                     ["com.240mp.plex"].toObject()["current_user_id"].toString();
+                     ["com.owlswitch.plex"].toObject()["current_user_id"].toString();
     if (userId.isEmpty()) return;
 
     activateUser(userId, [this](const QVariantList &accessibleServers) {
@@ -1866,9 +1866,9 @@ void PlexBackend::applyCurrentUserSetting() {
 
             QJsonObject cfg = loadConfig();
             QJsonObject mods = cfg["modules"].toObject();
-            QJsonObject plexCfg = mods["com.240mp.plex"].toObject();
+            QJsonObject plexCfg = mods["com.owlswitch.plex"].toObject();
             plexCfg["server_machine_id"] = newMid;
-            mods["com.240mp.plex"] = plexCfg;
+            mods["com.owlswitch.plex"] = plexCfg;
             cfg["modules"] = mods;
             saveConfig(cfg);
         }
@@ -1883,7 +1883,7 @@ void PlexBackend::applyCurrentUserSetting() {
 
 void PlexBackend::applyCurrentServerSetting() {
     QString machineId = loadConfig()["modules"].toObject()
-                        ["com.240mp.plex"].toObject()["server_machine_id"].toString();
+                        ["com.owlswitch.plex"].toObject()["server_machine_id"].toString();
     if (machineId.isEmpty()) return;
     QJsonObject auth = loadAuth();
     QJsonObject server;
@@ -1905,7 +1905,7 @@ void PlexBackend::reauth_select_user(const QString &userId) {
         QJsonObject a = loadAuth();
         QJsonObject cfg = loadConfig();
         QJsonObject mods = cfg["modules"].toObject();
-        QJsonObject plexCfg = mods["com.240mp.plex"].toObject();
+        QJsonObject plexCfg = mods["com.owlswitch.plex"].toObject();
         plexCfg["current_user_id"] = userId;
 
         // Apply saved server, falling back to first accessible if current is unreachable
@@ -1930,7 +1930,7 @@ void PlexBackend::reauth_select_user(const QString &userId) {
             saveAuth(a);
         }
 
-        mods["com.240mp.plex"] = plexCfg;
+        mods["com.owlswitch.plex"] = plexCfg;
         cfg["modules"] = mods;
         saveConfig(cfg);
         emit authSuccess();

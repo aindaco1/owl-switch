@@ -2,6 +2,10 @@
 
 Version 1.1 completed the fork's daily-use Apple Silicon macOS foundation. Future work stays focused on reliability and depth in the existing modules rather than expanding platform or module scope.
 
+## Prepared For The Next Release
+
+- Complete OwlSwitch project identity across the GitHub repository, iCloud checkout, build target, module IDs, app-data path, CI handoff artifacts, documentation, and public DMG names, with one-time settings/data migration and narrowly isolated updater compatibility aliases.
+
 ## Shipped In 1.6.4
 
 - OwlSwitch visible product identity with the tagline “the owls are not what they seem,” while retaining every update/data compatibility identifier from 1.6.3.

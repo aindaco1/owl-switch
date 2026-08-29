@@ -39,12 +39,12 @@ fi
 
 "$repo_root/scripts/macos_verify_bundle.zsh" "$app"
 
-work_root="$(mktemp -d "${TMPDIR:-/tmp}/240-mp-jellyfin-ci-app-package.XXXXXX")"
+work_root="$(mktemp -d "${TMPDIR:-/tmp}/owl-switch-ci-app-package.XXXXXX")"
 cleanup() {
     /bin/rm -rf -- "$work_root"
 }
 trap cleanup EXIT
-bundle_root="$work_root/240-mp-jellyfin-ci-app"
+bundle_root="$work_root/owl-switch-ci-app"
 mkdir -p "$bundle_root/app"
 ditto --norsrc --noextattr "$app" "$bundle_root/app/OwlSwitch.app"
 
@@ -76,7 +76,7 @@ qt_version="$("$QT_ROOT_DIR/bin/qtpaths" --query QT_VERSION)"
 macos_version="$(sw_vers -productVersion)"
 
 jq -n \
-    --arg schema "240-mp-jellyfin-ci-app-v1" \
+    --arg schema "owl-switch-ci-app-v1" \
     --arg repository "$repository" \
     --arg commit "$commit" \
     --arg workflow ".github/workflows/ci.yml" \
@@ -112,6 +112,6 @@ jq -n \
     }' > "$bundle_root/metadata.json"
 chmod 0644 "$bundle_root/metadata.json"
 
-COPYFILE_DISABLE=1 tar -czf "$archive" -C "$work_root" 240-mp-jellyfin-ci-app
+COPYFILE_DISABLE=1 tar -czf "$archive" -C "$work_root" owl-switch-ci-app
 chmod 0644 "$archive"
 echo "$archive"

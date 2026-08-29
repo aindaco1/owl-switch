@@ -4,7 +4,7 @@
 
 The app is a browsing and visuals-control shell, not an embedded video renderer. It launches `mpv` as a subprocess for playback and uses `ffprobe` to inspect local audio/subtitle tracks. CMake supplies a pinned, checksum-verified official yt-dlp onedir runtime and Deno for YouTube extraction. Packaged macOS apps also bundle `ffmpeg` for high-quality Karaoke prefetch, along with all required non-system libraries, so end users do not need Homebrew or system helper installs.
 
-Version 1.6.4 adopts the OwlSwitch name and ships as `OwlSwitch.app`. The DMG contains a hidden `240-mp-jellyfin.app` compatibility alias so installed 1.6.3 copies can still locate and validate the update. The bundle identifier, update channel, and Application Support directory remain unchanged, preserving settings, authentication, queues, caches, and updater trust.
+Version 1.6.4 adopted the OwlSwitch app and bundle name. Current development completes the project-identity migration: the repository and checkout are `owl-switch`, future DMGs use `owl-switch-<tag>-macOS-arm64.dmg`, module IDs use `com.owlswitch.*`, and app data moves to `~/Library/Application Support/owl-switch/` without losing existing settings. A hidden legacy bundle alias and the established signed bundle identifier remain temporarily so existing installations can still trust and install future updates.
 
 ## Supported Platform
 
@@ -117,7 +117,7 @@ APP_ROOT=$(pwd) ./build/OwlSwitch.app/Contents/MacOS/OwlSwitch
 
 ## Install
 
-See [INSTALL.md](INSTALL.md). Once published, the 1.6.4 artifact will be [240-mp-jellyfin-v1.6.4-macOS-arm64.dmg](https://github.com/aindaco1/240-mp-jellyfin/releases/download/v1.6.4/240-mp-jellyfin-v1.6.4-macOS-arm64.dmg); the historical DMG asset name remains part of the existing updater contract. Until then, use the [latest published Apple Silicon release](https://github.com/aindaco1/240-mp-jellyfin/releases/latest). Open the notarized DMG and drag `OwlSwitch.app` onto its Applications shortcut. If EasyDMG is already configured as the Mac's default DMG handler, the same image can automate that copy; no additional installer is required.
+See [INSTALL.md](INSTALL.md) and use the [latest published Apple Silicon release](https://github.com/aindaco1/owl-switch/releases/latest). Version 1.6.4 retains its historical asset filename; every later release produced by the current workflow uses `owl-switch-<tag>-macOS-arm64.dmg`. Open the notarized DMG and drag `OwlSwitch.app` onto its Applications shortcut. If EasyDMG is already configured as the Mac's default DMG handler, the same image can automate that copy; no additional installer is required.
 
 The app quietly checks for a newer signed GitHub release whenever it opens. A current or failed check stays out of the way; a valid newer Apple Silicon release presents **View** and **Later**, with **View** opening the existing **Settings → Software Update** screen. The manual check remains available there, and downloading and installation always require user action. The updater verifies GitHub's SHA-256 digest, Apple notarization, the Developer ID team, bundle identity, version, and Apple Silicon architecture before replacing the app.
 
@@ -133,7 +133,7 @@ The app quietly checks for a newer signed GitHub release whenever it opens. A cu
 User configuration is stored outside the app bundle:
 
 ```text
-~/Library/Application Support/240-mp-jellyfin/
+~/Library/Application Support/owl-switch/
   config.json
   jellyfin_auth.json
   karaoke_catalog.json

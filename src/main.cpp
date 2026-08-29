@@ -15,6 +15,7 @@
 #include <locale.h>
 
 #include "AppCore.h"
+#include "AppDataMigration.h"
 #include "display/DisplaySelection.h"
 #include "modules/local_files/LocalFilesBackend.h"
 #include "modules/plex/PlexBackend.h"
@@ -42,7 +43,7 @@ static QString resolveAppRoot() {
     if (QCoreApplication::applicationFilePath().contains(".app/Contents/MacOS/"))
         return QDir(appDir + "/../Resources").canonicalPath();
 
-    QDir fhsData(appDir + "/../share/240-mp-jellyfin");
+    QDir fhsData(appDir + "/../share/owl-switch");
     if (fhsData.exists())
         return fhsData.canonicalPath();
 
@@ -56,9 +57,18 @@ static QString resolveDataRoot() {
         return QDir(envRoot).canonicalPath();
     }
 
-    QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    QDir().mkpath(path);
-    return path;
+    const QString preferredPath =
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    const QString applicationSupport =
+        QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+    const QString legacyPath =
+        QDir(applicationSupport).filePath(QStringLiteral("240-mp-jellyfin"));
+    QString warning;
+    const QString dataRoot =
+        AppDataMigration::prepareDataRoot(preferredPath, legacyPath, &warning);
+    if (!warning.isEmpty())
+        qWarning("[main] %s", qPrintable(warning));
+    return dataRoot;
 }
 
 static bool preventSleepEnabledFromSettings(AppCore &appCore) {
@@ -80,9 +90,7 @@ static int lowBatteryThresholdFromSettings(AppCore &appCore) {
 
 int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
-    // Keep the internal application name stable so 1.6.4 reuses the existing
-    // Application Support directory. The visible product name is OwlSwitch.
-    app.setApplicationName("240-mp-jellyfin");
+    app.setApplicationName("owl-switch");
     app.setApplicationDisplayName(QStringLiteral("OwlSwitch"));
 #ifdef APP_VERSION
     app.setApplicationVersion(QStringLiteral(APP_VERSION));
@@ -173,12 +181,12 @@ int main(int argc, char *argv[]) {
     // under its context-property name, and its optional signals/slots connected by
     // introspection. The module ID lives in exactly one place per module.
     QQmlContext *ctx = engine.rootContext();
-    appCore.registerModule("com.240mp.local_files",  "localFilesBackend",  &localFiles,  ctx);
-    appCore.registerModule("com.240mp.plex",         "plexBackend",        &plexBackend, ctx);
-    appCore.registerModule("com.240mp.jellyfin",     "jellyfinBackend",    &jellyfinBackend, ctx);
-    appCore.registerModule("com.240mp.karaoke",      "karaokeBackend",     &karaokeBackend, ctx);
-    appCore.registerModule("com.240mp.tumblr_screensaver", "tumblrScreensaverBackend", &tumblrScreensaver, ctx);
-    appCore.registerModule("com.240mp.nature", "natureBackend", &natureBackend, ctx);
+    appCore.registerModule("com.owlswitch.local_files",  "localFilesBackend",  &localFiles,  ctx);
+    appCore.registerModule("com.owlswitch.plex",         "plexBackend",        &plexBackend, ctx);
+    appCore.registerModule("com.owlswitch.jellyfin",     "jellyfinBackend",    &jellyfinBackend, ctx);
+    appCore.registerModule("com.owlswitch.karaoke",      "karaokeBackend",     &karaokeBackend, ctx);
+    appCore.registerModule("com.owlswitch.tumblr_screensaver", "tumblrScreensaverBackend", &tumblrScreensaver, ctx);
+    appCore.registerModule("com.owlswitch.nature", "natureBackend", &natureBackend, ctx);
 
     ctx->setContextProperty("appCore",       &appCore);
     ctx->setContextProperty("mpvController", &mpvController);

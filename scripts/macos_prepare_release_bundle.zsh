@@ -24,7 +24,7 @@ fi
 
 cmake --install "$build_dir" --prefix "$install_root"
 app="$install_root/OwlSwitch.app"
-macdeployqt_log="${TMPDIR:-/tmp}/240-mp-jellyfin-macdeployqt.$$.log"
+macdeployqt_log="${TMPDIR:-/tmp}/owl-switch-macdeployqt.$$.log"
 helper_home=""
 helper_stage_root=""
 qml_scan_root=""
@@ -36,15 +36,15 @@ cleanup() {
         /bin/mv "$helper_stage_root/bin" "$app/Contents/Resources/bin"
     fi
     if [[ -n "$helper_stage_root" && -d "$helper_stage_root" &&
-          "$helper_stage_root" == "${TMPDIR:-/tmp}"/240-mp-jellyfin-helper-stage.* ]]; then
+          "$helper_stage_root" == "${TMPDIR:-/tmp}"/owl-switch-helper-stage.* ]]; then
         /bin/rm -rf -- "$helper_stage_root"
     fi
     if [[ -n "$helper_home" && -d "$helper_home" &&
-          "$helper_home" == "${TMPDIR:-/tmp}"/240-mp-jellyfin-helper-home.* ]]; then
+          "$helper_home" == "${TMPDIR:-/tmp}"/owl-switch-helper-home.* ]]; then
         /bin/rm -rf -- "$helper_home"
     fi
     if [[ -n "$qml_scan_root" && -d "$qml_scan_root" &&
-          "$qml_scan_root" == "${TMPDIR:-/tmp}"/240-mp-jellyfin-qml-scan.* ]]; then
+          "$qml_scan_root" == "${TMPDIR:-/tmp}"/owl-switch-qml-scan.* ]]; then
         /bin/rm -rf -- "$qml_scan_root"
     fi
 }
@@ -52,7 +52,7 @@ trap cleanup EXIT
 
 # macdeployqt recursively scans -qmldir. Give it only source QML instead of the
 # checkout root, which can contain large build trees and unrelated tooling.
-qml_scan_root="$(mktemp -d "${TMPDIR:-/tmp}/240-mp-jellyfin-qml-scan.XXXXXX")"
+qml_scan_root="$(mktemp -d "${TMPDIR:-/tmp}/owl-switch-qml-scan.XXXXXX")"
 /bin/cp -p "$source_root/Main.qml" "$qml_scan_root/Main.qml"
 for qml_source_dir in qml views modules; do
     [[ -d "$source_root/$qml_source_dir" ]] || continue
@@ -65,7 +65,7 @@ done
 # The helper bundle is already dependency-normalized by CMake. Keep it outside
 # the app while macdeployqt performs its Qt-only pass so the multi-file yt-dlp
 # runtime is not redundantly inspected as application code.
-helper_stage_root="$(mktemp -d "${TMPDIR:-/tmp}/240-mp-jellyfin-helper-stage.XXXXXX")"
+helper_stage_root="$(mktemp -d "${TMPDIR:-/tmp}/owl-switch-helper-stage.XXXXXX")"
 /bin/mv "$app/Contents/Resources/bin" "$helper_stage_root/bin"
 
 if ! "$qt_root/bin/macdeployqt" "$app" \
@@ -106,7 +106,7 @@ qml_import_path="$("$qt_root/bin/qtpaths" --query QT_INSTALL_QML)"
 "$source_root/scripts/macos_prune_qt_deployment.zsh" \
     "$app" "$qml_scan_root" "$qml_import_scanner" "$qml_import_path"
 "$source_root/scripts/macos_verify_bundle.zsh" "$app"
-helper_home="$(mktemp -d "${TMPDIR:-/tmp}/240-mp-jellyfin-helper-home.XXXXXX")"
+helper_home="$(mktemp -d "${TMPDIR:-/tmp}/owl-switch-helper-home.XXXXXX")"
 "$source_root/scripts/macos_verify_bundled_helpers.sh" \
     pinned-only "$app/Contents/Resources/bin" \
     "$app/Contents/Resources/helper-manifest.json" "$helper_home"

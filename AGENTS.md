@@ -1,6 +1,6 @@
 # OwlSwitch Development Guidelines
 
-OwlSwitch is a macOS Apple Silicon fork of 240-MP. It builds as `OwlSwitch.app`; hidden legacy aliases preserve the historical updater contract, while module IDs, updater identity, and the Application Support path remain unchanged. It keeps the retro VHS/CRT-style Qt 6 + QML video controller, keeps Local, Retro, Tumblr, and Nature, hides Plex, adds Jellyfin as the primary server-backed module, and adds a multi-source Karaoke queue. Local incorporates the former Loop behavior.
+OwlSwitch is a macOS Apple Silicon fork of 240-MP. The repository, checkout, build target, module IDs, Application Support path, and future release artifacts use the OwlSwitch identity. Hidden legacy aliases and the existing signed bundle identifier remain only for compatibility with already-released updaters. It keeps the retro VHS/CRT-style Qt 6 + QML video controller, keeps Local, Retro, Tumblr, and Nature, hides Plex, adds Jellyfin as the primary server-backed module, and adds a multi-source Karaoke queue. Local incorporates the former Loop behavior.
 
 **Playback engine**: the app launches `mpv` as a subprocess through `MpvController`. Local track probing uses `ffprobe`. CMake downloads a pinned, checksum-verified official yt-dlp onedir runtime and Deno for YouTube extraction. Packaged macOS apps bundle all helpers; end users do not need system copies.
 
@@ -46,7 +46,7 @@ For packaging, CI, and config paths, see **[BUILDING.md](BUILDING.md)** and **[I
 - `registerModule` wires optional backend signals/slots by introspection: `dynamicOptionsReady`, `authStateChanged`, and `onSettingChanged`.
 - Every module's QML entry point is `Root.qml`. Views are `FocusScope`s that pass state via `navParams` and communicate through `navigateTo` / `goBack`.
 - Size QML layouts with `root.sh` / `root.sw`.
-- Config is `config.json` under `~/Library/Application Support/240-mp-jellyfin/`.
+- Config is `config.json` under `~/Library/Application Support/owl-switch/`; the first future build migrates the legacy directory atomically when possible.
 - Controller and media display roles are selected independently; automatic keeps the controller on the primary screen and media on the first other screen, while explicit changes take effect after restart.
 - Jellyfin auth is `jellyfin_auth.json`; passwords are never persisted.
 - Karaoke stores a non-secret 24-hour catalog cache, persistent queue, and generated playback playlist under the same app data directory.

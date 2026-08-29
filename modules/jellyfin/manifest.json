@@ -1,5 +1,5 @@
 {
-  "id": "com.240mp.jellyfin",
+  "id": "com.owlswitch.jellyfin",
   "name": "Jellyfin",
   "display_order": 10,
   "icon": "assets/images/logo.svg",

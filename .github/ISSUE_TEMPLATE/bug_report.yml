@@ -1,5 +1,5 @@
 name: Bug report
-description: Report something broken in 240-MP
+description: Report something broken in OwlSwitch
 title: "[Bug]: "
 labels: ["bug"]
 body:
@@ -12,20 +12,23 @@ body:
     attributes:
       label: Before you file
       options:
-        - label: I checked the [Wiki](https://github.com/anthonycaccese/240-MP/wiki) and existing [issues](https://github.com/anthonycaccese/240-MP/issues) and didn't find this.
+        - label: I checked the [documentation](https://github.com/aindaco1/owl-switch#readme) and existing [issues](https://github.com/aindaco1/owl-switch/issues) and didn't find this.
           required: true
   - type: dropdown
     id: module
     attributes:
       label: Area / module
-      description: Which part of 240-MP does this affect?
+      description: Which part of OwlSwitch does this affect?
       options:
-        - Local Files module
-        - Plex module
-        - Ambient Mode module
+        - Jellyfin module
+        - Karaoke module
+        - Retro module
+        - Tumblr module
+        - Nature module
+        - Local module
         - App shell (browsing, settings, navigation)
         - Build (compiling from source)
-        - Install (install.sh / DMG / setup)
+        - Install / update (DMG)
         - Not sure
     validations:
       required: true
@@ -34,10 +37,6 @@ body:
     attributes:
       label: Platform
       options:
-        - Raspberry Pi 4
-        - Raspberry Pi 3B+
-        - Raspberry Pi 3B
-        - Other Raspberry Pi model
         - macOS (Apple Silicon)
     validations:
       required: true
@@ -45,11 +44,11 @@ body:
     id: display
     attributes:
       label: Display & output
-      description: Overscan and config.txt differences are common culprits, so this helps a lot.
+      description: Display routing and resolution details help diagnose controller and playback issues.
       options:
-        - CRT via composite (NTSC)
-        - CRT via composite (PAL)
-        - HDMI (TV / monitor)
+        - One display
+        - Two displays
+        - Three or more displays
         - Other
     validations:
       required: true
@@ -58,7 +57,6 @@ body:
     attributes:
       label: Install method
       options:
-        - Release install.sh (Raspberry Pi)
         - macOS DMG
         - Built from source
     validations:
@@ -75,8 +73,8 @@ body:
       label: Steps to reproduce
       description: What did you do, step by step?
       placeholder: |
-        1. Open the Plex module
-        2. Select a movie
+        1. Open a module
+        2. Select an item
         3. ...
     validations:
       required: true

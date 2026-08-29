@@ -35,7 +35,7 @@ exactly `RATELIMIT` and `REPORT_INDEX`. They are intentionally absent from the
 checked-in configuration: the Worker fails closed with HTTP 503 without both,
 and the repository never pretends that placeholder IDs are deployable resources.
 
-Install the existing GitHub App on `aindaco1/240-mp-jellyfin` with Issues
+Install the existing GitHub App on `aindaco1/owl-switch` with Issues
 write access, then set the same three PKCS#8-backed secrets used by ASCII VJ
 Remix:
 

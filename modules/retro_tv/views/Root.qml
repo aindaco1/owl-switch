@@ -7,7 +7,7 @@ FocusScope {
 
     property var navParams: ({})
 
-    property string moduleId: "com.240mp.retro_tv"
+    property string moduleId: "com.owlswitch.retro_tv"
     property var _moduleInfo: appCore ? appCore.get_module_info(moduleId) : ({})
     property string moduleName: _moduleInfo.name || ""
     property string moduleIcon: _moduleInfo.icon || ""

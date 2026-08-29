@@ -9,7 +9,7 @@ FocusScope {
     property int focusRow: 0
     property var favorites: []
     property string statusMessage: ""
-    readonly property string moduleId: "com.240mp.tumblr_screensaver"
+    readonly property string moduleId: "com.owlswitch.tumblr_screensaver"
     readonly property string defaultUrl: "https://pixelskylines.tumblr.com/"
     readonly property int firstFavoriteRow: 3
     readonly property int maxFocusRow: firstFavoriteRow + favorites.length - 1

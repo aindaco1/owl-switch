@@ -128,7 +128,7 @@ static int fittedOverlayFontSize(const QString &value, int preferred, int minimu
 // Write a fontconfig override so the mpv subprocess's libass can find custom
 // fonts without needing them installed system-wide.
 static QString writeFontconfigOverride(const QString &fontsDir) {
-    const QString path = QDir::tempPath() + "/240-mp-jellyfin-fonts.conf";
+    const QString path = QDir::tempPath() + "/owl-switch-fonts.conf";
     QFile f(path);
     if (!f.open(QFile::WriteOnly | QFile::Text))
         return {};
@@ -148,9 +148,9 @@ MpvController::MpvController(const QString &appRoot, AppCore *appCore, QObject *
     : QObject(parent)
     , m_appCore(appCore)
     , m_appRoot(appRoot)
-    , m_socketPath(QDir::tempPath() + "/240-mp-jellyfin-mpv.sock")
-    , m_inputConfPath(QDir::tempPath() + "/240-mp-jellyfin-input.conf")
-    , m_logFilePath(QDir::tempPath() + "/240-mp-jellyfin-mpv.log")
+    , m_socketPath(QDir::tempPath() + "/owl-switch-mpv.sock")
+    , m_inputConfPath(QDir::tempPath() + "/owl-switch-input.conf")
+    , m_logFilePath(QDir::tempPath() + "/owl-switch-mpv.log")
 {
     writeInputConfig();
 
@@ -212,7 +212,7 @@ QString MpvController::writeHttpHeaderConfig(const QStringList &httpHeaderFields
     if (cleaned.isEmpty())
         return {};
 
-    QTemporaryFile file(QDir::tempPath() + "/240-mp-jellyfin-http-headers.XXXXXX.conf");
+    QTemporaryFile file(QDir::tempPath() + "/owl-switch-http-headers.XXXXXX.conf");
     file.setAutoRemove(false);
     if (!file.open()) {
         qWarning("[MpvController] Could not create private mpv HTTP header config");
@@ -817,7 +817,7 @@ void MpvController::onIpcReadyRead() {
             const QJsonArray args = obj["args"].toArray();
             if (!args.isEmpty() && args.at(0).toString() == QStringLiteral("skip-segment"))
                 emit skipRequested();
-            else if (args.size() >= 2 && args.at(0).toString() == QStringLiteral("240mp-key"))
+            else if (args.size() >= 2 && args.at(0).toString() == QStringLiteral("owlswitch-key"))
                 emit mpvKeyPressed(args.at(1).toString());
             else if (!args.isEmpty() && args.at(0).toString() == QStringLiteral("cycle-sub"))
                 emit subtitleCycleRequested();

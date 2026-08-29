@@ -103,7 +103,7 @@ jobs:
       - name: Package exact-commit unsigned app for release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
-          CI_APP_ARTIFACT: ${{ runner.temp }}/240-mp-jellyfin-ci-app-${{ github.sha }}.tar.gz
+          CI_APP_ARTIFACT: ${{ runner.temp }}/owl-switch-ci-app-${{ github.sha }}.tar.gz
         run: |
           ./scripts/package_ci_app.sh \
             "$GITHUB_WORKSPACE/install/OwlSwitch.app" \
@@ -114,7 +114,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
         with:
-          subject-path: ${{ runner.temp }}/240-mp-jellyfin-ci-app-${{ github.sha }}.tar.gz
+          subject-path: ${{ runner.temp }}/owl-switch-ci-app-${{ github.sha }}.tar.gz
 
       - name: Retain exact-commit unsigned app for release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -124,8 +124,8 @@ jobs:
           # Node's deprecated Buffer() constructor.
           NODE_OPTIONS: --no-deprecation
         with:
-          name: 240-mp-jellyfin-verified-app-${{ github.sha }}
-          path: ${{ runner.temp }}/240-mp-jellyfin-ci-app-${{ github.sha }}.tar.gz
+          name: owl-switch-verified-app-${{ github.sha }}
+          path: ${{ runner.temp }}/owl-switch-ci-app-${{ github.sha }}.tar.gz
           if-no-files-found: error
           compression-level: 0
           retention-days: 7

@@ -199,7 +199,7 @@ QJsonObject DiagnosticsManager::reportPayload() const
         {QStringLiteral("app"), QJsonObject{
             {QStringLiteral("name"), QStringLiteral("OwlSwitch")},
             {QStringLiteral("version"), QCoreApplication::applicationVersion()},
-            {QStringLiteral("identifier"), QStringLiteral("com.240mp.jellyfin")},
+            {QStringLiteral("identifier"), QString::fromLatin1(APP_BUNDLE_IDENTIFIER)},
             {QStringLiteral("channel"), QStringLiteral("production")},
             {QStringLiteral("buildProfile"), QStringLiteral("release")},
             {QStringLiteral("os"), QSysInfo::productType() + QLatin1Char(' ') + QSysInfo::productVersion()},

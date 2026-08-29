@@ -12,7 +12,7 @@
     "REPORTS_ENABLED": "true",
     "ALLOWED_APP_IDENTIFIER": "com.240mp.jellyfin",
     "GITHUB_OWNER": "aindaco1",
-    "GITHUB_REPO": "240-mp-jellyfin",
+    "GITHUB_REPO": "owl-switch",
     "GITHUB_LABELS": "crash,automated-report,needs-triage",
     "IP_LIMIT": "10",
     "IP_WINDOW_SECONDS": "3600"

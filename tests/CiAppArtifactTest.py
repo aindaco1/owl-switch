@@ -48,7 +48,7 @@ def main() -> None:
         raise SystemExit("usage: CiAppArtifactTest.py <ci_app_artifact.py>")
     module = load_module(Path(sys.argv[1]).resolve())
 
-    with tempfile.TemporaryDirectory(prefix="240mp-ci-app-test.") as temporary:
+    with tempfile.TemporaryDirectory(prefix="owl-switch-ci-app-test.") as temporary:
         root = Path(temporary)
         source_app = root / "source.app"
         executable = source_app / "Contents" / "MacOS" / "app"

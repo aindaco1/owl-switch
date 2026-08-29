@@ -140,23 +140,23 @@ FocusScope {
 
     function karaokeInputBindings() {
         return [
-            "ESC script-message 240mp-key karaoke-exit",
-            "BS script-message 240mp-key karaoke-exit",
-            "UP script-message 240mp-key karaoke-up",
-            "DOWN script-message 240mp-key karaoke-down",
-            "Shift+UP script-message 240mp-key karaoke-move-up",
-            "Shift+DOWN script-message 240mp-key karaoke-move-down",
-            "m script-message 240mp-key karaoke-move-mode",
-            "M script-message 240mp-key karaoke-move-mode",
-            "c script-message 240mp-key karaoke-clear",
-            "C script-message 240mp-key karaoke-clear",
-            "y script-message 240mp-key karaoke-confirm-clear",
-            "Y script-message 240mp-key karaoke-confirm-clear",
-            "n script-message 240mp-key karaoke-cancel-clear",
-            "N script-message 240mp-key karaoke-cancel-clear",
-            "DEL script-message 240mp-key karaoke-remove",
+            "ESC script-message owlswitch-key karaoke-exit",
+            "BS script-message owlswitch-key karaoke-exit",
+            "UP script-message owlswitch-key karaoke-up",
+            "DOWN script-message owlswitch-key karaoke-down",
+            "Shift+UP script-message owlswitch-key karaoke-move-up",
+            "Shift+DOWN script-message owlswitch-key karaoke-move-down",
+            "m script-message owlswitch-key karaoke-move-mode",
+            "M script-message owlswitch-key karaoke-move-mode",
+            "c script-message owlswitch-key karaoke-clear",
+            "C script-message owlswitch-key karaoke-clear",
+            "y script-message owlswitch-key karaoke-confirm-clear",
+            "Y script-message owlswitch-key karaoke-confirm-clear",
+            "n script-message owlswitch-key karaoke-cancel-clear",
+            "N script-message owlswitch-key karaoke-cancel-clear",
+            "DEL script-message owlswitch-key karaoke-remove",
             "SPACE cycle pause",
-            "ENTER script-message 240mp-key karaoke-play-selected"
+            "ENTER script-message owlswitch-key karaoke-play-selected"
         ]
     }
 
