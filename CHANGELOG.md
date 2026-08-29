@@ -4,24 +4,21 @@ All notable OwlSwitch changes are documented here. Releases through 1.6.3 used t
 
 ## [Unreleased]
 
-### Changed
-
-- Renamed the GitHub repository, iCloud checkout, CMake target, internal CI artifacts, future public DMGs, temporary playback paths, and project-facing documentation to `owl-switch`.
-- Moved current module identifiers to `com.owlswitch.*` and added one-time migration for existing module settings and the selected startup module.
-- Changed the app data location to `~/Library/Application Support/owl-switch/`; the first compatible launch atomically moves the legacy directory when possible and safely falls back to it if migration cannot complete.
-- Retained only the hidden pre-1.6.4 bundle/executable aliases and the signed bundle identifier required by the existing updater trust chain.
-
 ## [1.6.4] - 2026-08-29
 
 ### Added
 
-- Renamed the product and physical bundle to **OwlSwitch**, a retro video controller inspired by “the owls are not what they seem,” while preserving a hidden legacy updater alias, the existing identifier, updater channel, and Application Support directory.
+- Renamed the product and physical bundle to **OwlSwitch**, a retro video controller inspired by “the owls are not what they seem,” while preserving the hidden legacy updater alias and trusted bundle identifier required by existing installations.
 - Added a Settings diagnostics screen with owner-only rotating structured logs, strict path/URL/email/credential redaction, a bounded report preview, explicit send/clear actions, and no automatic reporting.
 - Added a separately deployable Cloudflare diagnostics relay that independently validates, sanitizes, rate-limits, fingerprints, and aggregates matching user reports into GitHub issues using a short-lived GitHub App installation token.
 - Added one source-controlled helper manifest and reusable Karaoke, Local playlist, audio, and 720p video YouTube canaries for packaged-app verification.
 
 ### Changed
 
+- Renamed the GitHub repository, iCloud checkout, CMake target, internal CI artifacts, public DMGs, temporary playback paths, and project-facing documentation to `owl-switch`.
+- Moved current module identifiers to `com.owlswitch.*` and added one-time migration for existing module settings and the selected startup module.
+- Changed the app data location to `~/Library/Application Support/owl-switch/`; the first compatible launch atomically moves the legacy directory when possible and safely falls back to it if migration cannot complete.
+- Retained only the hidden pre-1.6.4 bundle/executable aliases and the signed bundle identifier required by the existing updater trust chain.
 - Replaced yt-dlp's self-extracting executable with the official checksum-pinned onedir archive and added one local, no-network helper warm-up after the controller becomes interactive.
 - Centralized YouTube input identity, video/audio format profiles, subprocess limits, cancellation, sanitization, and mpv arguments across Karaoke, Retro, and Local.
 - Karaoke now paints its first frame before cache parsing, searches and sorts in C++, pages only 250 results into QML, and exposes progressive cold-refresh results in larger bounded batches.
