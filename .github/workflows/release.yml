@@ -101,6 +101,14 @@ jobs:
           if [ -d "$APP/Contents/Resources/bin" ]; then
             find "$APP/Contents/Resources/bin" -depth -type f | while read -r helper; do
               file -b "$helper" | grep -q 'Mach-O' || continue
+              # PyInstaller's onedir archive includes a flattened top-level
+              # Python.framework/Python compatibility copy. codesign treats
+              # that one path as an ambiguous bundle; the versioned framework
+              # binaries are signed below, and the final strict deep verify
+              # still validates the complete app.
+              if [ "$helper" = "$APP/Contents/Resources/bin/_internal/Python.framework/Python" ]; then
+                continue
+              fi
               entitlement_file=""
               if [ "$helper" = "$APP/Contents/Resources/bin/mpv" ]; then
                 entitlement_file="packaging/mpv.entitlements"
