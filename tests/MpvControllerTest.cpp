@@ -76,7 +76,16 @@ void MpvControllerTest::youtubeModesValidateFormats()
                            0.0f, 0, -1, QStringList{}, false, -1, 0.0f,
                            QString{}, false, oscMode);
 
-    QTRY_VERIFY_WITH_TIMEOUT(QFile::exists(markerPath), 3000);
+    QTRY_VERIFY_WITH_TIMEOUT([&]() {
+        QFile pendingMarker(markerPath);
+        if (!pendingMarker.open(QIODevice::ReadOnly | QIODevice::Text))
+            return false;
+        const QStringList pendingArguments = QString::fromUtf8(pendingMarker.readAll())
+                                                 .split('\n', Qt::SkipEmptyParts);
+        return pendingArguments.contains(modeArgument)
+            && pendingArguments.contains(QStringLiteral("--screen=1"))
+            && pendingArguments.contains(QStringLiteral("--fs-screen=1"));
+    }(), 3000);
 
     QFile marker(markerPath);
     QVERIFY(marker.open(QIODevice::ReadOnly | QIODevice::Text));
