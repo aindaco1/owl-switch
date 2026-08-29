@@ -1,6 +1,6 @@
 # Install OwlSwitch
 
-OwlSwitch is distributed as `OwlSwitch.app` inside a macOS Apple Silicon DMG. Future releases use `owl-switch-<tag>-macOS-arm64.dmg`. A hidden legacy alias remains in the image so pre-1.6.4 signed updaters can locate the renamed bundle without weakening their trusted identity checks.
+OwlSwitch is distributed as `OwlSwitch.app` inside a macOS Apple Silicon DMG named `owl-switch-<tag>-macOS-arm64.dmg`. A hidden legacy alias remains in the image so pre-1.6.4 signed updaters can locate the renamed bundle without weakening their trusted identity checks.
 
 ## Requirements
 
@@ -12,7 +12,7 @@ The packaged app bundles `mpv`, `ffmpeg`, `ffprobe`, the pinned official yt-dlp 
 
 ## Install
 
-1. Download the latest `owl-switch-<tag>-macOS-arm64.dmg` from [GitHub Releases](https://github.com/aindaco1/owl-switch/releases/latest). Version 1.6.4 retains its historical filename.
+1. Download the latest `owl-switch-<tag>-macOS-arm64.dmg` from [GitHub Releases](https://github.com/aindaco1/owl-switch/releases/latest).
 2. Open the DMG.
 3. Drag `OwlSwitch.app` onto the Applications shortcut in the same window.
 4. Launch `OwlSwitch.app`.
