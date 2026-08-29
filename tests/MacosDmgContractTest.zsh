@@ -14,9 +14,9 @@ readonly contract_script="$1"
 }
 
 temporary_base="${TMPDIR:-/tmp}"
-test_root="$(/usr/bin/mktemp -d "$temporary_base/240mp-dmg-contract-test.XXXXXX")"
+test_root="$(/usr/bin/mktemp -d "$temporary_base/owl-switch-dmg-contract-test.XXXXXX")"
 cleanup() {
-    if [[ -n "$test_root" && "$test_root" == "$temporary_base"/240mp-dmg-contract-test.* ]]; then
+    if [[ -n "$test_root" && "$test_root" == "$temporary_base"/owl-switch-dmg-contract-test.* ]]; then
         /bin/rm -rf -- "$test_root"
     fi
 }

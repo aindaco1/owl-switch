@@ -13,7 +13,7 @@ import tarfile
 from typing import NoReturn
 
 
-EXPECTED_ROOT = "240-mp-jellyfin-ci-app"
+EXPECTED_ROOT = "owl-switch-ci-app"
 MAX_MEMBERS = 50_000
 MAX_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024
 

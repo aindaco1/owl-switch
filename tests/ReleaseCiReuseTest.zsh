@@ -18,8 +18,9 @@ for required_fragment in \
     'actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8' \
     'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' \
     "github.event_name == 'push' && github.ref == 'refs/heads/main'" \
+    'owl-switch-verified-app-${{ github.sha }}' \
     './scripts/package_ci_app.sh'; do
-    if ! grep -Fq "$required_fragment" "$ci_workflow"; then
+    if ! grep -Fq -- "$required_fragment" "$ci_workflow"; then
         echo "CI workflow is missing exact-commit app reuse control: $required_fragment" >&2
         exit 1
     fi
@@ -28,9 +29,11 @@ done
 for required_fragment in \
     'actions: read' \
     'Restore exact successful CI app' \
+    'DMG="owl-switch-${{ env.RELEASE_TAG }}-macOS-arm64.dmg"' \
+    '--binary-identifier "com.aindaco1.owl-switch.dmg"' \
     './scripts/restore_ci_app.sh' \
     './scripts/macos_verify_bundled_helpers.sh'; do
-    if ! grep -Fq "$required_fragment" "$release_workflow"; then
+    if ! grep -Fq -- "$required_fragment" "$release_workflow"; then
         echo "release workflow is missing exact-commit app reuse control: $required_fragment" >&2
         exit 1
     fi

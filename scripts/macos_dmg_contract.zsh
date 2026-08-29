@@ -116,7 +116,7 @@ verify_dmg() {
     local temporary_base="${TMPDIR:-/tmp}"
     require_specific_absolute_path "$temporary_base" "temporary directory"
     local work_root
-    work_root="$(/usr/bin/mktemp -d "$temporary_base/240mp-dmg-verify.XXXXXX")"
+    work_root="$(/usr/bin/mktemp -d "$temporary_base/owl-switch-dmg-verify.XXXXXX")"
     local mount_point="$work_root/mount"
     local mounted=false
 
@@ -125,7 +125,7 @@ verify_dmg() {
             /usr/bin/hdiutil detach "$mount_point" >/dev/null 2>&1 ||
                 /usr/bin/hdiutil detach -force "$mount_point" >/dev/null 2>&1 || true
         fi
-        if [[ -n "$work_root" && "$work_root" == "$temporary_base"/240mp-dmg-verify.* ]]; then
+        if [[ -n "$work_root" && "$work_root" == "$temporary_base"/owl-switch-dmg-verify.* ]]; then
             /bin/rm -rf -- "$work_root"
         fi
     }

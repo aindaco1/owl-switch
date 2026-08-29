@@ -53,7 +53,7 @@ jobs:
         run: |
           release_version="${RELEASE_TAG#v}"
           release_base_version="${release_version%%-*}"
-          project_version=$(sed -nE 's/^project\(240mp VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' CMakeLists.txt)
+          project_version=$(sed -nE 's/^project\(OwlSwitch VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' CMakeLists.txt)
           declared_release_tag=$(sed -nE 's/^set\(APP_RELEASE_TAG "([^"]+)"\).*/\1/p' CMakeLists.txt)
           test -n "$project_version"
           test -n "$declared_release_tag"
@@ -215,7 +215,7 @@ jobs:
           APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
         run: |
           APP="${GITHUB_WORKSPACE}/install/OwlSwitch.app"
-          APP_ZIP="$RUNNER_TEMP/240-mp-jellyfin-app.zip"
+          APP_ZIP="$RUNNER_TEMP/owl-switch-app.zip"
           ditto -c -k --keepParent "$APP" "$APP_ZIP"
           submission_json=$(xcrun notarytool submit "$APP_ZIP" \
             --key "$RUNNER_TEMP/notary-key.p8" \
@@ -238,7 +238,7 @@ jobs:
           xcrun stapler validate "$APP"
           spctl -a -t exec -vv "$APP"
           ditto -c -k --keepParent "$APP" \
-            "$GITHUB_WORKSPACE/240-mp-jellyfin-notarized-app.zip"
+            "$GITHUB_WORKSPACE/owl-switch-notarized-app.zip"
 
       - name: Remove signing keychain
         if: always()
@@ -254,7 +254,7 @@ jobs:
           NODE_OPTIONS: --no-deprecation
         with:
           name: notarized-app-arm64
-          path: 240-mp-jellyfin-notarized-app.zip
+          path: owl-switch-notarized-app.zip
           if-no-files-found: error
 
   package-macos-arm64:
@@ -286,7 +286,7 @@ jobs:
       - name: Extract and verify notarized app
         run: |
           mkdir -p install
-          ditto -x -k artifacts/app/240-mp-jellyfin-notarized-app.zip install
+          ditto -x -k artifacts/app/owl-switch-notarized-app.zip install
           APP="$GITHUB_WORKSPACE/install/OwlSwitch.app"
           test -d "$APP"
           codesign --verify --deep --strict --verbose=4 "$APP"
@@ -327,7 +327,7 @@ jobs:
 
       - name: Create and sign DMG
         run: |
-          DMG="240-mp-jellyfin-${{ env.RELEASE_TAG }}-macOS-arm64.dmg"
+          DMG="owl-switch-${{ env.RELEASE_TAG }}-macOS-arm64.dmg"
           APP="$GITHUB_WORKSPACE/install/OwlSwitch.app"
           staging_root="$RUNNER_TEMP/dmg-staging"
           if [[ -e "$staging_root" || -L "$staging_root" ]]; then
@@ -347,13 +347,13 @@ jobs:
             --config-file /dev/null \
             --p12-file "$RUNNER_TEMP/cert.p12" \
             --p12-password-file "$RUNNER_TEMP/cert-password" \
-            --binary-identifier "com.aindaco1.240-mp-jellyfin.dmg" \
+            --binary-identifier "com.aindaco1.owl-switch.dmg" \
             "$DMG"
           signature_info="$RUNNER_TEMP/dmg-signature-info.yml"
           "$RCODESIGN" print-signature-info \
             --config-file /dev/null \
             "$DMG" > "$signature_info"
-          grep -Fq "identifier: com.aindaco1.240-mp-jellyfin.dmg" "$signature_info"
+          grep -Fq "identifier: com.aindaco1.owl-switch.dmg" "$signature_info"
           grep -Fq "apple_certificate_profile: developer-id-application" "$signature_info"
           grep -Fq "apple_team_id: $EXPECTED_TEAM" "$signature_info"
           grep -Fq "chains_to_apple_root_ca: true" "$signature_info"
@@ -366,7 +366,7 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
         run: |
-          DMG="240-mp-jellyfin-${{ env.RELEASE_TAG }}-macOS-arm64.dmg"
+          DMG="owl-switch-${{ env.RELEASE_TAG }}-macOS-arm64.dmg"
           xcrun notarytool submit "$DMG" \
             --key "$RUNNER_TEMP/notary-key.p8" \
             --key-id "$APPLE_API_KEY_ID" \
@@ -383,7 +383,7 @@ jobs:
 
       - name: Create SHA-256 checksum
         run: |
-          DMG="240-mp-jellyfin-${{ env.RELEASE_TAG }}-macOS-arm64.dmg"
+          DMG="owl-switch-${{ env.RELEASE_TAG }}-macOS-arm64.dmg"
           shasum -a 256 "$DMG" > "$DMG.sha256"
 
       - name: Remove signing credentials
@@ -404,8 +404,8 @@ jobs:
         with:
           name: dmg-arm64
           path: |
-            240-mp-jellyfin-*-macOS-arm64.dmg
-            240-mp-jellyfin-*-macOS-arm64.dmg.sha256
+            owl-switch-*-macOS-arm64.dmg
+            owl-switch-*-macOS-arm64.dmg.sha256
           if-no-files-found: error
 
   # ──────────────────────────────────────────────────────────────────────────────

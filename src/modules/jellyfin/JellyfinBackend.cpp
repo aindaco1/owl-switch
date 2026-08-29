@@ -72,7 +72,7 @@ QJsonObject JellyfinBackend::moduleConfig() const {
     if (!file.open(QIODevice::ReadOnly))
         return {};
     return QJsonDocument::fromJson(file.readAll()).object()
-        .value("modules").toObject().value("com.240mp.jellyfin").toObject();
+        .value("modules").toObject().value("com.owlswitch.jellyfin").toObject();
 }
 
 int JellyfinBackend::videoQualityBitrate() const {

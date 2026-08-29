@@ -18,6 +18,8 @@
 AppCore::AppCore(const QString &appRoot, const QString &dataRoot, QObject *parent)
     : QObject(parent), m_appRoot(appRoot), m_dataRoot(dataRoot)
 {
+    migrateLegacyModuleSettings();
+
     QDir modulesDir(appRoot + "/modules");
     const QStringList dirs = modulesDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
     for (const QString &folder : dirs) {
@@ -57,6 +59,56 @@ AppCore::AppCore(const QString &appRoot, const QString &dataRoot, QObject *paren
             return a.displayOrder < b.displayOrder;
         return a.name.localeAwareCompare(b.name) < 0;
     });
+}
+
+void AppCore::migrateLegacyModuleSettings()
+{
+    static const QMap<QString, QString> moduleIds = {
+        {QStringLiteral("com.240mp.jellyfin"), QStringLiteral("com.owlswitch.jellyfin")},
+        {QStringLiteral("com.240mp.karaoke"), QStringLiteral("com.owlswitch.karaoke")},
+        {QStringLiteral("com.240mp.local_files"), QStringLiteral("com.owlswitch.local_files")},
+        {QStringLiteral("com.240mp.nature"), QStringLiteral("com.owlswitch.nature")},
+        {QStringLiteral("com.240mp.plex"), QStringLiteral("com.owlswitch.plex")},
+        {QStringLiteral("com.240mp.retro_tv"), QStringLiteral("com.owlswitch.retro_tv")},
+        {QStringLiteral("com.240mp.tumblr_screensaver"),
+         QStringLiteral("com.owlswitch.tumblr_screensaver")}
+    };
+
+    QFile configFile(m_dataRoot + QStringLiteral("/config.json"));
+    if (!configFile.open(QIODevice::ReadOnly))
+        return;
+    QJsonParseError error;
+    QJsonDocument document = QJsonDocument::fromJson(configFile.readAll(), &error);
+    configFile.close();
+    if (error.error != QJsonParseError::NoError || !document.isObject())
+        return;
+
+    QJsonObject config = document.object();
+    QJsonObject modules = config.value(QStringLiteral("modules")).toObject();
+    bool changed = false;
+    for (auto it = moduleIds.cbegin(); it != moduleIds.cend(); ++it) {
+        if (!modules.contains(it.key()))
+            continue;
+        if (!modules.contains(it.value()))
+            modules.insert(it.value(), modules.value(it.key()));
+        modules.remove(it.key());
+        changed = true;
+    }
+
+    QJsonObject app = config.value(QStringLiteral("app")).toObject();
+    const QString legacyStartup = app.value(QStringLiteral("startup_module")).toString();
+    const auto startupIt = moduleIds.constFind(legacyStartup);
+    if (startupIt != moduleIds.cend()) {
+        app.insert(QStringLiteral("startup_module"), startupIt.value());
+        changed = true;
+    }
+
+    if (changed) {
+        config.insert(QStringLiteral("app"), app);
+        config.insert(QStringLiteral("modules"), modules);
+        saveConfig(config);
+        qInfo("[AppCore] Migrated legacy module settings to OwlSwitch identifiers");
+    }
 }
 
 // ---------------------------------------------------------------------------

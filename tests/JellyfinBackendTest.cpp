@@ -110,7 +110,7 @@ void JellyfinBackendTest::writeQuality(const QString &root, const QString &quali
     QFile file(QDir(root).filePath(QStringLiteral("config.json")));
     QVERIFY(file.open(QIODevice::WriteOnly));
     const QJsonObject config{{"modules", QJsonObject{
-        {"com.240mp.jellyfin", QJsonObject{{"video_quality", quality}}}
+        {"com.owlswitch.jellyfin", QJsonObject{{"video_quality", quality}}}
     }}};
     file.write(QJsonDocument(config).toJson(QJsonDocument::Compact));
 }

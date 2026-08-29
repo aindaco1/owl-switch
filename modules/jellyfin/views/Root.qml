@@ -6,7 +6,7 @@ FocusScope {
     signal goBack()
 
     property var navParams: ({})
-    property string moduleId: "com.240mp.jellyfin"
+    property string moduleId: "com.owlswitch.jellyfin"
     property var _moduleInfo: appCore.get_module_info(moduleId)
     property string moduleName: _moduleInfo.name || ""
     property string moduleIcon: _moduleInfo.icon || ""

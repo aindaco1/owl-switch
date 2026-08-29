@@ -7,7 +7,7 @@ Minseo Lee, Ho-Seok Ee, et al. with Reserved Font Name "Unifont".
 
 Unifont is dual-licensed under (1) the SIL Open Font License, Version 1.1,
 and (2) the GNU General Public License, Version 2 or later, with the GNU
-Font Embedding Exception. 240-MP redistributes the font unmodified and does
+Font Embedding Exception. OwlSwitch redistributes the font unmodified and does
 so under the terms of the SIL Open Font License, Version 1.1, reproduced
 below. The GPL alternative is available at https://gnu.org/licenses/gpl.html.
 

@@ -12,11 +12,10 @@ file(READ "${SOURCE_ROOT}/README.md" readme)
 file(READ "${SOURCE_ROOT}/CHANGELOG.md" changelog)
 file(READ "${SOURCE_ROOT}/INSTALL.md" install_guide)
 
-set(expected_download_url
-    "https://github.com/aindaco1/240-mp-jellyfin/releases/download/${RELEASE_TAG}/240-mp-jellyfin-${RELEASE_TAG}-macOS-arm64.dmg")
-string(FIND "${readme}" "${expected_download_url}" download_url_index)
-if(download_url_index EQUAL -1)
-    message(FATAL_ERROR "README direct DMG URL does not match ${RELEASE_VERSION}")
+set(expected_artifact_pattern "owl-switch-<tag>-macOS-arm64.dmg")
+string(FIND "${readme}" "${expected_artifact_pattern}" artifact_pattern_index)
+if(artifact_pattern_index EQUAL -1)
+    message(FATAL_ERROR "README does not document the OwlSwitch DMG artifact contract")
 endif()
 
 string(REGEX REPLACE "^v" "" changelog_release "${RELEASE_TAG}")

@@ -1,8 +1,15 @@
 # Changelog
 
-All notable OwlSwitch changes are documented here. Releases through 1.6.3 used the 240-mp-jellyfin product name; 1.6.4 introduces the renamed bundle while retaining compatibility aliases and trusted identifiers.
+All notable OwlSwitch changes are documented here. Releases through 1.6.3 used the former project name; 1.6.4 introduced the renamed bundle while retaining compatibility aliases and trusted identifiers.
 
 ## [Unreleased]
+
+### Changed
+
+- Renamed the GitHub repository, iCloud checkout, CMake target, internal CI artifacts, future public DMGs, temporary playback paths, and project-facing documentation to `owl-switch`.
+- Moved current module identifiers to `com.owlswitch.*` and added one-time migration for existing module settings and the selected startup module.
+- Changed the app data location to `~/Library/Application Support/owl-switch/`; the first compatible launch atomically moves the legacy directory when possible and safely falls back to it if migration cannot complete.
+- Retained only the hidden pre-1.6.4 bundle/executable aliases and the signed bundle identifier required by the existing updater trust chain.
 
 ## [1.6.4] - 2026-08-29
 

@@ -141,35 +141,35 @@ FocusScope {
 
     function retroInputBindings() {
         var bindings = [
-            "UP script-message 240mp-key channel-up",
-            "DOWN script-message 240mp-key channel-down",
-            "LEFT script-message 240mp-key clip-prev",
-            "RIGHT script-message 240mp-key clip-next",
-            "ESC script-message 240mp-key exit",
-            "BS script-message 240mp-key exit",
+            "UP script-message owlswitch-key channel-up",
+            "DOWN script-message owlswitch-key channel-down",
+            "LEFT script-message owlswitch-key clip-prev",
+            "RIGHT script-message owlswitch-key clip-next",
+            "ESC script-message owlswitch-key exit",
+            "BS script-message owlswitch-key exit",
             "SPACE cycle pause",
             "ENTER cycle pause",
-            "f script-message 240mp-key filters",
-            "F script-message 240mp-key filters",
-            "v script-message 240mp-key filters",
-            "V script-message 240mp-key filters",
-            "n script-message 240mp-key noise",
-            "N script-message 240mp-key noise",
-            "b script-message 240mp-key bw",
-            "B script-message 240mp-key bw",
-            "g script-message 240mp-key glow",
-            "G script-message 240mp-key glow",
-            "o script-message 240mp-key static",
-            "O script-message 240mp-key static",
-            "y script-message 240mp-key youtube",
-            "Y script-message 240mp-key youtube",
-            "c script-message 240mp-key controls",
-            "C script-message 240mp-key controls",
-            "h script-message 240mp-key controls",
-            "H script-message 240mp-key controls"
+            "f script-message owlswitch-key filters",
+            "F script-message owlswitch-key filters",
+            "v script-message owlswitch-key filters",
+            "V script-message owlswitch-key filters",
+            "n script-message owlswitch-key noise",
+            "N script-message owlswitch-key noise",
+            "b script-message owlswitch-key bw",
+            "B script-message owlswitch-key bw",
+            "g script-message owlswitch-key glow",
+            "G script-message owlswitch-key glow",
+            "o script-message owlswitch-key static",
+            "O script-message owlswitch-key static",
+            "y script-message owlswitch-key youtube",
+            "Y script-message owlswitch-key youtube",
+            "c script-message owlswitch-key controls",
+            "C script-message owlswitch-key controls",
+            "h script-message owlswitch-key controls",
+            "H script-message owlswitch-key controls"
         ]
         for (var i = 0; i <= 9; ++i)
-            bindings.push(i + " script-message 240mp-key year-" + i)
+            bindings.push(i + " script-message owlswitch-key year-" + i)
         return bindings
     }
 

@@ -3,8 +3,6 @@ set -euo pipefail
 
 MODE="${1:-run}"
 APP_NAME="OwlSwitch"
-LEGACY_PROCESS_NAME="240-mp-jellyfin"
-BUNDLE_ID="com.240mp.jellyfin"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="$ROOT_DIR/build"
@@ -12,7 +10,6 @@ APP_BUNDLE="$BUILD_DIR/$APP_NAME.app"
 APP_BINARY="$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
 pkill -x "$APP_NAME" >/dev/null 2>&1 || true
-pkill -x "$LEGACY_PROCESS_NAME" >/dev/null 2>&1 || true
 
 if [[ ! -f "$BUILD_DIR/CMakeCache.txt" ]]; then
     cmake -S "$ROOT_DIR" -B "$BUILD_DIR" \
@@ -43,6 +40,8 @@ case "$MODE" in
         ;;
     --telemetry|telemetry)
         open_app
+        BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \
+            "$APP_BUNDLE/Contents/Info.plist")"
         /usr/bin/log stream --info --style compact --predicate "subsystem == \"$BUNDLE_ID\""
         ;;
     --verify|verify)

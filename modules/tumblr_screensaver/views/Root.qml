@@ -6,7 +6,7 @@ FocusScope {
     signal goBack()
 
     property var navParams: ({})
-    property var _moduleInfo: appCore ? appCore.get_module_info("com.240mp.tumblr_screensaver") : ({})
+    property var _moduleInfo: appCore ? appCore.get_module_info("com.owlswitch.tumblr_screensaver") : ({})
     property string moduleName: _moduleInfo.name || ""
     property string moduleIcon: _moduleInfo.icon || ""
 

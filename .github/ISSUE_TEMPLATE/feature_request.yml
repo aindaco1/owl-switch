@@ -6,15 +6,18 @@ body:
   - type: markdown
     attributes:
       value: |
-        For open-ended "what if…" brainstorming, [Discussions](https://github.com/anthonycaccese/240-MP/discussions/categories/ideas) may be a better fit. Please only use this form for a concrete, scoped idea.
+        For open-ended "what if…" brainstorming, [Discussions](https://github.com/aindaco1/owl-switch/discussions/categories/ideas) may be a better fit. Please only use this form for a concrete, scoped idea.
   - type: dropdown
     id: area
     attributes:
       label: Area
       options:
-        - Local Files module
-        - Plex module
-        - Ambient Mode module
+        - Jellyfin module
+        - Karaoke module
+        - Retro module
+        - Tumblr module
+        - Nature module
+        - Local module
         - A new module
         - App shell / general
     validations:
@@ -36,7 +39,7 @@ body:
     id: principles
     attributes:
       label: Alignment with the project's approach
-      description: 240-MP is a browsing shell that hands off to purpose-built tools, navigable with a simple remote. See [CONTRIBUTING.md](https://github.com/anthonycaccese/240-MP/blob/main/CONTRIBUTING.md).
+      description: OwlSwitch is a browsing shell that hands off to purpose-built tools, navigable with a simple remote. See [CONTRIBUTING.md](https://github.com/aindaco1/owl-switch/blob/main/CONTRIBUTING.md).
       options:
         - label: This fits the "browse & hand-off" approach and works with remote-only navigation (up/down/left/right, enter, esc/back).
           required: true

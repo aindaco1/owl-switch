@@ -15,7 +15,7 @@ local function hide_bar()
     bar_overlay:remove()
 end
 
-mp.register_script_message("240mp-osd-volume-hide", hide_bar)
+mp.register_script_message("owlswitch-osd-volume-hide", hide_bar)
 
 local function draw_rect(ass, x, y, w, h, colour, alpha)
     ass:new_event()
@@ -34,7 +34,7 @@ local function draw_text(ass, x, y, anchor, value, size, colour)
 end
 
 local function show_volume_bar()
-    mp.commandv("script-message", "240mp-osd-menu-hide")
+    mp.commandv("script-message", "owlswitch-osd-menu-hide")
     local ww, wh = mp.get_osd_size()
     if ww == 0 or wh == 0 then return end
     local volume = mp.get_property_number("volume", 0) or 0
@@ -79,7 +79,7 @@ end
 
 local function seek_with_menu(command)
     mp.command(command)
-    mp.commandv("script-message", "240mp-osd-menu-show")
+    mp.commandv("script-message", "owlswitch-osd-menu-show")
 end
 
 mp.add_forced_key_binding("VOLUME_UP", "mk-vol-up", function() change_volume(VOLUME_STEP) end, {repeatable=true})

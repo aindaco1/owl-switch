@@ -7,7 +7,7 @@ if [[ $# -ne 1 ]]; then
 fi
 
 verifier="${1:A}"
-test_root="$(mktemp -d "${TMPDIR:-/tmp}/240-mp-helper-verification-test.XXXXXX")"
+test_root="$(mktemp -d "${TMPDIR:-/tmp}/owl-switch-helper-verification-test.XXXXXX")"
 cleanup() {
     /bin/rm -rf -- "$test_root"
 }

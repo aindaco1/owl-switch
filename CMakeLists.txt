@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(240mp VERSION 1.6.4 LANGUAGES CXX)
+project(OwlSwitch VERSION 1.6.4 LANGUAGES CXX)
 
 if(NOT APPLE)
     message(FATAL_ERROR "This fork is macOS-only. Configure and build it on macOS.")
@@ -14,10 +14,14 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOMOC_PATH_PREFIX ON)
 set(APP_PRODUCT_NAME "OwlSwitch")
 set(APP_DISPLAY_NAME "${APP_PRODUCT_NAME}")
+# Retained only so installations older than 1.6.4 can discover and validate
+# future OwlSwitch updates. This is not used for current project or artifact naming.
 set(APP_LEGACY_NAME "240-mp-jellyfin")
 set(APP_RELEASE_TAG "v1.6.4")
+# The 1.6.4 updater requires this signed identity. Changing it requires a
+# separately released transition version whose updater trusts both identities.
 set(APP_BUNDLE_IDENTIFIER "com.240mp.jellyfin" CACHE STRING "macOS bundle identifier")
-set(APP_UPDATE_REPOSITORY "aindaco1/240-mp-jellyfin" CACHE STRING "GitHub update repository")
+set(APP_UPDATE_REPOSITORY "aindaco1/owl-switch" CACHE STRING "GitHub update repository")
 set(APP_UPDATE_TEAM_ID "PWT3Q52LZ2" CACHE STRING "Expected Developer ID team for updates")
 
 include(GNUInstallDirs)
@@ -58,8 +62,9 @@ endif()
 
 enable_language(OBJCXX)
 
-add_executable(240mp
+add_executable(owlswitch
     src/main.cpp
+    src/AppDataMigration.cpp
     src/AppCore.cpp
     src/display/DisplaySelection.cpp
     src/modules/local_files/LocalFilesBackend.cpp
@@ -90,13 +95,13 @@ target_compile_definitions(app_build_config INTERFACE
     APP_LEGACY_BUNDLE_NAME="${APP_LEGACY_NAME}.app"
 )
 
-target_compile_definitions(240mp PRIVATE
+target_compile_definitions(owlswitch PRIVATE
     DEV_YT_DLP_EXECUTABLE="${YT_DLP_EXECUTABLE}"
     DEV_DENO_EXECUTABLE="${DENO_EXECUTABLE}"
     BUNDLED_YT_DLP_VERSION="${YT_DLP_VERSION}"
 )
 
-target_link_libraries(240mp PRIVATE
+target_link_libraries(owlswitch PRIVATE
     app_build_config
     Qt6::Core
     Qt6::Gui
@@ -111,7 +116,7 @@ target_link_libraries(240mp PRIVATE
     "-framework GameController"
 )
 
-target_include_directories(240mp PRIVATE
+target_include_directories(owlswitch PRIVATE
     src
 )
 
@@ -128,6 +133,14 @@ if(BUILD_TESTING)
     target_include_directories(app_core_tests PRIVATE src)
     target_link_libraries(app_core_tests PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Network Qt6::Test)
     add_test(NAME app_core COMMAND app_core_tests)
+
+    add_executable(app_data_migration_tests
+        tests/AppDataMigrationTest.cpp
+        src/AppDataMigration.cpp
+    )
+    target_include_directories(app_data_migration_tests PRIVATE src)
+    target_link_libraries(app_data_migration_tests PRIVATE Qt6::Core Qt6::Test)
+    add_test(NAME app_data_migration COMMAND app_data_migration_tests)
 
     add_executable(display_selection_tests
         tests/DisplaySelectionTest.cpp
@@ -250,7 +263,8 @@ if(BUILD_TESTING)
         src/diagnostics/DiagnosticsManager.cpp
     )
     target_include_directories(diagnostics_manager_tests PRIVATE src)
-    target_link_libraries(diagnostics_manager_tests PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+    target_link_libraries(diagnostics_manager_tests PRIVATE
+        app_build_config Qt6::Core Qt6::Network Qt6::Test)
     add_test(NAME diagnostics_manager COMMAND diagnostics_manager_tests)
 
     add_executable(update_manager_tests
@@ -344,25 +358,25 @@ if(BUILD_TESTING)
 endif()
 
 # ── macOS bundle metadata ──────────────────────────────────────────────────────
-set_target_properties(240mp PROPERTIES
+set_target_properties(owlswitch PROPERTIES
     OUTPUT_NAME "${APP_DISPLAY_NAME}"
     MACOSX_BUNDLE TRUE
     MACOSX_BUNDLE_BUNDLE_NAME "${APP_PRODUCT_NAME}"
     MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
     MACOSX_BUNDLE_GUI_IDENTIFIER "${APP_BUNDLE_IDENTIFIER}"
-    MACOSX_BUNDLE_ICON_FILE "assets/images/240-mp"
+    MACOSX_BUNDLE_ICON_FILE "assets/images/owl-switch"
     INSTALL_RPATH_USE_LINK_PATH TRUE
 )
 
 # Keep a compatibility executable alias inside the renamed bundle. Released
 # 1.6.3 updaters validate this historical path before copying the new app.
-add_custom_command(TARGET 240mp POST_BUILD
+add_custom_command(TARGET owlswitch POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E remove -f
-        "$<TARGET_BUNDLE_CONTENT_DIR:240mp>/MacOS/${APP_LEGACY_NAME}"
+        "$<TARGET_BUNDLE_CONTENT_DIR:owlswitch>/MacOS/${APP_LEGACY_NAME}"
     COMMAND ${CMAKE_COMMAND} -E create_symlink
         "${APP_DISPLAY_NAME}"
-        "$<TARGET_BUNDLE_CONTENT_DIR:240mp>/MacOS/${APP_LEGACY_NAME}"
+        "$<TARGET_BUNDLE_CONTENT_DIR:owlswitch>/MacOS/${APP_LEGACY_NAME}"
     COMMENT "Adding legacy executable alias for updater compatibility"
 )
 
@@ -373,18 +387,18 @@ add_custom_command(TARGET 240mp POST_BUILD
 # populates Resources with real files — a symlink in the build tree would be
 # packaged into the DMG pointing to a CI path that doesn't exist on end-user Macs.
 if(APPLE AND NOT DEFINED ENV{CI})
-    add_custom_command(TARGET 240mp POST_BUILD
+    add_custom_command(TARGET owlswitch POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E remove -f
-            "$<TARGET_BUNDLE_CONTENT_DIR:240mp>/Resources"
+            "$<TARGET_BUNDLE_CONTENT_DIR:owlswitch>/Resources"
         COMMAND ${CMAKE_COMMAND} -E create_symlink
             "${CMAKE_SOURCE_DIR}"
-            "$<TARGET_BUNDLE_CONTENT_DIR:240mp>/Resources"
+            "$<TARGET_BUNDLE_CONTENT_DIR:owlswitch>/Resources"
         COMMENT "Symlinking repo root as bundle Resources (dev build)"
     )
 endif()
 
 # ── Install rules ──────────────────────────────────────────────────────────────
-install(TARGETS 240mp BUNDLE DESTINATION . COMPONENT Runtime)
+install(TARGETS owlswitch BUNDLE DESTINATION . COMPONENT Runtime)
 
 install(CODE "
     set(legacy_executable \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${APP_DISPLAY_NAME}.app/Contents/MacOS/${APP_LEGACY_NAME}\")

@@ -370,10 +370,10 @@ mp.register_script_message("skip-overlay-state", function(state)
     end
 end)
 
-mp.register_script_message("240mp-osd-menu-show", function()
+mp.register_script_message("owlswitch-osd-menu-show", function()
     if not menu_visible then toggle_menu() end
 end)
 
-mp.register_script_message("240mp-osd-menu-hide", function()
+mp.register_script_message("owlswitch-osd-menu-hide", function()
     if menu_visible then toggle_menu() end
 end)

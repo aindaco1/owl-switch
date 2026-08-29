@@ -1,6 +1,6 @@
 # OwlSwitch Security Policy
 
-OwlSwitch handles local media paths and Jellyfin credentials, so security reports are taken seriously even though this is a small fork. The repository, bundle identifier, updater aliases, and Application Support directory retain their historical 240-mp-jellyfin compatibility contract.
+OwlSwitch handles local media paths and Jellyfin credentials, so security reports are taken seriously even though this is a small fork. The current repository and data paths use the OwlSwitch identity. The signed bundle identifier and a hidden updater alias remain temporarily unchanged because already-released installers validate them.
 
 ## Supported Versions
 
@@ -36,7 +36,7 @@ Use GitHub's private vulnerability reporting for this repository when available,
 - The launch and manual update checks only use the repository's latest GitHub Release. The request contains the app version in its user agent but no settings, authentication, media, queue, or playback data. A launch check never downloads or installs an update. User-approved downloads require the API-provided SHA-256 asset digest; the DMG and nested app must pass Apple signature/notarization checks, and the app must match the running app's Developer ID team, bundle identifier, advertised version, and arm64 architecture. The installer re-verifies immediately before a rollback-safe replacement.
 - Release CI notarizes and staples the app before placing it in the signed/notarized DMG, requires exactly the real app plus an `Applications -> /Applications` shortcut, mounts the final image read-only to recheck the app identity and trust contract, validates both tickets, and publishes a human-verifiable `.sha256` asset.
 - Release CI uses encrypted App Store Connect API-key credentials, ephemeral credential files/keychains, least-privilege workflow permissions, and commit-pinned GitHub Actions. Release tags must match the compiled app version.
-- Modules should only communicate directly with their intended media service and should only write state under `~/Library/Application Support/240-mp-jellyfin/`.
+- Modules should only communicate directly with their intended media service and should only write state under `~/Library/Application Support/owl-switch/`.
 
 ## Out Of Scope
 

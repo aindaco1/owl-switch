@@ -184,7 +184,7 @@ async function rateLimit(request, env) {
 
 async function submitToGitHub(env, sanitized, reportFingerprint) {
   const owner = String(env.GITHUB_OWNER || 'aindaco1');
-  const repo = String(env.GITHUB_REPO || '240-mp-jellyfin');
+  const repo = String(env.GITHUB_REPO || 'owl-switch');
   const indexed = await env.REPORT_INDEX.get(`fp:${reportFingerprint}`, { type: 'json' });
   let issue = null;
   if (indexed?.number) {

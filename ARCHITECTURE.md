@@ -1,6 +1,6 @@
 # OwlSwitch Architecture
 
-OwlSwitch is a retro VCR-style video controller built with **C++ Qt 6 + QML**, targeting **Apple Silicon macOS**. Internal `240-mp-jellyfin` names remain where changing them would break bundle identity, updates, module IDs, IPC, or stored data. This is the reference for working on the fork's code, whether you are adding a new module or changing an existing one.
+OwlSwitch is a retro VCR-style video controller built with **C++ Qt 6 + QML**, targeting **Apple Silicon macOS**. Repository, checkout, target, module, IPC, storage, CI, and release-artifact names use the OwlSwitch identity. Only the signed bundle identifier and hidden pre-1.6.4 updater aliases remain legacy compatibility inputs. This is the reference for working on the fork's code, whether you are adding a new module or changing an existing one.
 
 If you just want to install or build the app, see [INSTALL.md](INSTALL.md) and [BUILDING.md](BUILDING.md). 
 
@@ -19,7 +19,7 @@ The guiding idea: **browse structured content, then hand off to the right tool f
 ## Project Structure
 
 ```
-240-mp-jellyfin/
+owl-switch/
   src/                              # C++ source
     main.cpp                        # app entry point — engine setup, context properties, registerModule calls
     AppCore.h / AppCore.cpp         # app shell: module registry, config r/w, settings routing
@@ -94,7 +94,7 @@ Loaded at startup by `AppCore` — the single source of truth for a module's ide
 
 ```json
 {
-  "id": "com.240mp.<name>",
+  "id": "com.owlswitch.<name>",
   "name": "<DISPLAY NAME>",
   "display_order": 100,
   "hidden": false,
@@ -175,7 +175,7 @@ Backends are wired in from `main.cpp` with a single call:
 ```cpp
 YourBackend yourBackend(appRoot, dataRoot);   // construct with whatever args the ctor needs
 
-appCore.registerModule("com.240mp.<name>", "yourBackend", &yourBackend, ctx);
+appCore.registerModule("com.owlswitch.<name>", "yourBackend", &yourBackend, ctx);
 ```
 
 `registerModule(moduleId, contextProperty, backend, ctx)` does everything: it stores the backend for `invoke_module_action` routing, exposes it to QML under `contextProperty`, and connects the backend's optional signals/slots **by introspection** — each is wired only if the backend actually declares it, so there are no per-capability lambdas:
@@ -196,7 +196,7 @@ The current mpv implementation is a good reference implementation of the "browse
 
 1. **Launch** — `loadAndPlayWithOptions(url, options)` starts mpv as a `QProcess`; the legacy positional wrapper delegates to it. Named options cover resume, playlists, Repeat Off/Queue/One, shuffle, audio/subtitle selection, sidecars, images, filters, input bindings, authenticated headers, and module-owned extra mpv arguments without duplicating launch logic across modules. `resolveDisplaySelection` assigns separate controller and media roles from the saved app settings: automatic keeps the controller on the primary display and chooses the first other display for media, while explicit indices can target either role or make media share the controller display. `Main.qml` owns the matching second-screen QML output layer for pure-QML media and mpv-adjacent overlays. `HelperResolver` resolves packaged helpers first, then development overrides and `PATH`, and builds a per-process `PATH`; the app never mutates its global environment or links libmpv.
 2. **Authenticated HTTP playback** — Jellyfin headers are written to a temporary owner-only mpv include file and passed with `--include=<file>`, so tokens are not exposed as normal command-line header arguments. Jellyfin stream URLs avoid `api_key` query tokens.
-3. **Control channel** — mpv is started with `--input-ipc-server=<socket>` (a Unix domain socket at `/tmp/240-mp-jellyfin-mpv.sock`). `MpvController` connects to it with a `QLocalSocket` and sends JSON commands via `sendCommand(QJsonArray)`. Seeking, key input, video filters, messages, narrow per-file track selection, and playlist append/remove/move/clear/play/replace operations go over this channel. mpv client messages using the `240mp-key` prefix are bridged back to QML through `mpvKeyPressed`; `file-loaded` is surfaced separately so Local can apply each queued entry's track choices and overlays can reveal only after replacement video is ready.
+3. **Control channel** — mpv is started with `--input-ipc-server=<socket>` (a Unix domain socket at `/tmp/owl-switch-mpv.sock`). `MpvController` connects to it with a `QLocalSocket` and sends JSON commands via `sendCommand(QJsonArray)`. Seeking, key input, video filters, messages, narrow per-file track selection, and playlist append/remove/move/clear/play/replace operations go over this channel. mpv client messages using the `owlswitch-key` prefix are bridged back to QML through `mpvKeyPressed`; `file-loaded` is surfaced separately so Local can apply each queued entry's track choices and overlays can reveal only after replacement video is ready.
 4. **State back to QML** — `MpvController` issues `observe_property` for `time-pos`, `duration`, and `playlist-pos`, and re-publishes them as `Q_PROPERTY`s + the `positionChanged` / `durationChanged` / `playlistPosChanged` signals. A watchdog timer logs a warning if no `time-pos` event arrives for about 30 s.
 5. **Exit and item outcome** — mpv `end-file` events are surfaced as `playbackItemEnded(playlistIndex, reason, error)`. Process completion emits the shared **`playbackEnded(finalPos, finalDur, reason)`** signal with `eof`, `stopped`, or `failed`; compatibility signals remain for hidden/legacy code. Karaoke removes completed queue entries; Local retains completed entries, marks failures, and records resume state; Jellyfin reports the result to the server or retries direct-play failure as a transcode.
 
@@ -247,7 +247,7 @@ The Jellyfin module lives in `modules/jellyfin/` and `src/modules/jellyfin/`.
 
 After the QML shell is ready, `UpdateManager` makes one background check against the repository's latest GitHub Release. A current or failed launch check remains unobtrusive. A valid newer release emits one launch-only signal; the shell presents the shared keyboard-first confirmation UI and can route to the existing Software Update view. The same `UpdateManager` request path serves the manual check, so launch and manual metadata parsing cannot drift.
 
-The updater selects only the Apple Silicon DMG. It streams a user-approved download into the app data directory while hashing it, requires GitHub's SHA-256 digest and declared byte size, then verifies the signed/notarized DMG and its app. The nested app must match the current signed app's Team Identifier, `com.240mp.jellyfin`, the release version, and arm64 architecture. The launch check never downloads or installs an update.
+The updater selects only the Apple Silicon DMG. It streams a user-approved download into the app data directory while hashing it, requires GitHub's SHA-256 digest and declared byte size, then verifies the signed/notarized DMG and its app. The nested app must match the current signed app's Team Identifier, established compatibility bundle identifier, release version, and arm64 architecture. The launch check never downloads or installs an update. Changing the signed identifier requires a prior transition release whose updater explicitly trusts both identities.
 
 For a signed app in a writable install directory, a small app-generated helper waits for the current process to exit, repeats every integrity and identity check, copies to a temporary sibling, verifies again, swaps atomically with rollback, and relaunches. Development builds and non-writable installs expose the already-verified DMG for manual installation instead.
 
@@ -284,7 +284,7 @@ The Tumblr module lives in `modules/tumblr_screensaver/` and `src/modules/tumblr
 - Users enter a public Tumblr URL in the module's first view; the URL is persisted through `appCore.save_setting(...)`.
 - `TumblrScreensaverBackend` fetches Tumblr's public JSON feed pages through `/api/read/json`, using `posts-total` and paged `start`/`num` requests to collect the blog.
 - The backend extracts Tumblr-hosted image URLs from post HTML, prefers the largest `srcset` candidate for still images, explicitly preserves GIF sources (including `.gifv` aliases), marks animated entries, and deduplicates exact image URLs.
-- `Items.qml` persists normalized, duplicate-free favorite blog URLs under `modules.com.240mp.tumblr_screensaver.favorites`; selecting a favorite starts it immediately, while Save/Remove and Delete edit the same list.
+- `Items.qml` persists normalized, duplicate-free favorite blog URLs under `modules.com.owlswitch.tumblr_screensaver.favorites`; selecting a favorite starts it immediately, while Save/Remove and Delete edit the same list.
 - `Player.qml` passes Tumblr's still/GIF items to the app-level `ImageMontage`. `MontageMedia` selects `Image` or `AnimatedImage`, exposes shared ready/error state, and pauses GIF frame advancement with the montage.
 - `ImageMontage` shuffles the loaded images so a cycle does not repeat until every usable image has been shown once, avoids a boundary repeat, and retires failed image URLs without stalling the cycle.
 - Transitions are handled entirely in QML with retro slide/zoom/fade motion, scanlines, and falling-block effects rather than mpv.
@@ -326,7 +326,7 @@ The pinned official yt-dlp onedir archive installs as `Resources/bin/yt-dlp` plu
 
 `DiagnosticsManager` installs a Qt message handler after the stable data root is resolved. It redacts sensitive text before writing owner-only rotating JSONL, keeps a bounded in-memory event window, and exposes only preview, explicit submit, and clear operations to QML. The submission payload contains at most 20 structured events and coarse app/platform identity.
 
-`diagnostics-relay/` is an independently deployable Cloudflare Worker. It fails closed without its dedicated rate-limit and fingerprint-index KV bindings, independently sanitizes every request, accepts only `com.240mp.jellyfin`, obtains a short-lived GitHub App installation token, and rewrites one bounded open issue per stable fingerprint rather than appending unbounded reports.
+`diagnostics-relay/` is an independently deployable Cloudflare Worker. It fails closed without its dedicated rate-limit and fingerprint-index KV bindings, independently sanitizes every request, accepts only the app's signed compatibility bundle identifier, obtains a short-lived GitHub App installation token, and rewrites one bounded open issue per stable fingerprint rather than appending unbounded reports.
 
 ## Track Selection
 
@@ -353,7 +353,7 @@ FocusScope {
     property var navParams: ({})
 
     // must match your manifest id
-    property var _moduleInfo: appCore ? appCore.get_module_info("com.240mp.<name>") : ({})
+    property var _moduleInfo: appCore ? appCore.get_module_info("com.owlswitch.<name>") : ({})
     property string moduleName: _moduleInfo.name || ""
     property string moduleIcon: _moduleInfo.icon || ""
 
@@ -533,9 +533,9 @@ User configuration is stored in `config.json` in the app's data directory:
     "battery_sleep_threshold": "10%"
   },
   "modules": {
-    "com.240mp.jellyfin": { "enabled": true, "resume_playback": "ask", "video_quality": "direct" },
-    "com.240mp.karaoke": { "enabled": true },
-    "com.240mp.local_files": {
+    "com.owlswitch.jellyfin": { "enabled": true, "resume_playback": "ask", "video_quality": "direct" },
+    "com.owlswitch.karaoke": { "enabled": true },
+    "com.owlswitch.local_files": {
       "enabled": true,
       "media_directory": "~/Desktop",
       "repeat_mode": "off",
@@ -543,12 +543,12 @@ User configuration is stored in `config.json` in the app's data directory:
       "soundtrack_shuffle": false,
       "auto_launch": false
     },
-    "com.240mp.tumblr_screensaver": {
+    "com.owlswitch.tumblr_screensaver": {
       "enabled": true,
       "tumblr_url": "https://pixelskylines.tumblr.com/",
       "favorites": ["https://pixelskylines.tumblr.com/"]
     },
-    "com.240mp.nature": { "enabled": true }
+    "com.owlswitch.nature": { "enabled": true }
   }
 }
 ```

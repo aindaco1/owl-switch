@@ -58,6 +58,7 @@ public:
         : m_response(std::move(response)) {}
 
     int requestCount = 0;
+    QUrl lastRequestUrl;
 
 protected:
     QNetworkReply *createRequest(Operation operation,
@@ -66,6 +67,7 @@ protected:
         Q_UNUSED(operation)
         Q_UNUSED(outgoingData)
         ++requestCount;
+        lastRequestUrl = request.url();
         return new StubNetworkReply(request, m_response, this);
     }
 
@@ -76,10 +78,10 @@ private:
 QByteArray releaseResponse(const QString &version) {
     const QJsonObject asset{
         {QStringLiteral("name"),
-         QStringLiteral("240-mp-jellyfin-v%1-macOS-arm64.dmg").arg(version)},
+         QStringLiteral("owl-switch-v%1-macOS-arm64.dmg").arg(version)},
         {QStringLiteral("browser_download_url"),
-         QStringLiteral("https://github.com/aindaco1/240-mp-jellyfin/releases/download/"
-                        "v%1/240-mp-jellyfin-v%1-macOS-arm64.dmg").arg(version)},
+         QStringLiteral("https://github.com/aindaco1/owl-switch/releases/download/"
+                        "v%1/owl-switch-v%1-macOS-arm64.dmg").arg(version)},
         {QStringLiteral("digest"), QStringLiteral("sha256:") + QString(64, 'a')},
         {QStringLiteral("size"), 1234}
     };
@@ -134,6 +136,8 @@ void UpdateManagerTest::launchCheckSignalsForNewerRelease() {
 
     QTRY_COMPARE(manager.state(), QStringLiteral("available"));
     QCOMPARE(network.requestCount, 1);
+    QCOMPARE(network.lastRequestUrl,
+             QUrl(QStringLiteral("https://api.github.com/repos/aindaco1/owl-switch/releases/latest")));
     QCOMPARE(availableSpy.count(), 1);
     QCOMPARE(availableSpy.first().first().toString(), QStringLiteral("1.6.3"));
 }

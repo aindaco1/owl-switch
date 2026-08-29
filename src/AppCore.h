@@ -68,6 +68,7 @@ private slots:
 private:
     QJsonObject loadConfig() const;
     void saveConfig(const QJsonObject &config) const;
+    void migrateLegacyModuleSettings();
     QString moduleIdForBackend(QObject *backend) const;
     bool isModuleEnabled(const ModuleEntry &module, const QJsonObject &modulesConfig) const;
     QVariantMap importColorScheme(const QJsonObject &object) const;

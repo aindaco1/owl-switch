@@ -1,6 +1,6 @@
 # Building OwlSwitch
 
-OwlSwitch remains in the `240-mp-jellyfin` repository but builds and installs as `OwlSwitch.app`. The signed DMG supplies hidden legacy aliases required by the existing updater contract. This fork is macOS-only; CMake intentionally fails configuration on non-macOS hosts.
+OwlSwitch lives in the `owl-switch` repository and builds and installs as `OwlSwitch.app`. The signed DMG supplies only the hidden legacy aliases required by pre-1.6.4 updater contracts. This fork is macOS-only; CMake intentionally fails configuration on non-macOS hosts.
 
 ## macOS (ARM)
 
@@ -34,7 +34,7 @@ Jellyfin playback sends authentication headers to mpv through a temporary owner-
 
 ```bash
 git clone <your-fork-url>
-cd 240-mp-jellyfin
+cd owl-switch
 ```
 
 ### Build
@@ -70,7 +70,7 @@ APP_ROOT=$(pwd) ./build/OwlSwitch.app/Contents/MacOS/OwlSwitch
 On macOS all user configuration is stored at:
 
 ```
-~/Library/Application Support/240-mp-jellyfin/
+~/Library/Application Support/owl-switch/
   config.json          ← app and module settings
   jellyfin_auth.json   ← Jellyfin auth
   karaoke_catalog.json ← cached public eighteen-source Karaoke catalog (refreshed after 24 hours)
@@ -90,7 +90,7 @@ This directory is created automatically on first run. It is separate from the ap
 
 ### App icon
 
-`assets/images/240-mp.iconset/` is the canonical macOS icon source. Regenerate `assets/images/240-mp.icns` with `iconutil -c icns assets/images/240-mp.iconset`; the release uses that ICNS through `MACOSX_BUNDLE_ICON_FILE`, while the authoring iconset is excluded from installed app Resources.
+`assets/images/owl-switch.iconset/` is the canonical macOS icon source. Regenerate `assets/images/owl-switch.icns` with `iconutil -c icns assets/images/owl-switch.iconset`; the release uses that ICNS through `MACOSX_BUNDLE_ICON_FILE`, while the authoring iconset is excluded from installed app Resources.
 
 ## Debugging & logs
 
@@ -108,7 +108,7 @@ APP_ROOT=$(pwd) ./build/OwlSwitch.app/Contents/MacOS/OwlSwitch
 
 ### mpv playback logs
 
-During playback the app hands off to mpv as a subprocess (see [ARCHITECTURE.md → Playback Hand-off](ARCHITECTURE.md#playback-hand-off-mpvcontroller)). `MpvController` writes mpv's own output to a log file in the temp dir alongside its IPC socket (`/tmp/240-mp-jellyfin-mpv.sock`) — useful when a video will not play.
+During playback the app hands off to mpv as a subprocess (see [ARCHITECTURE.md → Playback Hand-off](ARCHITECTURE.md#playback-hand-off-mpvcontroller)). `MpvController` writes mpv's own output to a log file in the temp dir alongside its IPC socket (`/tmp/owl-switch-mpv.sock`) — useful when a video will not play.
 
 The app also writes a session marker to the same log. Known sensitive URL query keys such as `api_key`, `access_token`, `token`, and `X-Plex-Token` are redacted before that marker is written.
 
@@ -171,7 +171,7 @@ The intended workflow is a macOS Apple Silicon build:
 | Job | Runner | Output |
 |---|---|---|
 | `build-macos-arm64` | `macos-26` (arm64) | Notarized app artifact |
-| `package-macos-arm64` | `macos-26` (arm64) | `240-mp-jellyfin-<tag>-macOS-arm64.dmg` |
+| `package-macos-arm64` | `macos-26` (arm64) | `owl-switch-<tag>-macOS-arm64.dmg` |
 
 The exact-commit `main` CI job pins Xcode 26.3, installs Qt and the media helpers
 from the Apple Silicon runner's Homebrew snapshot, configures CMake for `arm64`,
@@ -223,9 +223,9 @@ The recovery path deliberately separates the two operations at the failure bound
 3. Validate the candidate before it leaves the Mac:
 
    ```bash
-   hdiutil verify 240-mp-jellyfin-v1.1.0-macOS-arm64.dmg
-   codesign --verify --verbose=4 240-mp-jellyfin-v1.1.0-macOS-arm64.dmg
-   codesign -dvvv 240-mp-jellyfin-v1.1.0-macOS-arm64.dmg
+   hdiutil verify owl-switch-v1.7.0-macOS-arm64.dmg
+   codesign --verify --verbose=4 owl-switch-v1.7.0-macOS-arm64.dmg
+   codesign -dvvv owl-switch-v1.7.0-macOS-arm64.dmg
    ```
 
    Confirm the output shows the expected Developer ID team, a `Timestamp=...` line, and no verification error.
@@ -269,12 +269,12 @@ NATURE_LIVE_TEST=1 ./build/nature_backend_tests fetchesLiveObservations
 For packaging changes, also run a local install into a temporary prefix and confirm bundled helpers launch:
 
 ```bash
-cmake --install build --prefix /tmp/240mp-jellyfin-install-test
-/tmp/240mp-jellyfin-install-test/OwlSwitch.app/Contents/Resources/bin/mpv --version
-/tmp/240mp-jellyfin-install-test/OwlSwitch.app/Contents/Resources/bin/ffmpeg -version
-/tmp/240mp-jellyfin-install-test/OwlSwitch.app/Contents/Resources/bin/ffprobe -version
-/tmp/240mp-jellyfin-install-test/OwlSwitch.app/Contents/Resources/bin/yt-dlp --version
-/tmp/240mp-jellyfin-install-test/OwlSwitch.app/Contents/Resources/bin/deno --version
+cmake --install build --prefix /tmp/owl-switch-install-test
+/tmp/owl-switch-install-test/OwlSwitch.app/Contents/Resources/bin/mpv --version
+/tmp/owl-switch-install-test/OwlSwitch.app/Contents/Resources/bin/ffmpeg -version
+/tmp/owl-switch-install-test/OwlSwitch.app/Contents/Resources/bin/ffprobe -version
+/tmp/owl-switch-install-test/OwlSwitch.app/Contents/Resources/bin/yt-dlp --version
+/tmp/owl-switch-install-test/OwlSwitch.app/Contents/Resources/bin/deno --version
 ```
 
 Run the DMG layout fixtures independently when changing packaging or release workflows:

@@ -207,7 +207,7 @@ LocalFilesBackend::LocalFilesBackend(const QString &appRoot, const QString &data
     : QObject(parent), m_appRoot(appRoot), m_dataRoot(dataRoot),
       m_mediaRoot(defaultMediaRoot())
 {
-    m_audioSocketPath = QStringLiteral("/tmp/240mp-local-audio-") +
+    m_audioSocketPath = QStringLiteral("/tmp/owl-switch-local-audio-") +
         QUuid::createUuid().toString(QUuid::Id128).left(16) + QStringLiteral(".sock");
     m_audioIpc = new QLocalSocket(this);
     connect(m_audioIpc, &QLocalSocket::connected, this, [this] {
@@ -241,7 +241,7 @@ LocalFilesBackend::LocalFilesBackend(const QString &appRoot, const QString &data
     if (configFile.open(QIODevice::ReadOnly)) {
         const QJsonObject config = QJsonDocument::fromJson(configFile.readAll()).object();
         const QString configuredRoot = config.value(QStringLiteral("modules")).toObject()
-            .value(QStringLiteral("com.240mp.local_files")).toObject()
+            .value(QStringLiteral("com.owlswitch.local_files")).toObject()
             .value(QStringLiteral("media_directory")).toString();
         if (!configuredRoot.isEmpty())
             m_mediaRoot = expandedMediaRoot(configuredRoot);
@@ -1480,7 +1480,7 @@ void LocalFilesBackend::setMediaRoot(const QString &path)
 void LocalFilesBackend::onSettingChanged(const QString &moduleId, const QString &key,
                                          const QVariant &value)
 {
-    if (moduleId == QLatin1String("com.240mp.local_files") &&
+    if (moduleId == QLatin1String("com.owlswitch.local_files") &&
         key == QLatin1String("media_directory")) {
         setMediaRoot(value.toString());
     }
