@@ -105,6 +105,7 @@ qml_import_scanner="$("$qt_root/bin/qtpaths" --query QT_INSTALL_LIBEXECS)/qmlimp
 qml_import_path="$("$qt_root/bin/qtpaths" --query QT_INSTALL_QML)"
 "$source_root/scripts/macos_prune_qt_deployment.zsh" \
     "$app" "$qml_scan_root" "$qml_import_scanner" "$qml_import_path"
+"$source_root/scripts/macos_verify_no_qtquickcontrols.zsh" "$app"
 "$source_root/scripts/macos_verify_bundle.zsh" "$app"
 helper_home="$(mktemp -d "${TMPDIR:-/tmp}/owl-switch-helper-home.XXXXXX")"
 "$source_root/scripts/macos_verify_bundled_helpers.sh" \

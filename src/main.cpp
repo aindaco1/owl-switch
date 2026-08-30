@@ -154,7 +154,7 @@ int main(int argc, char *argv[]) {
     MpvController       mpvController(appRoot, &appCore);
     mpvController.setPlaybackScreenIndex(displaySelection.mediaIndex);
     IdleTracker         idleTracker;
-    InputManager        inputManager;
+    InputManager        inputManager(&appCore);
     UpdateManager       updateManager(dataRoot);
     QObject::connect(&inputManager, &InputManager::mpvKeyRequested,
                      &mpvController, &MpvController::sendKey);

@@ -4,6 +4,22 @@ All notable OwlSwitch changes are documented here. Releases through 1.6.3 used t
 
 ## [Unreleased]
 
+## [1.6.5] - 2026-08-29
+
+### Added
+
+- Added a global Settings → Controls screen for one additional keyboard or keyboard-emulating remote button per Up, Down, Left, Right, Select, and Back action. Capture, duplicate replacement, display labels, persistence, reset, synthesized Qt navigation, and inactive-window mpv routing all use one canonical action table.
+- Added focused input-remapping contracts and a packaged-app assertion that rejects an accidental Qt Quick Controls runtime dependency.
+
+### Changed
+
+- Selectively incorporated the relevant performance, security, and usability work reviewed through upstream 240-MP commit `fbbcd3c`: safe additive control remapping was adapted to OwlSwitch's native macOS input architecture, while the unused `QtQuick.Controls` root import was removed so release packaging can omit the associated controls and style plugins.
+- Kept every built-in navigation and playback key active, ignored capture auto-repeat, reserved modifier-only and existing default keys, and left text entry unchanged. Remappings are global rather than duplicated per module.
+
+### Security
+
+- Control settings contain only bounded integer input identifiers mapped to six known navigation actions. They cannot contain commands, scripts, paths, or module-specific behavior, and Reset to Defaults remains available through unchanged built-in controls.
+
 ## [1.6.4] - 2026-08-29
 
 ### Added
