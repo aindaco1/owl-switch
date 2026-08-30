@@ -38,7 +38,7 @@ owl-switch/
     player/
       MpvController.h/.cpp          # mpv subprocess controller: QProcess launch + IPC socket
     input/
-      InputManager.h/.mm            # native macOS GameController + Right Shift navigation
+      InputManager.h/.mm            # native GameController, Right Shift, and global remapping
       IdleTracker.h/.cpp            # menu inactivity screen-saver tracking
     update/
       UpdateManager.h/.cpp          # signed GitHub release check/download/install workflow
@@ -167,6 +167,12 @@ A real example from Plex — note `requires_auth`, dynamic options, and apply sl
 ### Signals
 
 `modulesLoaded`, `appSettingChanged`, `moduleSettingChanged(moduleId, key, value)`, `dynamicOptionsReady(moduleId, key, options)`, `moduleAuthStateChanged(moduleId)`.
+
+### Global input mapping
+
+`InputManager` is the single owner of app-wide navigation input. Its canonical action table defines Up, Down, Left, Right, Select, and Back once, including the synthesized Qt key, mpv fallback key, persistent setting ID, and Controls-screen label. Native macOS GameController buttons, the Right Shift tap tracker, and additive keyboard or keyboard-emulating remote mappings all converge on those same actions; modules continue to receive ordinary Qt navigation keys and contain no remapping logic.
+
+Settings → Controls stores at most one extra integer input identifier under each `app.remote_keymap.<action>` key. Default arrows, Enter, Escape/Backspace, Space, and modifier-only keys are reserved, so remapping cannot replace built-in navigation or playback controls. Capture ignores auto-repeat, Escape-family input cancels, duplicate custom inputs move to the newly selected action, and Reset to Defaults clears only the six bounded mapping values. Remapped character keys are bypassed while a text input has focus. When the controller window is inactive, the same action table supplies the existing `mpvKeyRequested` fallback instead of adding a parallel playback path.
 
 ### registerModule — wiring a backend in
 
@@ -530,7 +536,15 @@ User configuration is stored in `config.json` in the app's data directory:
     "controller_display_index": -1,
     "media_display_index": -1,
     "prevent_sleep": "ON",
-    "battery_sleep_threshold": "10%"
+    "battery_sleep_threshold": "10%",
+    "remote_keymap": {
+      "up": 75,
+      "down": 0,
+      "left": 0,
+      "right": 0,
+      "select": 0,
+      "back": 0
+    }
   },
   "modules": {
     "com.owlswitch.jellyfin": { "enabled": true, "resume_playback": "ask", "video_quality": "direct" },

@@ -80,6 +80,60 @@ if [[ -d "$quick_plugins" ]]; then
     done
 fi
 
+# macdeployqt copies the framework closure before the unused QML modules and
+# quick plugins above are removed. Recompute the Qt framework graph from the
+# Mach-O files that remain, then remove only unreachable Qt frameworks. This
+# keeps framework pruning derived from the same post-scan bundle rather than a
+# hand-maintained list of style or controls dependencies.
+framework_root="$app/Contents/Frameworks"
+typeset -A available_frameworks
+typeset -A required_frameworks
+framework_queue=()
+for framework in "$framework_root"/Qt*.framework(N/); do
+    available_frameworks[${framework:t}]="$framework"
+done
+
+mark_framework_dependencies() {
+    local binary="$1"
+    local dependency framework_name
+    file -b "$binary" | grep -q 'Mach-O' || return 0
+    while IFS= read -r dependency; do
+        if [[ "$dependency" =~ '([^/]+\.framework)(/|$)' ]]; then
+            framework_name="${match[1]}"
+            if [[ -n "${available_frameworks[$framework_name]:-}" &&
+                  -z "${required_frameworks[$framework_name]:-}" ]]; then
+                required_frameworks[$framework_name]=1
+                framework_queue+=("$framework_name")
+            fi
+        fi
+    done < <(otool -L "$binary" | tail -n +2 | awk '{ print $1 }')
+}
+
+while IFS= read -r binary; do
+    mark_framework_dependencies "$binary"
+done < <(find "$app" -path "$framework_root" -prune -o -type f -print)
+
+queue_index=1
+while (( queue_index <= ${#framework_queue[@]} )); do
+    framework_name="${framework_queue[$queue_index]}"
+    framework="${available_frameworks[$framework_name]}"
+    while IFS= read -r binary; do
+        if file -b "$binary" | grep -q 'Mach-O'; then
+            mark_framework_dependencies "$binary"
+            break
+        fi
+    done < <(find "$framework" -type f -print)
+    (( ++queue_index ))
+done
+
+removed_frameworks=0
+for framework_name framework in "${(@kv)available_frameworks}"; do
+    if [[ -z "${required_frameworks[$framework_name]:-}" ]]; then
+        rm -rf "$framework"
+        (( ++removed_frameworks ))
+    fi
+done
+
 updated_rpaths=0
 while IFS= read -r binary; do
     file -b "$binary" | grep -q 'Mach-O' || continue
@@ -99,4 +153,4 @@ while IFS= read -r binary; do
     done
 done < <(find "$app" -type f -print)
 
-echo "Pruned $removed_modules unused QML modules and $removed_plugins quick plugins; removed $updated_rpaths external rpaths"
+echo "Pruned $removed_modules unused QML modules, $removed_plugins quick plugins, and $removed_frameworks unreachable Qt frameworks; removed $updated_rpaths external rpaths"

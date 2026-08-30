@@ -82,7 +82,7 @@ On macOS all user configuration is stored at:
   nature_observations.json ← cached public iNaturalist metadata (no image files)
 ```
 
-Tumblr's current URL and favorites are ordinary module settings inside `config.json`; no separate database or credential file is used.
+Tumblr's current URL and favorites are ordinary module settings inside `config.json`; no separate database or credential file is used. Global Controls remappings are bounded integer input identifiers under `app.remote_keymap`; they add to rather than replace the built-in navigation keys.
 
 Nature's atomic cache contains at most 100 validated public observation records and CC0 photo URLs. It contains no credentials or downloaded image data and is refreshed after one hour.
 

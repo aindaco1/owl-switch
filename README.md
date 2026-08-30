@@ -4,7 +4,7 @@
 
 The app is a browsing and visuals-control shell, not an embedded video renderer. It launches `mpv` as a subprocess for playback and uses `ffprobe` to inspect local audio/subtitle tracks. CMake supplies a pinned, checksum-verified official yt-dlp onedir runtime and Deno for YouTube extraction. Packaged macOS apps also bundle `ffmpeg` for high-quality Karaoke prefetch, along with all required non-system libraries, so end users do not need Homebrew or system helper installs.
 
-Version 1.6.4 adopted the OwlSwitch app and bundle name and completed the project-identity migration: the repository and checkout are `owl-switch`, public DMGs use `owl-switch-<tag>-macOS-arm64.dmg`, module IDs use `com.owlswitch.*`, and app data moves to `~/Library/Application Support/owl-switch/` without losing existing settings. A hidden legacy bundle alias and the established signed bundle identifier remain temporarily so existing installations can still trust and install future updates.
+Version 1.6.5 adds global, additive keyboard/remote navigation remapping and removes OwlSwitch's unused Qt Quick Controls runtime dependency. Version 1.6.4 adopted the OwlSwitch app and bundle name and completed the project-identity migration: the repository and checkout are `owl-switch`, public DMGs use `owl-switch-<tag>-macOS-arm64.dmg`, module IDs use `com.owlswitch.*`, and app data moves to `~/Library/Application Support/owl-switch/` without losing existing settings. A hidden legacy bundle alias and the established signed bundle identifier remain temporarily so existing installations can still trust and install future updates.
 
 ## Supported Platform
 
@@ -102,6 +102,10 @@ Not yet implemented: music libraries and explicit watched/unwatched controls fro
 
 The original Plex module remains in the source tree as a reference implementation, but its manifest is marked hidden so it does not appear in normal module discovery or Settings. It can be removed after Jellyfin reaches the desired parity.
 
+## Controls
+
+Arrow keys, Enter, Escape/Backspace, Right Shift tap-for-Back, and native macOS GameController navigation remain available by default. Settings → Controls can add one keyboard or keyboard-emulating remote button to each global Up, Down, Left, Right, Select, and Back action. Built-in keys cannot be replaced, modifier-only keys and capture auto-repeat are rejected, duplicate custom buttons move to the newly selected action, and Reset to Defaults is always reachable through the unchanged built-in controls. Text fields continue to receive custom-mapped character keys normally while editing.
+
 ## Build And Run
 
 See [BUILDING.md](BUILDING.md) for the full build, run, packaging, and release workflow.
@@ -126,6 +130,7 @@ The app quietly checks for a newer signed GitHub release whenever it opens. A cu
 - [CHANGELOG.md](CHANGELOG.md) records user-facing changes.
 - [ROADMAP.md](ROADMAP.md) tracks planned work and improvement ideas.
 - [ARCHITECTURE.md](ARCHITECTURE.md) explains the module, playback, and backend structure.
+- [docs/upstream-sync-1.6.5.md](docs/upstream-sync-1.6.5.md) records the selective upstream review for this release.
 - [CONTRIBUTING.md](CONTRIBUTING.md) covers contribution and testing expectations.
 
 ## Configuration

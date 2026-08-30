@@ -2,9 +2,11 @@
 
 Version 1.1 completed the fork's daily-use Apple Silicon macOS foundation. Future work stays focused on reliability and depth in the existing modules rather than expanding platform or module scope.
 
-## Prepared For The Next Release
+## Shipped In 1.6.5
 
-- Complete OwlSwitch project identity across the GitHub repository, iCloud checkout, build target, module IDs, app-data path, CI handoff artifacts, documentation, and public DMG names, with one-time settings/data migration and narrowly isolated updater compatibility aliases.
+- Global, additive keyboard/remote remapping for the six navigation actions, implemented once in the native input layer and shared by every module.
+- Removal and release-time rejection of the unused Qt Quick Controls runtime dependency.
+- Selective upstream review through 240-MP commit `fbbcd3c`, retaining only macOS-relevant performance, security, and usability work.
 
 ## Shipped In 1.6.4
 

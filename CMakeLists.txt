@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(OwlSwitch VERSION 1.6.4 LANGUAGES CXX)
+project(OwlSwitch VERSION 1.6.5 LANGUAGES CXX)
 
 if(NOT APPLE)
     message(FATAL_ERROR "This fork is macOS-only. Configure and build it on macOS.")
@@ -17,7 +17,7 @@ set(APP_DISPLAY_NAME "${APP_PRODUCT_NAME}")
 # Retained only so installations older than 1.6.4 can discover and validate
 # future OwlSwitch updates. This is not used for current project or artifact naming.
 set(APP_LEGACY_NAME "240-mp-jellyfin")
-set(APP_RELEASE_TAG "v1.6.4")
+set(APP_RELEASE_TAG "v1.6.5")
 # The 1.6.4 updater requires this signed identity. Changing it requires a
 # separately released transition version whose updater trusts both identities.
 set(APP_BUNDLE_IDENTIFIER "com.240mp.jellyfin" CACHE STRING "macOS bundle identifier")
@@ -159,14 +159,30 @@ if(BUILD_TESTING)
 
     add_executable(input_manager_tests
         tests/InputManagerTest.mm
+        src/AppCore.cpp
         src/input/InputManager.mm
     )
     target_include_directories(input_manager_tests PRIVATE src)
     target_link_libraries(input_manager_tests PRIVATE
-        Qt6::Core Qt6::Gui Qt6::Quick Qt6::Test
+        Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Network Qt6::Test
         "-framework GameController"
     )
     add_test(NAME input_manager COMMAND input_manager_tests)
+
+    add_executable(remap_controls_qml_tests
+        tests/RemapControlsQmlTest.mm
+        src/AppCore.cpp
+        src/input/InputManager.mm
+    )
+    target_compile_definitions(remap_controls_qml_tests PRIVATE
+        TEST_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
+    )
+    target_include_directories(remap_controls_qml_tests PRIVATE src)
+    target_link_libraries(remap_controls_qml_tests PRIVATE
+        Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Network Qt6::Test
+        "-framework GameController"
+    )
+    add_test(NAME remap_controls_qml COMMAND remap_controls_qml_tests)
 
     add_executable(karaoke_backend_tests
         tests/KaraokeBackendTest.cpp
@@ -324,6 +340,13 @@ if(BUILD_TESTING)
         COMMAND /bin/zsh
             "${CMAKE_SOURCE_DIR}/tests/MacosDmgContractTest.zsh"
             "${CMAKE_SOURCE_DIR}/scripts/macos_dmg_contract.zsh"
+    )
+
+    add_test(
+        NAME macos_qt_dependency_contract
+        COMMAND /bin/zsh
+            "${CMAKE_SOURCE_DIR}/tests/MacosQtDependencyContractTest.zsh"
+            "${CMAKE_SOURCE_DIR}/scripts/macos_verify_no_qtquickcontrols.zsh"
     )
 
     add_test(
