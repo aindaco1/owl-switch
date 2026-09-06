@@ -107,6 +107,15 @@ jobs:
             "$GITHUB_WORKSPACE/build" "$GITHUB_WORKSPACE/install" \
             "$GITHUB_WORKSPACE" "$QT_ROOT_DIR"
 
+      - name: Ad-hoc sign the native test app
+        # Executing normalized Mach-O files on Apple Silicon requires valid
+        # local signatures. The release workflow replaces these with Developer ID.
+        run: |
+          for helper in mpv ffmpeg ffprobe; do
+            codesign --force --sign - "install/OwlSwitch.app/Contents/Resources/bin/$helper"
+          done
+          codesign --force --deep --sign - install/OwlSwitch.app
+
       - name: Native video display regressions
         run: |
           export PKG_CONFIG_PATH="${QT_ROOT_DIR}/lib/pkgconfig"

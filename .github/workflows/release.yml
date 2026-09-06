@@ -190,6 +190,26 @@ jobs:
 
           ./scripts/macos_youtube_canary.sh sources "$APP" "$HELPER_HOME"
 
+      - name: Install native display test dependencies
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+        run: |
+          if ! brew list --versions qt >/dev/null; then brew install qt; fi
+          echo "PKG_CONFIG_PATH=$(brew --prefix qt)/lib/pkgconfig" >> "$GITHUB_ENV"
+
+      - name: Verify signed app on native virtual displays
+        run: |
+          python3 tests/native_display/regression.py --app install/OwlSwitch.app --evidence native-display-signed.json
+
+      - name: Retain signed native display evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: signed-native-display-evidence
+          path: native-display-signed.json
+          if-no-files-found: ignore
+          retention-days: 7
+
       # GitHub-hosted runner IPs can be denied by Google Video even when the
       # same signed bundle works on an end-user network. Keep the real stream
       # attempt visible, but do not let that external denial override the
