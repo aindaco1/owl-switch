@@ -66,9 +66,11 @@ identity. The source-page shortcut remains available without cluttering the phot
   instances. An ordinary mpv playlist or `--af=acrossfade` cannot supply two live
   inputs; continuously replacing a complex graph would add a second queue path.
   The bounded two-player coordinator reuses the established process/IPC seam.
-- [x] Prepare only the next recording muted/paused, with memory-only 16 MiB buffers,
+- [x] Prepare only the next recording within 30 seconds of the current ending,
+  muted/paused with memory-only 16 MiB buffers,
   verified TLS, redirects disabled, and no user config, scripts, video, or yt-dlp.
   Use 20-second readiness/progress deadlines and five failures with increasing backoff.
+  Exhausting preparation retries lets the current usable recording finish.
 - [x] Drive five-second equal-power overlaps from decoded time. Compensate for
   [mpv's cubic volume curve](https://github.com/mpv-player/mpv/blob/v0.41.0/player/audio.c)
   and reserve 30% mix headroom. Fade the first recording in and stop over 200 ms.
@@ -102,7 +104,8 @@ Local source validation on macOS Apple Silicon, Qt 6.11.1, mpv 0.41.0:
   source/status UI, exit, and controller/external output leases. Physical second-screen
   and subjective listening acceptance remain distinct from these automated checks.
 - [ ] Finish the running-app smoke with isolated `DATA_ROOT` and packaged helper checks.
-- [ ] Open the release PR, require its build/test/package checks, and merge.
+- [x] Open release PR #23.
+- [ ] Require the PR build/test/package checks and merge.
 - [ ] Wait for the exact merged main commit's successful CI and retained attested app.
 - [ ] Tag that verified commit `v1.6.6`; run the established signing, notarization,
   stapling, DMG, checksum, and publication workflow without weakening any gate.

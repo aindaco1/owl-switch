@@ -7,6 +7,7 @@
 namespace {
 constexpr int kFadeMs = 5000;
 constexpr int kDeadlineMs = 20000;
+constexpr int kPreloadLeadMs = 30000;
 constexpr int kMaximumFailures = 5;
 constexpr double kHeadroom = 0.7;
 }
@@ -178,7 +179,7 @@ void AudioCrossfadePlayer::ended(int index, bool failed)
     if (failed) {
         ++m_failures;
         m_lastFailure.start();
-    } else {
+    } else if (m_failures < kMaximumFailures) {
         m_failures = 0;
         m_lastFailure.invalidate();
     }
@@ -195,8 +196,11 @@ void AudioCrossfadePlayer::ended(int index, bool failed)
             prepare(other);
     }
     if (m_failures >= kMaximumFailures) {
-        stop();
-        emit unavailable();
+        // Exhausting preparation retries must not cut off a usable recording.
+        if (m_decks[m_current].state != State::Playing)
+            stop();
+        if (failed && m_failures == kMaximumFailures)
+            emit unavailable();
     }
 }
 
@@ -242,15 +246,17 @@ void AudioCrossfadePlayer::tick()
     if (current.state != State::Playing)
         return;
     const int other = 1 - m_current;
-    if (m_decks[other].state == State::Empty)
+    const int duration = current.player->duration();
+    const int position = current.player->position();
+    const int remaining = qMax(0, duration - position);
+    // Avoid holding a paused CDN connection for the entire preceding recording.
+    if (m_decks[other].state == State::Empty &&
+        (duration <= 0 || remaining <= kPreloadLeadMs))
         prepare(other);
     if (m_paused)
         return;
 
-    const int duration = current.player->duration();
-    const int position = current.player->position();
     const int fadeMs = qMin(kFadeMs, qMax(1, duration / 2));
-    const int remaining = qMax(0, duration - position);
     if (duration > 0 && remaining <= fadeMs && m_incoming < 0 &&
         m_decks[other].state == State::Ready) {
         m_incoming = other;

@@ -17,6 +17,7 @@ private slots:
     void repeatsCrossfadesAndStopsBothPlayers();
     void missingHelperStopsAfterBoundedFailures();
     void realDecoderRotatesToNaturalEnd();
+    void exhaustedPreparationKeepsCurrentRecording();
 };
 
 void AudioCrossfadePlayerTest::gainsKeepEnergyAndHeadroom()
@@ -134,6 +135,36 @@ void AudioCrossfadePlayerTest::missingHelperStopsAfterBoundedFailures()
     player.start({QVariantMap{{"id", "1"}, {"previewUrl", "/test/missing.mp3"}}});
     QTRY_COMPARE_WITH_TIMEOUT(failed.count(), 1, 8000);
     QTRY_VERIFY_WITH_TIMEOUT(!player.active(), 1000);
+}
+
+void AudioCrossfadePlayerTest::exhaustedPreparationKeepsCurrentRecording()
+{
+    QTemporaryDir root;
+    QVERIFY(QDir().mkpath(root.filePath("bin")));
+    QFile fixture(QStringLiteral(TEST_SOURCE_ROOT "/tests/fixtures/fake-mpv-audio.py"));
+    QVERIFY(fixture.open(QIODevice::ReadOnly));
+    QFile helper(root.filePath("bin/mpv"));
+    QVERIFY(helper.open(QIODevice::WriteOnly));
+    helper.write(fixture.readAll());
+    helper.close();
+    QVERIFY(helper.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner));
+    AudioCrossfadePlayer player(root.path());
+    player.start({QVariantMap{{"id", "1"}, {"previewUrl", "/test/one.mp3"}}});
+    QTRY_VERIFY_WITH_TIMEOUT(player.m_decks[player.m_current].state ==
+                            AudioCrossfadePlayer::State::Playing, 2000);
+    player.setPaused(true);
+    const int current = player.m_current;
+    const int other = 1 - current;
+    player.m_failures = 4;
+    QSignalSpy failed(&player, &AudioCrossfadePlayer::unavailable);
+    player.ended(other, true);
+    QCOMPARE(failed.count(), 1);
+    QVERIFY(player.active());
+    QVERIFY(player.m_decks[current].player->running());
+    QCOMPARE(player.m_decks[current].state, AudioCrossfadePlayer::State::Playing);
+    player.ended(current, false);
+    QTRY_VERIFY_WITH_TIMEOUT(!player.active(), 1000);
+    QCOMPARE(failed.count(), 1);
 }
 
 QTEST_GUILESS_MAIN(AudioCrossfadePlayerTest)
