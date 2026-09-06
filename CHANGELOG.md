@@ -19,7 +19,7 @@ All notable OwlSwitch changes are documented here. Releases through 1.6.3 used t
 
 ### Security
 
-- Nature accepts only explicit CC0 recordings with validated Freesound HTTPS preview identities. Catalog and audio redirects are disabled, requests and buffers are bounded, and only revalidated metadata is cached with owner-only permissions. No audio downloads, provider credentials, website embedding, or analytics are added.
+- Nature accepts only explicit CC0 recordings with validated Freesound HTTPS preview identities. Catalog and audio redirects are disabled, requests and buffers are bounded, and only revalidated metadata is cached with owner-only permissions. Verified playback uses the certificate bundle already shipped with the pinned helpers, so it does not require Homebrew’s certificate store. No audio downloads, provider credentials, website embedding, or analytics are added.
 
 ## [1.6.5] - 2026-08-29
 

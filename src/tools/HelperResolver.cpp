@@ -101,6 +101,19 @@ QStringList youtubeMpvArguments(const QString &appRoot)
                                        YouTubePolicy::MediaProfile::Video720p);
 }
 
+QString tlsCaBundle(const QString &appRoot)
+{
+    // Reuse certifi from the checksum-pinned yt-dlp onedir runtime. Bundled
+    // FFmpeg/OpenSSL must not depend on a Homebrew certificate store.
+    const QString yt = ytDlp(appRoot);
+    if (yt.isEmpty())
+        return {};
+    const QFileInfo bundle(QDir(QFileInfo(yt).absolutePath())
+        .filePath(QStringLiteral("_internal/certifi/cacert.pem")));
+    return bundle.isFile() && bundle.isReadable() && !bundle.isSymLink()
+        ? bundle.absoluteFilePath() : QString{};
+}
+
 QProcessEnvironment processEnvironment(const QString &appRoot)
 {
     QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();

@@ -40,6 +40,13 @@ void MpvControllerTest::audioOnlyUsesIsolatedBoundedPlayers()
 {
     QTemporaryDir root;
     QVERIFY(QDir().mkpath(root.filePath("bin")));
+    QVERIFY(writeExecutable(root.filePath("bin/yt-dlp"), "#!/bin/sh\nexit 0\n"));
+    QVERIFY(QDir().mkpath(root.filePath("bin/_internal/certifi")));
+    const QString caPath = root.filePath("bin/_internal/certifi/cacert.pem");
+    QFile ca(caPath);
+    QVERIFY(ca.open(QIODevice::WriteOnly));
+    ca.write("fixture: packaging tests validate the actual PEM contents\n");
+    ca.close();
     const QString marker = root.filePath("arguments");
     QVERIFY(writeExecutable(root.filePath("bin/mpv"),
         "#!/bin/sh\nprintf '%s\\n' \"$@\" > '" + marker.toUtf8() + "'\nsleep 10\n"));
@@ -55,6 +62,7 @@ void MpvControllerTest::audioOnlyUsesIsolatedBoundedPlayers()
         {{"audioOnly", true}, {"videoFilters", "scale=640:480"}});
     QTRY_VERIFY_WITH_TIMEOUT(readArguments().contains("--pause=yes"), 3000);
     const auto firstArgs = readArguments();
+    QVERIFY(firstArgs.contains("--tls-ca-file=" + caPath));
     for (const QString &argument : {"--no-config", "--no-video", "--force-window=no", "--ytdl=no",
              "--tls-verify=yes", "--cache-on-disk=no", "--demuxer-lavf-o=max_redirects=0",
              "--keep-open=no", "--volume=0"})

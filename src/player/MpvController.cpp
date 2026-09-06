@@ -427,6 +427,9 @@ void MpvController::loadAndPlayWithOptions(const QString &url, const QVariantMap
              << "--keep-open=no" << "--idle=yes"
              << QString("--volume=%1").arg(qBound(0.0, options.value("volume", 0).toDouble(), 100.0))
              << (options.value("paused", true).toBool() ? "--pause=yes" : "--pause=no");
+        const QString caBundle = HelperResolver::tlsCaBundle(m_appRoot);
+        if (!caBundle.isEmpty())
+            args << QStringLiteral("--tls-ca-file=%1").arg(caBundle);
         args << extraArguments;
     } else {
         args << url

@@ -51,6 +51,13 @@ write_helper ffmpeg 'ffmpeg version 8.0'
 write_helper ffprobe 'ffprobe version 8.0'
 write_helper _internal/Python 'Python 3.13'
 
+mkdir -p "$bin/_internal/certifi"
+ca_bundle="$bin/_internal/certifi/cacert.pem"
+/usr/bin/openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+    -subj /CN=owl-switch-test-fixture -keyout "$test_root/test-key.pem" \
+    -out "$ca_bundle" >/dev/null 2>&1
+cp "$ca_bundle" "$test_root/saved-ca.pem"
+
 "$verifier" signed-runtime "$bin" "$manifest" "$helper_home" >/dev/null
 
 write_helper deno 'deno 2.9.30 (stable, release, aarch64-apple-darwin)'
@@ -75,5 +82,18 @@ if "$verifier" signed-runtime "$bin" "$manifest" "$helper_home" >/dev/null 2>&1;
     echo "signed-runtime verification accepted a missing runtime helper" >&2
     exit 1
 fi
+
+/bin/rm "$ca_bundle"
+if "$verifier" pinned-only "$bin" "$manifest" "$helper_home" >/dev/null 2>&1; then
+    echo "helper verifier accepted a missing TLS certificate store" >&2
+    exit 1
+fi
+print -r -- 'not a certificate' > "$ca_bundle"
+if "$verifier" pinned-only "$bin" "$manifest" "$helper_home" >/dev/null 2>&1; then
+    echo "helper verifier accepted a malformed TLS certificate store" >&2
+    exit 1
+fi
+cp "$test_root/saved-ca.pem" "$ca_bundle"
+"$verifier" pinned-only "$bin" "$manifest" "$helper_home" >/dev/null
 
 echo "bundled helper verification tests passed"

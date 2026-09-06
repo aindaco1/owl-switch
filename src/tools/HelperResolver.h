@@ -13,6 +13,7 @@ QString ffmpeg(const QString &appRoot);
 QString ffprobe(const QString &appRoot);
 QString ytDlp(const QString &appRoot);
 QString deno(const QString &appRoot);
+QString tlsCaBundle(const QString &appRoot);
 QStringList youtubeMpvArguments(const QString &appRoot);
 QProcessEnvironment processEnvironment(const QString &appRoot);
 

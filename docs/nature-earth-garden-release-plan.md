@@ -100,6 +100,9 @@ Local source validation on macOS Apple Silicon, Qt 6.11.1, mpv 0.41.0:
 - [x] Real mpv decoder test completes three generated 12-second recordings at
   natural EOF with repeated overlaps in about 27 seconds, using null audio output.
 - [x] A live HTTPS Freesound preview decodes successfully with the audio profile.
+  Blocking reads from Homebrew’s certificate directory exposed a bundled OpenSSL
+  trust-store dependency. Nature now resolves certifi from the pinned helper runtime;
+  the same restricted HTTPS test passes, and packaging rejects missing/malformed PEM.
 - [x] Rendered Nature QML checks cover first-image start, pause/refresh, next,
   source/status UI, exit, and controller/external output leases. Physical second-screen
   and subjective listening acceptance remain distinct from these automated checks.
