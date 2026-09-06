@@ -17,7 +17,8 @@ The default suite checks ten fresh app launches, the first visible video window,
 settled bounds on all four edges, absence of accessible title-bar controls,
 controller focus, pause/resume/seek/stop through actual keyboard input, the next
 queued video, a deliberately delayed startup with another test app focused,
-cancelled startup, same-screen playback, 1×/2× scaling, and left/above placement.
+cancelled startup, same-screen playback, 1×/2× scaling, letterboxing on a non-16:9 display, and
+left/above placement.
 It seeds the existing Local saved queue with two generated clips under an isolated
 `DATA_ROOT`; `TMPDIR` and mpv configuration are isolated too. It does not use a
 product test mode or alter the installed app's settings.
@@ -46,11 +47,20 @@ python3 tests/native_display/smoke.py --require-window-access \
 Both scripts share the same display fixture and desktop lock. Each display helper
 has a ten-minute lifetime bound. Normal exit, assertion failure, and interruption
 close only test-owned processes and restore the original display geometry/scale.
-JSON evidence contains only test-owned window/focus/display state. Reduced
+JSON evidence contains test-owned window/focus/display state, app version, OS,
+and executable hash. Reduced
 `--cold-starts` or `--basic-only` runs are diagnostics, not full release acceptance.
 
 The virtual display API follows [Chromium's own macOS display tests](https://chromium.googlesource.com/chromium/src/+/HEAD/ui/display/mac/test/virtual_display_util_mac.mm).
 It is runtime-checked because it is private. Local fixture capability passed on
 macOS 26.6.2, Apple Silicon, Qt 6.11.1. Hosted-runner availability must be verified
 separately; a passing offscreen test or fixture smoke is not a native video pass.
+
+CI and the signed release workflow run the full suite as required gates. The
+hosted `Apple Virtual` primary resizes automatically when a monitor is added;
+the fixture permits only that hosted controller dimension change and verifies
+exact restoration after removal. Local physical displays must stay unchanged.
+Prepared unsigned bundles need ad-hoc signatures on mpv/ffmpeg/ffprobe and the
+app before execution; CI does this explicitly. The regression driver never
+changes a supplied app signature, so it also accepts the signed release bundle.
 Physical cable/firmware/wake behavior is outside this simulated display coverage.

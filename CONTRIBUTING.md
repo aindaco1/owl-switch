@@ -67,6 +67,7 @@ Manual checks for media changes:
 - Confirm app settings persist after restart.
 - Confirm a current or failed launch update check stays unobtrusive, a newer valid release presents the keyboard-first **View / Later** prompt exactly once, **View** opens the existing Software Update screen, and the manual check remains available.
 - For packaging changes, run `cmake --install` into a temporary prefix and verify bundled `mpv`, `ffmpeg`, `ffprobe`, `yt-dlp`, and Deno launch with a stripped `PATH`.
+- For video-window changes, run the real native suite on an idle Mac: `python3 tests/native_display/regression.py --app build/OwlSwitch.app --evidence dist/native-display-regression.json`. See [native display tests](tests/native_display/README.md) for packaged apps and prerequisites. CI gates its prepared app and the release workflow gates the signed app with the same suite.
 - Before tagging, wait for the exact commit's successful `main` CI run. Releases reuse only its seven-day, provenance-attested unsigned app artifact and still perform fresh signing, notarization, DMG, and downloaded-release verification.
 
 ## AI Use

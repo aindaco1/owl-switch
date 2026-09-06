@@ -87,7 +87,8 @@ class AppCase:
             "soundtrack": []}))
         self.log = open(root / "app.log", "w")
         self.process = subprocess.Popen([str(app / "Contents/MacOS/OwlSwitch")],
-            env={**os.environ, "DATA_ROOT": str(data), "TMPDIR": str(temporary) + "/",
+            env={**os.environ, "APP_ROOT": str(app / "Contents/Resources"),
+                 "DATA_ROOT": str(data), "TMPDIR": str(temporary) + "/",
                  "MPV_HOME": str(config)}, stdout=self.log, stderr=self.log, start_new_session=True)
         self.ipc = IPC(temporary / "owl-switch-mpv.sock")
 
@@ -243,8 +244,9 @@ def run(arguments):
                                         case["failures"].append("no initial native video frame observed")
                                     # macOS animates a newly ordered window at roughly 98% of its
                                     # final size. Reject the small video-sized launch while allowing
-                                    # that OS animation; settled frames must still match every edge.
-                                    elif any(abs(w["frame"][key] - app.screen[value]) > app.screen[axis] * 0.05
+                                    # that OS animation and AppKit's temporary menu-bar placement
+                                    # constraint before fullscreen; settled frames must match every edge.
+                                    elif any(abs(w["frame"][key] - app.screen[value]) > (app.screen[axis] * 0.05 + (40 if key == "Y" else 0))
                                              for w in visible for key, value, axis in [
                                                  ("X", "x", "width"), ("Y", "y", "height"),
                                                  ("Width", "width", "width"), ("Height", "height", "height")]):
