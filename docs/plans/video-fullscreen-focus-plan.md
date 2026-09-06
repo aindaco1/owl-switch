@@ -1,12 +1,13 @@
 # Separate-screen video: fullscreen and controller focus
 
-Status: implemented in [PR #24](https://github.com/aindaco1/owl-switch/pull/24);
-awaiting merge and a future signed release. Source and packaged regression
-acceptance are recorded below. Reconciled September 6, 2026.
+Status: merged through [PR #24](https://github.com/aindaco1/owl-switch/pull/24)
+for **1.6.7**. Source and packaged regression acceptance are recorded below.
+The release workflow records signed-app acceptance separately. Reconciled
+September 6, 2026.
 
 Implementation branch: `plan/video-fullscreen-focus`, based on released 1.6.6
-(`50daf669415555eb688ef9c0ce8a8ef7e486fc30`). Release/version selection follows
-acceptance; this change does not retag or overwrite 1.6.6.
+(`50daf669415555eb688ef9c0ce8a8ef7e486fc30`). The maintainer selected 1.6.7
+after source/package acceptance; 1.6.6 remains the published comparison baseline.
 
 ## Confirmed scope
 
@@ -69,7 +70,9 @@ control must be rejected by both the frame and chrome checks.
 - [x] Pass the expanded 18-case packaged suite, including a non-16:9 display and aspect-ratio assertions.
 - Final hosted CI acceptance is tracked by the required check on [PR #24](https://github.com/aindaco1/owl-switch/pull/24).
 - [x] Open a focused PR with source/package/native evidence.
-- [ ] On the next release, pass the same suite against the Developer ID signed app before publication.
+- [x] Require the same suite against the Developer ID signed app before publication.
+  Each release run retains `signed-native-display-evidence`; that artifact records
+  the signed version/hash and results for the release being accepted.
 
 CI now runs the native suite after bundle preparation and before the exact-commit
 app is packaged and attested. The prepared test app receives ad-hoc signatures

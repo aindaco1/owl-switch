@@ -4,6 +4,21 @@ All notable OwlSwitch changes are documented here. Releases through 1.6.3 used t
 
 ## [Unreleased]
 
+## [1.6.7] - 2026-09-06
+
+### Fixed
+
+- Videos on a separate media display now start with borderless, display-sized geometry, avoiding the initial small window and keeping window title-bar controls hidden when another window has focus.
+- Opening a video on a separate display keeps keyboard focus on the controller and respects a deliberate switch to another app while the video loads. Same-screen playback keeps its existing focus behavior.
+
+### Added
+
+- Reusable native virtual-display regression tests cover cold starts, window geometry and chrome, controller/app focus, playback controls, cancellation, display placement/scaling, and letterboxing. CI and signed releases run the same packaged-app gate.
+
+### Changed
+
+- Project guides now live under `docs/`, with a documentation index and separate plan records. Build/test instructions and configuration references are consolidated, and the roadmap tracks future work.
+
 ## [1.6.6] - 2026-09-06
 
 ### Added
