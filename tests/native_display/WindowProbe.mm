@@ -75,8 +75,20 @@ int main(int argc, char **argv) {
                 NSArray *previous = nil;
                 pid_t previousFront = -1;
                 NSDate *start = [NSDate date];
-                while (-start.timeIntervalSinceNow < 3) {
+                NSTimeInterval firstVisible = -1;
+                // A cold signed/helper launch can take longer than the observation
+                // period. Keep watching startup, then capture three seconds from
+                // the first visible window rather than expiring before it exists.
+                while (-start.timeIntervalSinceNow < (firstVisible < 0 ? 20 : firstVisible + 3)) {
                     NSArray *current = windowsForPID(pid);
+                    if (firstVisible < 0) {
+                        for (NSDictionary *window in current) {
+                            if ([window[@"layer"] intValue] == 0 && [window[@"alpha"] doubleValue] > 0) {
+                                firstVisible = -start.timeIntervalSinceNow;
+                                break;
+                            }
+                        }
+                    }
                     pid_t front = [NSWorkspace sharedWorkspace].frontmostApplication.processIdentifier;
                     if (![current isEqual:previous] || front != previousFront) {
                         [changes addObject:@{@"elapsed": @(-start.timeIntervalSinceNow), @"windows": current, @"frontPID": @(front)}];
@@ -86,6 +98,8 @@ int main(int argc, char **argv) {
                     [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.005]];
                 }
                 result[@"changes"] = changes;
+                result[@"firstVisibleElapsed"] = firstVisible < 0 ? (id)[NSNull null] : @(firstVisible);
+                result[@"elapsed"] = @(-start.timeIntervalSinceNow);
             } else if ([command isEqual:@"activate"]) {
                 NSRunningApplication *app = [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
                 result[@"activated"] = @([app activateWithOptions:0]);

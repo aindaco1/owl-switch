@@ -253,6 +253,10 @@ def run(arguments):
                                             case["failures"].append("cancelled startup stole focus")
                                         case["observations"].append({"cancelled": state})
                                         continue
+                                    # Exceed the old three-second trace window so this case
+                                    # also proves that a late first window is still observed.
+                                    case["heldBeforeWindowSeconds"] = 3.5
+                                    time.sleep(case["heldBeforeWindowSeconds"])
                                     os.kill(app.mpv, signal.SIGCONT)
                                 app.wait_video()
                                 expected_front = (sentinel.pid if scenario == "delayed-switch" else

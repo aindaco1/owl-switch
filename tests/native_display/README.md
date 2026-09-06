@@ -25,7 +25,10 @@ focuses the controller and uses Tab/Return to start the queue, matching a user
 opening video rather than racing background saved-queue autoplay. It does not use a
 product test mode or alter the installed app's settings.
 
-The native trace polls WindowServer during window creation. It rejects a small
+The native trace polls WindowServer during window creation. It waits up to 20
+seconds for the first visible window, then records three seconds of opening
+behavior. The delayed-start case holds mpv for 3.5 seconds before window creation
+to verify that a cold launch cannot outlast the observation window. It rejects a small
 video-sized initial window while allowing macOS's brief window-opening animation;
 settled frames must match the selected screen within one logical point. The
 chrome oracle requires a real accessible video window and no close/minimize/zoom
