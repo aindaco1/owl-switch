@@ -2,7 +2,7 @@
 
 OwlSwitch is a retro VCR-style video controller built with **C++ Qt 6 + QML**, targeting **Apple Silicon macOS**. Repository, checkout, target, module, IPC, storage, CI, and release-artifact names use the OwlSwitch identity. Only the signed bundle identifier and hidden pre-1.6.4 updater aliases remain legacy compatibility inputs. This is the reference for working on the fork's code, whether you are adding a new module or changing an existing one.
 
-If you just want to install or build the app, see [INSTALL.md](INSTALL.md) and [BUILDING.md](BUILDING.md). 
+If you just want to install or build the app, see [INSTALL.md](INSTALL.md) and [BUILDING.md](BUILDING.md).
 
 If you want to contribute, please start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -62,6 +62,8 @@ owl-switch/
     ...
     Components/                     # shared QML components (AppBar, qmldir)
   Main.qml                          # app root
+  docs/                             # maintained guides and plans/ investigation records
+  tests/                            # automated suites; native_display/ has its own guide
   CMakeLists.txt
 ```
 
@@ -207,6 +209,13 @@ The current mpv implementation is a good reference implementation of the "browse
 4. **State back to QML** — `MpvController` issues `observe_property` for `time-pos`, `duration`, and `playlist-pos`, and re-publishes them as `Q_PROPERTY`s + the `positionChanged` / `durationChanged` / `playlistPosChanged` signals. A watchdog timer logs a warning if no `time-pos` event arrives for about 30 s.
 5. **Exit and item outcome** — mpv `end-file` events are surfaced as `playbackItemEnded(playlistIndex, reason, error)`. Process completion emits the shared **`playbackEnded(finalPos, finalDur, reason)`** signal with `eof`, `stopped`, or `failed`; compatibility signals remain for hidden/legacy code. Karaoke removes completed queue entries; Local retains completed entries, marks failures, and records resume state; Jellyfin reports the result to the server or retries direct-play failure as a transcode.
 
+Separate-screen macOS video uses borderless, display-sized startup geometry and
+suppresses mpv focus activation, keeping the controller active while respecting
+a deliberate switch to another app during loading. Same-screen video and
+audio-only players retain their existing policies. See the
+[native display suite](../tests/native_display/README.md) for the reusable
+window, focus, and display regression contract.
+
 ### Bundled helper policy
 
 `cmake/BundledHelpers.cmake` is the single source of truth for yt-dlp and Deno versions, release URLs, and SHA-256 hashes. Configure downloads are cached under `build/bundled-helpers/`; install rules copy the executables and license files to `Contents/Resources/bin` and `Contents/Resources/licenses`. YouTube playback gives mpv's ytdl hook the resolved yt-dlp path explicitly, supplies the resolved Deno runtime as an app-owned raw extractor option, and ignores user helper configuration. Packaged apps also include `ffmpeg`, used by yt-dlp to merge Karaoke's prefetched 720p video and audio. This keeps packaged extraction and prefetch independent of the launch environment and stale system installs. Release CI runs the helpers with a stripped `PATH`, performs a live one-item extraction from each Karaoke source, checks executable load paths, then signs every bundled helper.
@@ -304,7 +313,7 @@ Nature lives in `modules/nature/` and `src/modules/nature/`.
 - `NatureBackend` makes one anonymous request to iNaturalist's v1 observations API for up to 100 recent research-grade, non-captive observations with photos, followed when place IDs are available by one bounded batch request to the Places API. Rapid manual refreshes are coalesced to at most one refresh per second.
 - API filtering is treated as a first pass: every chosen photo is independently restricted to `cc0`, must use HTTPS on `inaturalist-open-data.s3.amazonaws.com`, and is normalized to iNaturalist's 1024-pixel `large` variant. One eligible photo is selected per observation. CC0 keeps the requested image overlay free of a mandatory credit line while still providing a full 100-item live rotation.
 - The backend maps the common/scientific names and rightmost public `place_guess` components into city, state-or-province, and country, then prefers English town/state/country names from the observation's public iNaturalist place IDs when available. The IDs are resolved in one capped batch and never persisted. If no English record exists, Latin-script official names are preserved and non-Latin names receive an offline Core Foundation transliteration fallback. The backend removes US postal suffixes, expands two-letter country codes through Qt's locale data, discards leading venue/park components, and does not expose coordinates or private location fields.
-- `nature_observations.json` is an atomic, schema-versioned, owner-only metadata cache capped at 100 records and 2 MiB. Cached URLs and licenses are revalidated before reuse. A fresh cache avoids a request; stale data is emitted immediately and refreshed in the background; failed refreshes leave saved observations visible. Image files are never persisted.
+- `nature_observations.json` is an atomic, schema-versioned, owner-only metadata cache capped at 100 records and 2 MiB. Cached URLs and licenses are revalidated before reuse. The cache is fresh for one hour; a fresh cache avoids a request; stale data is emitted immediately and refreshed in the background; failed refreshes leave saved observations visible. Image files are never persisted.
 - `Player.qml` uses the same `ImageMontage` and `MontageMedia` path as Tumblr, adding a compact three-line name/species/`City, State/Province, Country` panel and keyboard controls for next, pause, refresh, source observation, and back.
 
 - `NatureBackend.soundtrack` exposes the composed `NatureSoundtrack`, whose requests and cache remain independent of observation refreshes. Manifest settings flow through the existing module registration and `onSettingChanged`; the global input bridge routes Nature controls to its QML view. A requested Nature session inhibits the app screensaver even with sound disabled or unavailable.
@@ -533,7 +542,29 @@ The icon is automatically colorized to the app accent color
 
 ## Config Storage
 
-User configuration is stored in `config.json` in the app's data directory:
+The app creates `~/Library/Application Support/owl-switch/` on first run. It is
+separate from the app bundle, so rebuilding or replacing the app preserves user
+data. See [installation and updates](INSTALL.md#update) for legacy migration.
+Files and cache directories are created as their features are used:
+
+| File or directory | Contents |
+|---|---|
+| `config.json` | App/module settings, including Controls remappings and Tumblr URL/favorites. |
+| `custom_color_schemes.json` | Custom color presets; the older `custom_color_scheme.json` remains a supported input. |
+| `jellyfin_auth.json` | Server URL, access token, user/device identity, and playback preferences; never passwords. |
+| `karaoke_catalog.json` | Public source metadata; freshness and reconciliation policy live in the Karaoke section. |
+| `karaoke_queue.json`, `karaoke_queue.m3u8` | Persistent queue state and generated canonical playback URLs. |
+| `karaoke_playback_cache/` | Bounded prefetched media, as described in the Karaoke section. |
+| `local_files_history.json` | Owner-only Local resume history. |
+| `local_queue.json`, `local_queue.m3u8` | Media/soundtrack queues and generated playlist; local paths remain root-contained and remote soundtrack identities are validated. |
+| `nature_observations.json`, `nature_sounds.json` | Validated public CC0 photo/recording metadata; no downloaded images, audio, or coordinates. |
+| `diagnostics/` | Bounded, sanitized local JSONL logs; submission is explicit. |
+
+See [security requirements](SECURITY.md#security-sensitive-areas) for permissions,
+validation, and privacy rules. Each module section owns its cache bounds and
+lifecycle; this table is the file inventory.
+
+`config.json` has this shape:
 
 ```json
 {
@@ -573,4 +604,4 @@ User configuration is stored in `config.json` in the app's data directory:
 }
 ```
 
-Each module's settings live under `modules.<id>`. App-wide settings live under `app`; display index `-1` means automatic, and `media_display_index: -2` means use the controller display. `prevent_sleep` controls the macOS idle sleep assertion, and `battery_sleep_threshold` releases that assertion while the internal battery is discharging at or below the configured percentage so macOS can sleep normally. Use `save_setting` / `get_setting` (which support dot-notation keys) rather than writing the file directly. The data directory is created on first run and is separate from the app itself, so rebuilding never wipes user settings. For the exact macOS path, see [BUILDING.md](BUILDING.md#configuration).
+Each module's settings live under `modules.<id>`. App-wide settings live under `app`; display index `-1` means automatic, and `media_display_index: -2` means use the controller display. `prevent_sleep` controls the macOS idle sleep assertion, and `battery_sleep_threshold` releases that assertion while the internal battery is discharging at or below the configured percentage so macOS can sleep normally. Use `save_setting` / `get_setting` (which support dot-notation keys) rather than writing the file directly.

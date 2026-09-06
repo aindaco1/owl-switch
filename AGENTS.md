@@ -6,34 +6,20 @@ OwlSwitch is a macOS Apple Silicon fork of 240-MP. The repository, checkout, bui
 
 ---
 
-## Build & Run
-
-```bash
-# First time / after CMakeLists.txt changes:
-cmake -B build -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt . && cmake --build build
-
-# Incremental:
-cmake --build build
-
-# Run:
-APP_ROOT=$(pwd) ./build/OwlSwitch.app/Contents/MacOS/OwlSwitch
-```
-
-For packaging, CI, and config paths, see **[BUILDING.md](BUILDING.md)** and **[INSTALL.md](INSTALL.md)**.
-
----
+For setup, build, run, and validation commands, follow [BUILDING.md](docs/BUILDING.md).
+The [documentation index](docs/README.md) maps each topic to its maintained guide.
 
 ## Where Things Live
 
 | If you need... | Read |
 |---|---|
-| Architecture, module anatomy, `manifest.json`, `AppCore`, `registerModule`, backends, QML navigation, playback, config shape | **[ARCHITECTURE.md](ARCHITECTURE.md)** |
-| Contribution principles, testing, coding style | **[CONTRIBUTING.md](CONTRIBUTING.md)** |
-| macOS build, run, package, release workflow, config paths | **[BUILDING.md](BUILDING.md)** |
-| End-user macOS install/update/uninstall | **[INSTALL.md](INSTALL.md)** |
-| Token handling and security-sensitive areas | **[SECURITY.md](SECURITY.md)** |
-| User-facing change history | **[CHANGELOG.md](CHANGELOG.md)** |
-| Planned work and improvement ideas | **[ROADMAP.md](ROADMAP.md)** |
+| Architecture, module anatomy, `manifest.json`, `AppCore`, `registerModule`, backends, QML navigation, playback, config shape | **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** |
+| Contribution principles, testing, coding style | **[CONTRIBUTING.md](docs/CONTRIBUTING.md)** |
+| macOS build, run, package, release workflow, config paths | **[BUILDING.md](docs/BUILDING.md)** |
+| End-user macOS install/update/uninstall | **[INSTALL.md](docs/INSTALL.md)** |
+| Token handling and security-sensitive areas | **[SECURITY.md](docs/SECURITY.md)** |
+| User-facing change history | **[CHANGELOG.md](docs/CHANGELOG.md)** |
+| Planned work and improvement ideas | **[ROADMAP.md](docs/ROADMAP.md)** |
 
 ---
 
@@ -46,7 +32,7 @@ For packaging, CI, and config paths, see **[BUILDING.md](BUILDING.md)** and **[I
 - `registerModule` wires optional backend signals/slots by introspection: `dynamicOptionsReady`, `authStateChanged`, and `onSettingChanged`.
 - Every module's QML entry point is `Root.qml`. Views are `FocusScope`s that pass state via `navParams` and communicate through `navigateTo` / `goBack`.
 - Size QML layouts with `root.sh` / `root.sw`.
-- Config is `config.json` under `~/Library/Application Support/owl-switch/`; the first future build migrates the legacy directory atomically when possible.
+- Config is `config.json` under `~/Library/Application Support/owl-switch/`; legacy data migration is described in [Installation and updates](docs/INSTALL.md#update).
 - Controller and media display roles are selected independently; automatic keeps the controller on the primary screen and media on the first other screen, while explicit changes take effect after restart.
 - Jellyfin auth is `jellyfin_auth.json`; passwords are never persisted.
 - Karaoke stores a non-secret 24-hour catalog cache, persistent queue, and generated playback playlist under the same app data directory.

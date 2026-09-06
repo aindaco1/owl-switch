@@ -1,171 +1,67 @@
 # OwlSwitch
 
-**OwlSwitch is a retro video controller — the owls are not what they seem.** It is a macOS Apple Silicon fork of 240-MP built with C++ Qt 6 and QML. OwlSwitch keeps the CRT/240p-inspired controller, Local playback, Retro decade feeds, and a Tumblr image screensaver; adds Jellyfin as the main server-backed module, an eighteen-source Karaoke queue, and an iNaturalist-powered Nature montage; and incorporates the former Loop module's repeatable queue, soundtrack, shuffle, and auto-launch workflows into Local.
+**A retro video controller — the owls are not what they seem.**
 
-The app is a browsing and visuals-control shell, not an embedded video renderer. It launches `mpv` as a subprocess for playback and uses `ffprobe` to inspect local audio/subtitle tracks. CMake supplies a pinned, checksum-verified official yt-dlp onedir runtime and Deno for YouTube extraction. Packaged macOS apps also bundle `ffmpeg` for high-quality Karaoke prefetch, along with all required non-system libraries, so end users do not need Homebrew or system helper installs.
-
-Version 1.6.5 adds global, additive keyboard/remote navigation remapping and removes OwlSwitch's unused Qt Quick Controls runtime dependency. Version 1.6.4 adopted the OwlSwitch app and bundle name and completed the project-identity migration: the repository and checkout are `owl-switch`, public DMGs use `owl-switch-<tag>-macOS-arm64.dmg`, module IDs use `com.owlswitch.*`, and app data moves to `~/Library/Application Support/owl-switch/` without losing existing settings. A hidden legacy bundle alias and the established signed bundle identifier remain temporarily so existing installations can still trust and install future updates.
-
-## Supported Platform
-
-- Apple Silicon macOS only.
-- CMake intentionally fails on non-macOS hosts.
-- Intel macOS, Raspberry Pi OS, and Linux packaging are out of scope for this fork.
-
-## Current Modules
-
-The home screen order is Jellyfin, Karaoke, Retro, Tumblr, Nature, then Local.
-
-### Jellyfin
-
-- Password login and Jellyfin Quick Connect.
-- Movie libraries and TV show libraries.
-- TV browsing through shows, seasons, episodes, then the same metadata, track-selection, and playback flow used for movies.
-- Large movie and TV lists load progressively in 250-item pages.
-- Live title filter narrows the list as you type.
-- Accent-insensitive filtering, so names with characters like `e` and `é` match naturally.
-- Direct-play movie and episode playback through mpv.
-- Continue Watching and Up Next rows.
-- Collection and ordinary folder browsing, with collection items sorted by release date.
-- Jellyfin PlaybackInfo negotiation with direct play, direct stream, configurable 480p–1080p transcoding, and automatic transcode retry when direct playback fails.
-- Audio and subtitle changes remain available during transcoding by restarting the server transcode at the current position with the newly selected track.
-- Playback start, progress, stop, and completion reporting back to Jellyfin.
-- Optional next-episode autoplay and server-capability-gated intro/outro skip modes.
-- Resume prompt based on Jellyfin playback position.
-- Audio and subtitle selection before movie and episode playback, with language preferences remembered across items.
-- External Jellyfin subtitle URLs are loaded through authenticated mpv requests without putting access tokens in media URLs.
-
-Not yet implemented: music libraries and explicit watched/unwatched controls from the detail screen.
-
-### Karaoke
-
-- Entering Karaoke paints immediately before the saved catalog is parsed. Search and sorting live in the C++ backend, and QML receives only the current 250-song result page instead of a complete catalog copy.
-- Automatically indexes the Funbox, KaraokeNerds, JLo.Instru, Offbeat Karaoke, Peareoke, Karaoke Office, CCKaraokeX, Nicky Dee Karaoke, Karaoke Balka, Pants Karaoke, Karaokearr, ObsKure, 1Music Karaoke, Janet Email Karaoke, Couch Potato Karaoke, Lemmy Caution Karaoke, Just Sing Karaoke, and KaraFun Karaoke YouTube channels and keeps a persistent 24-hour catalog cache. After the first complete sync, later launches show saved results immediately while stale catalogs reconcile additions, removals, and metadata changes in the background.
-- Live accent-insensitive title search with article-insensitive alphabetical results and progressive results during a cold catalog load.
-- Cleans `(Funbox Karaoke, YEAR)` to `(YEAR)`; removes provider-specific Karaoke/Instrumental branding, including Karaoke Office's ordinary suffix and verified malformed/inverted aliases, Nicky Dee's parenthesized and Balka's bullet-delimited markers, plain parenthesized or bracketed Karaoke markers from Karaokearr and Pants Karaoke, and Just Sing's English and Portuguese quality/lyrics markers; accepts only KaraFun's current, alternate, and verified legacy karaoke-title grammars, converting its song-first forms to `Artist - Song` and excluding promos or internal/offline rows; converts Pants' quoted performance/byline, parody, live-cover, and attributed cover-version sentences to `Artist - Song (Qualifier)`, canonicalizes its animal-sound Eye of the Tiger uploads, and excludes the one unattributed `25 Minutes or Less` parody, while leaving any previously queued copy editable; strips split CCKaraokeX forms and ObsKure Best Karaoke Version forms; removes all Offbeat key-signature forms while retaining remix/cover qualifiers; converts JLo.Instru's variably spaced `Song - Artist - Instrumental[-Version] - Karaoke[-Lyrics]` conventions to `Artist - Song` while retaining verified artist-first exceptions; strips legacy 1Music `MusicKaraoke`/vocal-removal/instrumental-version/XRINA branding, repairs its unspaced or omitted separators through a centralized artist-prefix list, reorders edition-first titles to `Artist - Song (Edition)`, and collapses redundant `2Pac - Tupac Shakur` aliases; normalizes Janet's em-dash separators and Couch Potato's dash-delimited Karaoke markers; and retains meaningful qualifiers. Lemmy's trailing performance labels and repeated-artist live/year metadata become compact parentheticals such as `(Stop Making Sense)` and `(Live) (1969)`. Shared display cleanup also normalizes square brackets, quoted `"Weird Al"`, leading context tags such as `(Sonic Adventure 2)`, removes redundant leading or trailing `Version` from parenthetical edition labels, moves `YYYY Version; Edit` into `(Edit) (YYYY)`, shortens `7 Inch Version` to `(7")`, and canonicalizes `Featuring`/`Feat`/`Ft` credits as `Ft.` on the artist side, moving misplaced title-side credits there.
-- Reconciles equivalent titles across and within sources with case-, accent-, punctuation-, apostrophe-, conjunction-, and article-insensitive matching. Duplicate preference is Funbox, KaraokeNerds, JLo.Instru, Offbeat Karaoke, Peareoke, Karaoke Office, CCKaraokeX, Nicky Dee Karaoke, Karaoke Balka, Pants Karaoke, Karaokearr, ObsKure, 1Music Karaoke, Janet Email Karaoke, Couch Potato Karaoke, Lemmy Caution Karaoke, Just Sing Karaoke, then KaraFun Karaoke.
-- One persistent queue with duplicate songs, keyboard reorder, remove, and clear controls.
-- Search, add, reorder, and remove remain available on the primary display while mpv plays fullscreen on an external display.
-- Artist and song render as readable two-line rows; selecting any queued song and pressing Enter jumps to it immediately.
-- While a song plays, the next queued song is downloaded and merged at up to 720p in a bounded persistent cache, then substituted into mpv's live playlist for a fast handoff.
-- During the first and last 15 seconds of each video, a centered bottom-right `UP NEXT` card previews the next queued artist and song. Live queue edits update that preview, short-video windows overlap continuously, and the card stays hidden when no next song exists.
-- Retro fade, slide, and falling-block transitions mask the handoff on the media display.
-- Completed songs leave the queue; failed songs stay visibly marked for retry or manual removal.
-- A manual catalog refresh action is available in Karaoke settings.
-
-### Retro
-
-- MyRetroTVs-backed feeds for the 50s, 60s, 70s, 80s, 90s, and 00s.
-- Fullscreen mpv playback of decoded YouTube clips, with no TV-frame overlay.
-- Keyboard channel surfing, clip skipping, feed filtering, and decade jumping.
-- CRT-style noise, glow, black-and-white, and static transition effects.
-- Channel and clip changes reuse the active mpv process through IPC, avoiding a new player startup for every switch.
-
-### Local
-
-- Two-pane folder browsing and persistent queue editing, modeled on Karaoke's keyboard workflow.
-- The first view shows the configurable media directory, defaulting to `~/Desktop`.
-- Common video file support: `mp4`, `mkv`, `avi`, `mov`, `m4v`, `webm`, `wmv`, `flv`, `f4v`, `mpg`, `mpeg`, `vob`.
-- Still images and common audio files; audio can be collected in an independent soundtrack queue.
-- A pasteable YouTube playlist action in the soundtrack pane expands public or unlisted playlists into persistent, individually reorderable video entries in source order and streams them audio-only through the bundled helpers.
-- Valid playlist entries appear in the soundtrack queue as they arrive, so the first track is usable while the rest of a large import continues in the background.
-- Local-only `m3u` and `m3u8` imports expand into validated, root-contained queue entries with bounded nesting and queue size.
-- Persistent, duplicate-friendly media and soundtrack queues with reorder, remove, and clear controls. Completed media remains queued; failed media stays visibly marked.
-- Repeat Off, Repeat Queue, Repeat One, queue shuffle, soundtrack shuffle, and optional saved-queue auto-launch.
-- Any non-empty soundtrack queue loops in a separate bounded-recovery mpv process while media-queue video audio is muted.
-- Video playback with an active soundtrack shows a large, high-contrast artist/song card in the bottom-right corner for its first 15 seconds and for 15 seconds after every soundtrack change. Artist and title are centered within the card; embedded audio tags such as ID3 metadata take priority, followed by `Artist - Song` names and a `SOUNDTRACK` fallback.
-- Resume history.
-- Play Now and Add to Queue actions after audio and subtitle selection; queued entries retain their file-specific track choices.
-- Sidecar subtitle discovery for common subtitle formats.
-- Still-image playback in folders and playlists, configurable image duration, and extension hiding.
-- Automatic subtitle policies for preferred language, forced-only, on, or off.
-- Standalone playlist playback retains its fixed/ask-at-start shuffle setting.
-
-### Tumblr
-
-- Public Tumblr URL input, defaulting to `https://pixelskylines.tumblr.com/` for quick testing.
-- Persistent favorites with normalized URLs, duplicate suppression, one-key launch, and keyboard removal.
-- Image discovery through Tumblr's public `/api/read/json` feed pages.
-- Animated GIF playback with montage pause/resume support; static images and GIFs share the same transition/player path.
-- Fullscreen image montage that shuffles the image deck and does not repeat until every discovered image has been shown.
-- Retro 90s-style QML transitions, including falling blocks built from clipped pieces of the incoming image.
-
-### Nature
-
-- Up to 100 recent research-grade, non-captive iNaturalist observations per refresh.
-- One CC0 photo per observation, hosted by iNaturalist's HTTPS open-data service. A live policy check still yields the full 100-observation rotation without requiring an attribution line over the image.
-- A shuffled, non-repeating montage with only the common name, scientific species name, and an English-preferred `City, State/Province, Country` line visible in a compact overlay. Non-Latin locality names fall back to offline Latin transliteration when iNaturalist has no English place record.
-- CC0 field recordings from [Earth Garden](https://earth-garden.alen.ro/) start with the slideshow. Sounds shuffle independently, play to their natural end, and overlap with a five-second crossfade. Settings → Nature provides NATURE SOUND (default ON) and SOUND VOLUME (default 30%).
-- Space/Enter pauses images and sound together; Right advances only the image, R refreshes observations, I opens the photo source, A opens the current recording on Freesound, and Back stops Nature. Audio failures leave the slideshow running.
-- Audio streams from Freesound previews; only a 24-hour sound catalog is cached. Internet access is required for sound. The listening pool uses CC0 recordings lasting 30 seconds–10 minutes and keeps their original dynamics.
-- A one-hour metadata-only cache that displays saved observations immediately, refreshes stale data in the background, and leaves saved data visible when the network is unavailable. Image files are not persisted.
-
-### Plex
-
-The original Plex module remains in the source tree as a reference implementation, but its manifest is marked hidden so it does not appear in normal module discovery or Settings. It can be removed after Jellyfin reaches the desired parity.
-
-## Controls
-
-Arrow keys, Enter, Escape/Backspace, Right Shift tap-for-Back, and native macOS GameController navigation remain available by default. Settings → Controls can add one keyboard or keyboard-emulating remote button to each global Up, Down, Left, Right, Select, and Back action. Built-in keys cannot be replaced, modifier-only keys and capture auto-repeat are rejected, duplicate custom buttons move to the newly selected action, and Reset to Defaults is always reachable through the unchanged built-in controls. Text fields continue to receive custom-mapped character keys normally while editing.
-
-## Build And Run
-
-See [BUILDING.md](BUILDING.md) for the full build, run, packaging, and release workflow.
-
-Quick macOS development build:
-
-```bash
-brew install cmake qt mpv ffmpeg
-cmake -B build -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt .
-cmake --build build
-APP_ROOT=$(pwd) ./build/OwlSwitch.app/Contents/MacOS/OwlSwitch
-```
+OwlSwitch is a macOS Apple Silicon fork of 240-MP with a CRT/VHS-style interface,
+keyboard and remote navigation, and independent controller and media displays.
+It browses your media and launches mpv for playback. Packaged apps include all
+required helpers; end users do not need Homebrew or separate player installs.
 
 ## Install
 
-See [INSTALL.md](INSTALL.md) and use the [latest published Apple Silicon release](https://github.com/aindaco1/owl-switch/releases/latest). Releases beginning with 1.6.4 use `owl-switch-<tag>-macOS-arm64.dmg`. Open the notarized DMG and drag `OwlSwitch.app` onto its Applications shortcut. If EasyDMG is already configured as the Mac's default DMG handler, the same image can automate that copy; no additional installer is required.
+Download the latest `owl-switch-<tag>-macOS-arm64.dmg` from
+[GitHub Releases](https://github.com/aindaco1/owl-switch/releases/latest), open it,
+and drag `OwlSwitch.app` onto the Applications shortcut.
 
-The app quietly checks for a newer signed GitHub release whenever it opens. A current or failed check stays out of the way; a valid newer Apple Silicon release presents **View** and **Later**, with **View** opening the existing **Settings → Software Update** screen. The manual check remains available there, and downloading and installation always require user action. The updater verifies GitHub's SHA-256 digest, Apple notarization, the Developer ID team, bundle identity, version, and Apple Silicon architecture before replacing the app.
+See [installation, updates, and uninstalling](docs/INSTALL.md) for requirements
+and details. The app checks for updates on launch; downloads and installation
+require your action through **Settings → Software Update**.
 
-## Project Docs
+OwlSwitch supports Apple Silicon macOS. Intel macOS, Linux, and Raspberry Pi
+packaging are outside this fork's scope.
 
-- [CHANGELOG.md](CHANGELOG.md) records user-facing changes.
-- [ROADMAP.md](ROADMAP.md) tracks planned work and improvement ideas.
-- [ARCHITECTURE.md](ARCHITECTURE.md) explains the module, playback, and backend structure.
-- [docs/upstream-sync-1.6.5.md](docs/upstream-sync-1.6.5.md) records the selective upstream review for this release.
-- [CONTRIBUTING.md](CONTRIBUTING.md) covers contribution and testing expectations.
+## Modules
 
-## Configuration
+The home screen presents these six modules in order:
 
-User configuration is stored outside the app bundle:
+| Module | What it does |
+|---|---|
+| Jellyfin | Movies and TV with password/Quick Connect sign-in, Continue Watching, Up Next, resume, track selection, and direct or transcoded playback. |
+| Karaoke | Search eighteen YouTube sources and edit a persistent queue while songs play on the media display. Includes next-song previews, prefetch, and transitions. |
+| Retro | Browse MyRetroTVs decade feeds from the 50s through the 00s, surf channels, and apply CRT effects. |
+| Tumblr | Play a shuffled still-image/GIF montage from public Tumblr blogs, with saved favorites. |
+| Nature | Show CC0 iNaturalist photos with species/place labels and independent CC0 Earth Garden/Freesound audio, using five-second crossfades. |
+| Local | Browse videos, images, and audio; manage persistent media and soundtrack queues, repeat/shuffle, resume, subtitles, and YouTube soundtrack playlist imports. |
 
-```text
-~/Library/Application Support/owl-switch/
-  config.json
-  jellyfin_auth.json
-  karaoke_catalog.json
-  karaoke_queue.json
-  karaoke_queue.m3u8
-  local_files_history.json
-  local_queue.json
-  local_queue.m3u8
-  nature_observations.json
-  nature_sounds.json
-  diagnostics/
-    owlswitch.jsonl
-```
+Local includes the former Loop workflows. Plex remains hidden as a reference
+implementation. See the [architecture guide](docs/ARCHITECTURE.md) for module
+behavior, data contracts, and implementation details.
 
-`jellyfin_auth.json` stores the Jellyfin server URL, access token, user ID, username, server identity, and client device ID. Passwords are not persisted. Karaoke files contain public catalog metadata, queue state, and validated canonical YouTube watch URLs; they contain no credentials. Local files contain owner-only resume state, root-contained local paths, queue UUIDs, track choices, validated YouTube video IDs/titles for imported soundtrack entries, and a generated local media playlist. `nature_observations.json` is a bounded metadata-only cache of validated public observations and CC0 photo URLs; image files are not stored. `nature_sounds.json` stores revalidated CC0 Freesound recording identities and display metadata; audio files and coordinates are not stored.
+## Controls
 
-## Security Notes
+Use arrow keys, Enter, Escape/Backspace, or a Right Shift tap for Back. Native
+macOS GameController navigation is supported. **Settings → Controls** adds a
+keyboard or keyboard-emulating remote button to each navigation action while
+keeping the built-in controls available.
 
-- Jellyfin access tokens are stored with owner read/write permissions only.
-- Jellyfin playback tokens are sent to mpv through a temporary private mpv config include instead of command-line header arguments.
-- Jellyfin stream URLs do not include `api_key` tokens.
-- Playback logs redact known token query parameters.
-- Settings → Diagnostics shows the bounded, sanitized events that would be sent. Reports are never automatic; the user must select **Send Report**. The app and the independently sanitizing relay exclude media, screenshots, paths, URLs, emails, credentials, environment dumps, and unrestricted logs before aggregating matching reports into GitHub issues.
-- Local accepts remote soundtrack input only through validated public/unlisted YouTube playlist URLs and persists canonical video identities rather than submitted URLs.
-- Nature requests are anonymous and cached Nature photo URLs are revalidated against the CC0 and trusted-host policy before reuse.
+In Nature, Space/Enter pauses images and sound together; Right advances the
+image, R refreshes observations, I opens the photo source, A opens the recording
+on Freesound, and Back stops playback. **Settings → Nature** controls sound
+(default ON) and volume (default 30%). Sounds rotate independently to their
+natural end; an unavailable sound stream leaves the slideshow running. Nature
+caches metadata only and requires internet access to load images and audio.
+
+## Documentation and Development
+
+Start with the [documentation index](docs/README.md). It links the installation,
+architecture, build/release, contribution, security, changelog, roadmap, and plan
+records. Developers should follow [Building OwlSwitch](docs/BUILDING.md) and
+[Contributing](docs/CONTRIBUTING.md).
+
+Settings, authentication, queues, and caches live outside the app bundle; see the
+[data inventory](docs/ARCHITECTURE.md#config-storage). For credential handling,
+diagnostics privacy, and reporting vulnerabilities, see the
+[security policy](docs/SECURITY.md).
 
 ## License
 

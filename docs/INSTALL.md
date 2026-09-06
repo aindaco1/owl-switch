@@ -35,7 +35,7 @@ Manual updating remains supported:
 2. Verify the checksum with `shasum -a 256 -c <downloaded-file>.sha256`.
 3. Quit the older app, remove any pre-1.6.4 compatibility copy if present, then drag `OwlSwitch.app` onto the Applications shortcut.
 
-Your settings, Jellyfin authentication, Karaoke catalog cache and queue, Local queues (including imported YouTube soundtrack entries) and resume history, and Nature observation and sound metadata caches are kept in `~/Library/Application Support/owl-switch/`, so replacing the app bundle does not erase them. The first compatible build moves the legacy data directory to this location atomically when possible and continues using the original directory if the move cannot safely complete.
+User data lives separately from the app bundle in `~/Library/Application Support/owl-switch/`, so replacing the app preserves settings, authentication, queues, history, and caches. See the [data inventory](ARCHITECTURE.md#config-storage). The first compatible build moves the legacy data directory to this location atomically when possible and continues using the original directory if the move cannot safely complete.
 
 ## Uninstall
 
@@ -53,10 +53,5 @@ rm -rf "$HOME/Library/Application Support/owl-switch"
 
 ## Development Installs
 
-Development builds can be run directly from the build directory:
-
-```bash
-APP_ROOT=$(pwd) ./build/OwlSwitch.app/Contents/MacOS/OwlSwitch
-```
-
-For development prerequisites and packaging steps, see [BUILDING.md](BUILDING.md).
+For development prerequisites, build/run commands, and packaging steps, see
+[Building OwlSwitch](BUILDING.md).

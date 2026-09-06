@@ -1,5 +1,12 @@
 # Nature sound — OwlSwitch 1.6.6
 
+Status: historical — shipped in [1.6.6](https://github.com/aindaco1/owl-switch/releases/tag/v1.6.6).
+[PR #23](https://github.com/aindaco1/owl-switch/pull/23) merged at
+`50daf669415555eb688ef9c0ce8a8ef7e486fc30`. Release status was reconciled on
+September 6, 2026; local acceptance below records the original release work.
+Current behavior and commands live in the [architecture](../ARCHITECTURE.md#nature-module)
+and [build](../BUILDING.md#local-verification) guides.
+
 Prepared September 6, 2026. Implementation authorized by the maintainer after the
 scope decisions below. Branch: `release/nature-earth-garden`, based on clean main
 `84519a98987aa8c62de1a8694e2c70336fea145d` (the published 1.6.5 baseline).
@@ -20,10 +27,10 @@ SomaFM music, offline audio downloads, and CC BY recordings are outside this rel
 
 ## Context and provider evidence
 
-Read `AGENTS.md`, `README.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `BUILDING.md`,
-`INSTALL.md`, `SECURITY.md`, `CHANGELOG.md`, `ROADMAP.md`,
-`docs/upstream-sync-1.6.5.md`, `diagnostics-relay/README.md`, the PR template,
-and the build/release workflow. Inspected Nature's backend and QML, shared montage,
+The source review covered the repository [agent instructions](../../AGENTS.md),
+[project guides](../README.md), [1.6.5 upstream review](upstream-sync-1.6.5.md),
+[diagnostics relay](../../diagnostics-relay/README.md), PR template, and build/release
+workflows. Implementation review covered Nature's backend and QML, shared montage,
 Local sound, mpv, helper resolution, settings, input, idle, and updater contracts.
 
 [Earth Garden](https://earth-garden.alen.ro/) loads a
@@ -86,7 +93,7 @@ identity. The source-page shortcut remains available without cluttering the phot
 - [x] Bump both version declarations and add the dated 1.6.6 changelog. Update
   user, architecture, security, installation, contributor, and project guidance.
 
-## Validation and remaining release sequence
+## Recorded Validation and Release Outcome
 
 Local source validation on macOS Apple Silicon, Qt 6.11.1, mpv 0.41.0:
 
@@ -109,24 +116,24 @@ Local source validation on macOS Apple Silicon, Qt 6.11.1, mpv 0.41.0:
 - [x] Finish the running-app smoke with isolated `DATA_ROOT`: live images/audio,
   pause/refresh/resume, stop, persisted OFF/volume after relaunch, and no idle overlay.
   Verify unsigned package dependencies/helpers and repeat the real decoder test
-  with locally ad-hoc-signed bundled mpv. Public signed-artifact acceptance follows.
+  with locally ad-hoc-signed bundled mpv. Signed-artifact results are recorded below.
 - [x] Bound CI compilation to three jobs. The prior bare parallel flag expands to
   unlimited `make -j`; the previous release launched 83 compilations within a minute.
-- [x] Open release PR #23.
-- [ ] Require the PR build/test/package checks and merge.
-- [ ] Wait for the exact merged main commit's successful CI and retained attested app.
-- [ ] Tag that verified commit `v1.6.6`; run the established signing, notarization,
-  stapling, DMG, checksum, and publication workflow without weakening any gate.
-- [ ] Verify public release metadata and downloaded artifact, then exercise
-  the 1.6.5 → 1.6.6 updater using a safe test installation and isolated data.
+- [x] [PR #23](https://github.com/aindaco1/owl-switch/pull/23) merged after its checks passed.
+- [x] [Exact main CI](https://github.com/aindaco1/owl-switch/actions/runs/34054499513)
+  passed for the release commit and produced the attested app.
+- [x] [Release workflow](https://github.com/aindaco1/owl-switch/actions/runs/34054946147)
+  passed and published `v1.6.6` with signed, notarized, stapled app and DMG.
+- The original local report, `dist/releases/v1.6.6-validation.md` (ignored output),
+  records a matching public DMG digest, successful mounted app/DMG trust checks,
+  bundled HTTPS/decoder checks, and a real signed 1.6.5 → 1.6.6 updater test with
+  isolated data. Sound OFF/20% settings survived the update; the restarted app
+  then passed live Nature playback, pause, and stop checks.
+- Subjective listening and a physical second-display check were not performed.
+  These limits remain separate from source, CI, signed-artifact, and isolated
+  updater acceptance. The earlier local checks were not rerun for this doc move.
 
-Useful focused commands (in addition to `BUILDING.md`):
-
-```sh
-ctest --test-dir build -R 'nature|audiocrossfadeplayer|mpv_controller|tumblr_media_qml' --output-on-failure
-NATURE_AUDIO_LIVE_TEST=1 ./build/naturesoundtrack_tests liveCatalog
-NATURE_AUDIO_REAL_MPV=/absolute/path/to/mpv ./build/audiocrossfadeplayer_tests realDecoderRotatesToNaturalEnd
-```
+Reusable commands are maintained in [Local Verification](../BUILDING.md#local-verification).
 
 Public artifact, installation/update, physical display, and listening results must
 be reported separately. Automated decoder/gain checks establish playback mechanics;
