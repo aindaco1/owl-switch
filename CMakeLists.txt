@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(OwlSwitch VERSION 1.6.5 LANGUAGES CXX)
+project(OwlSwitch VERSION 1.6.6 LANGUAGES CXX)
 
 if(NOT APPLE)
     message(FATAL_ERROR "This fork is macOS-only. Configure and build it on macOS.")
@@ -17,7 +17,7 @@ set(APP_DISPLAY_NAME "${APP_PRODUCT_NAME}")
 # Retained only so installations older than 1.6.4 can discover and validate
 # future OwlSwitch updates. This is not used for current project or artifact naming.
 set(APP_LEGACY_NAME "240-mp-jellyfin")
-set(APP_RELEASE_TAG "v1.6.5")
+set(APP_RELEASE_TAG "v1.6.6")
 # The 1.6.4 updater requires this signed identity. Changing it requires a
 # separately released transition version whose updater trusts both identities.
 set(APP_BUNDLE_IDENTIFIER "com.240mp.jellyfin" CACHE STRING "macOS bundle identifier")
@@ -62,6 +62,11 @@ endif()
 
 enable_language(OBJCXX)
 
+set(NATURE_AUDIO_SOURCES
+    src/modules/nature/NatureSoundtrack.cpp
+    src/player/AudioCrossfadePlayer.cpp
+)
+
 add_executable(owlswitch
     src/main.cpp
     src/AppDataMigration.cpp
@@ -73,6 +78,7 @@ add_executable(owlswitch
     src/modules/karaoke/KaraokeBackend.cpp
     src/modules/tumblr_screensaver/TumblrScreensaverBackend.cpp
     src/modules/nature/NatureBackend.cpp
+    ${NATURE_AUDIO_SOURCES}
     src/player/MpvController.cpp
     src/input/IdleTracker.cpp
     src/input/InputManager.mm
@@ -325,15 +331,41 @@ if(BUILD_TESTING)
     target_link_libraries(tumblr_media_qml_tests PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Test)
     add_test(NAME tumblr_media_qml COMMAND tumblr_media_qml_tests)
 
+    add_executable(nature_player_qml_tests tests/NaturePlayerQmlTest.cpp)
+    target_compile_definitions(nature_player_qml_tests PRIVATE TEST_SOURCE_ROOT="${CMAKE_SOURCE_DIR}")
+    target_link_libraries(nature_player_qml_tests PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Test)
+    add_test(NAME nature_player_qml COMMAND nature_player_qml_tests)
+
     add_executable(nature_backend_tests
         tests/NatureBackendTest.cpp
         src/modules/nature/NatureBackend.cpp
+        ${NATURE_AUDIO_SOURCES}
+        src/player/MpvController.cpp
+        src/tools/HelperResolver.cpp
+        src/tools/YouTubePolicy.cpp
+        src/AppCore.cpp
     )
     target_include_directories(nature_backend_tests PRIVATE src)
     target_link_libraries(nature_backend_tests PRIVATE
-        Qt6::Core Qt6::Network Qt6::Test "-framework CoreFoundation"
+        Qt6::Core Qt6::Gui Qt6::Qml Qt6::Network Qt6::Test "-framework CoreFoundation"
     )
     add_test(NAME nature_backend COMMAND nature_backend_tests)
+
+    foreach(audio_suite IN ITEMS NatureSoundtrack AudioCrossfadePlayer)
+        string(TOLOWER "${audio_suite}" audio_target)
+        add_executable(${audio_target}_tests
+            tests/${audio_suite}Test.cpp
+            ${NATURE_AUDIO_SOURCES}
+            src/player/MpvController.cpp
+            src/tools/HelperResolver.cpp
+            src/tools/YouTubePolicy.cpp
+            src/AppCore.cpp
+        )
+        target_include_directories(${audio_target}_tests PRIVATE src)
+        target_compile_definitions(${audio_target}_tests PRIVATE TEST_SOURCE_ROOT="${CMAKE_SOURCE_DIR}")
+        target_link_libraries(${audio_target}_tests PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Network Qt6::Test)
+        add_test(NAME ${audio_target} COMMAND ${audio_target}_tests)
+    endforeach()
 
     add_test(
         NAME macos_dmg_contract

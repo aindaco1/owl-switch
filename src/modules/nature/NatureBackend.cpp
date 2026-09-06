@@ -1,4 +1,5 @@
 #include "NatureBackend.h"
+#include "NatureSoundtrack.h"
 
 #include <CoreFoundation/CoreFoundation.h>
 
@@ -118,6 +119,26 @@ NatureBackend::NatureBackend(const QString &dataRoot,
     , m_dataRoot(dataRoot)
     , m_cachePath(QDir(dataRoot).filePath(QStringLiteral("nature_observations.json")))
 {
+}
+
+QObject *NatureBackend::soundtrack() const { return m_soundtrack; }
+
+void NatureBackend::setSoundtrack(NatureSoundtrack *soundtrack) { m_soundtrack = soundtrack; }
+
+void NatureBackend::onSettingChanged(const QString &moduleId, const QString &key,
+                                   const QVariant &value)
+{
+    if (m_soundtrack && moduleId == QLatin1String("com.owlswitch.nature"))
+        m_soundtrack->settingChanged(key, value);
+}
+
+void NatureBackend::get_audio_volume_options()
+{
+    QVariantList options;
+    for (int volume : {10, 20, 30, 40, 50, 75, 100})
+        options.append(QVariantMap{{"id", QString::number(volume)},
+                                  {"label", QString::number(volume) + QLatin1Char('%')}});
+    emit dynamicOptionsReady(QStringLiteral("audio_volume"), options);
 }
 
 void NatureBackend::loadLatestObservations()

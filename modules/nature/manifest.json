@@ -10,6 +10,20 @@
       "label": "ENABLED",
       "type": "toggle",
       "default": "ON"
+    },
+    {
+      "key": "ambient_audio",
+      "label": "NATURE SOUND",
+      "type": "toggle",
+      "default": "ON"
+    },
+    {
+      "key": "audio_volume",
+      "label": "SOUND VOLUME",
+      "type": "list_single",
+      "options_source": "dynamic",
+      "options_slot": "get_audio_volume_options",
+      "default": "30"
     }
   ]
 }

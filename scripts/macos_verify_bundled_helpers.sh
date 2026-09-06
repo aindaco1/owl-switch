@@ -83,6 +83,20 @@ if [[ ! -d "$resources/$yt_dlp_runtime" || -L "$resources/$yt_dlp_runtime" || \
 fi
 
 actual_yt_dlp="$(env -i HOME="$helper_home" PATH=/usr/bin:/bin "$resources/$yt_dlp_executable" --version)"
+ca_bundle="$resources/$yt_dlp_runtime/certifi/cacert.pem"
+/usr/bin/python3 - "$ca_bundle" <<'PY'
+import os
+import ssl
+import sys
+
+path = sys.argv[1]
+if not os.path.isfile(path) or os.path.islink(path):
+    raise SystemExit("bundled TLS certificate store is missing or unsafe")
+context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+context.load_verify_locations(cafile=path)
+if not context.get_ca_certs():
+    raise SystemExit("bundled TLS certificate store is empty")
+PY
 deno_version_output="$(env -i HOME="$helper_home" PATH=/usr/bin:/bin "$resources/$deno_executable" --version)"
 deno_version_line="${deno_version_output%%$'\n'*}"
 if [[ "$actual_yt_dlp" != "$expected_yt_dlp" ]]; then

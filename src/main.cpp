@@ -23,6 +23,7 @@
 #include "modules/karaoke/KaraokeBackend.h"
 #include "modules/tumblr_screensaver/TumblrScreensaverBackend.h"
 #include "modules/nature/NatureBackend.h"
+#include "modules/nature/NatureSoundtrack.h"
 #include "player/MpvController.h"
 #include "input/IdleTracker.h"
 #include "input/InputManager.h"
@@ -151,13 +152,22 @@ int main(int argc, char *argv[]) {
     KaraokeBackend      karaokeBackend(appRoot, dataRoot);
     TumblrScreensaverBackend tumblrScreensaver;
     NatureBackend       natureBackend(dataRoot);
+    NatureSoundtrack     natureSoundtrack(appRoot, dataRoot, &appCore);
+    natureBackend.setSoundtrack(&natureSoundtrack);
     MpvController       mpvController(appRoot, &appCore);
     mpvController.setPlaybackScreenIndex(displaySelection.mediaIndex);
     IdleTracker         idleTracker;
     InputManager        inputManager(&appCore);
     UpdateManager       updateManager(dataRoot);
     QObject::connect(&inputManager, &InputManager::mpvKeyRequested,
-                     &mpvController, &MpvController::sendKey);
+                     &mpvController, [&mpvController, &natureSoundtrack](const QString &key) {
+        // Nature's QML output owns navigation and pause. Never route inactive
+        // window input to an unrelated video player while its sound is active.
+        if (natureSoundtrack.requested())
+            natureSoundtrack.routeKey(key);
+        else
+            mpvController.sendKey(key);
+    });
 
 #ifdef Q_OS_MAC
     auto applySleepPreventionSettings = [&appCore]() {

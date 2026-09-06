@@ -38,6 +38,7 @@ Version 1.1 completed the fork's daily-use Apple Silicon macOS foundation. Futur
 ## Prepared For 1.5.0
 
 - A research-grade, CC0-only iNaturalist Nature montage with compact name/species/location display, metadata-only offline cache, and keyboard refresh/source controls.
+- CC0 Earth Garden/Freesound sound for Nature, with independent rotation, five-second crossfades, persistent sound/volume settings, and bounded metadata-only caching.
 - A shared, tested image montage/media path used by both Nature and Tumblr instead of parallel transition implementations.
 - One consolidated Local module with persistent media/soundtrack queues, Repeat Off/Queue/One, shuffle, auto-launch, per-entry tracks, and the former Loop audio-recovery behavior.
 

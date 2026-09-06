@@ -50,7 +50,7 @@ FocusScope {
         anchors.left: description.left
         anchors.topMargin: root.sh * 0.025
         width: description.width
-        text: "UP TO 100 CC0 PHOTOS FROM INATURALIST. NAME, SPECIES, CITY, STATE OR PROVINCE, AND COUNTRY STAY WITH EACH IMAGE."
+        text: "CC0 PHOTOS FROM INATURALIST, WITH NATURE SOUNDS CURATED BY EARTH GARDEN FROM FREESOUND. RECORDINGS BLEND GENTLY AS THE SLIDESHOW PLAYS."
         color: root.tertiaryColor
         font.family: root.globalFont
         font.capitalization: Font.AllUppercase

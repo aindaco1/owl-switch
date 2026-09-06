@@ -188,15 +188,22 @@ Window {
     property var appCurrentParams: ({})
     property bool startupNavigated: false
     property bool screenSaverActive: false
+    property bool videoPlaybackActive: false
+
+    Binding {
+        target: idleTracker
+        property: "mpvActive"
+        value: root.videoPlaybackActive || natureBackend.soundtrack.requested
+    }
 
     Connections {
         target: mpvController
         function onPositionChanged(ms) {
-            if (ms > 0 && !idleTracker.mpvActive)
-                idleTracker.mpvActive = true
+            if (ms > 0)
+                root.videoPlaybackActive = true
         }
         function onPlaybackEnded(finalPositionMs, finalDurationMs, reason) {
-            idleTracker.mpvActive = false
+            root.videoPlaybackActive = false
         }
     }
 

@@ -6,6 +6,8 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QVariantMap>
+#include <QTemporaryDir>
+#include <memory>
 
 #ifdef Q_OS_LINUX
 #include <xf86drm.h>
@@ -31,7 +33,7 @@ class MpvController : public QObject {
 
 public:
     explicit MpvController(const QString &appRoot, class AppCore *appCore = nullptr,
-                           QObject *parent = nullptr);
+                           QObject *parent = nullptr, bool isolated = false);
     ~MpvController() override;
 
     int position()    const { return m_position;    }
@@ -57,6 +59,10 @@ public:
     // playback capabilities grow; loadAndPlay remains as a compatibility API.
     Q_INVOKABLE void loadAndPlayWithOptions(const QString &url, const QVariantMap &options = {});
     Q_INVOKABLE void stop();
+    void stopImmediately();
+    void setPaused(bool paused);
+    void setVolume(double volume);
+    bool running() const;
     Q_INVOKABLE void seekTo(int positionMs);
     Q_INVOKABLE void sendKey(const QString &key);
     Q_INVOKABLE void setVideoFilters(const QString &filters);
@@ -91,6 +97,7 @@ signals:
     void subtitleCycleRequested();
     void audioCycleRequested();
     void playbackItemLoaded(int playlistIndex);
+    void playbackReady();
     void playbackItemEnded(int playlistIndex, const QString &reason, const QString &error);
     // Emitted exactly once when the mpv process exits. `reason` is "eof",
     // "stopped", or "failed". New module players should handle this signal so
@@ -133,6 +140,7 @@ private:
     QTimer       *m_trackOverlayTimer = nullptr;
     qint64        m_lastIpcEventMs = 0;
     QString       m_appRoot;
+    std::unique_ptr<QTemporaryDir> m_privateDirectory;
     AppCore       *m_appCore = nullptr;
     QString       m_socketPath;
     QString       m_inputConfPath;
@@ -150,6 +158,9 @@ private:
     bool          m_pendingStartClear = false;
     bool          m_paused = false;
     bool          m_muteAudio = false;
+    bool          m_audioOnly = false;
+    bool          m_terminalEmitted = false;
+    quint64       m_generation = 0;
     int           m_previousVt   = -1;
     int           m_qtDrmFd      = -1;
 #ifdef Q_OS_LINUX
