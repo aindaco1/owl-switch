@@ -69,7 +69,9 @@ jobs:
             -DCMAKE_INSTALL_PREFIX="${GITHUB_WORKSPACE}/install"
 
       - name: Build
-        run: cmake --build build --parallel
+        # Bare --parallel becomes make -j without a limit on this generator.
+        # Keep the hosted Mac's compiler memory bounded as test targets grow.
+        run: cmake --build build --parallel 3
 
       - name: Test
         run: ctest --test-dir build --output-on-failure

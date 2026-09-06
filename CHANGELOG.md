@@ -15,6 +15,7 @@ All notable OwlSwitch changes are documented here. Releases through 1.6.3 used t
 
 - Photo refreshes preserve Nature's pause state and current audio session. Network or audio failures leave the slideshow running, and an active Nature session keeps the app screensaver from covering it.
 - Extended the shared mpv controller with isolated audio-only players, bounded preloading, and equal-power fades that account for mpv's volume curve and reserve overlap headroom.
+- Bounded hosted builds to three parallel jobs to avoid unlimited compiler concurrency as the test suite grows.
 
 ### Security
 

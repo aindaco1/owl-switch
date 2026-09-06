@@ -103,7 +103,12 @@ Local source validation on macOS Apple Silicon, Qt 6.11.1, mpv 0.41.0:
 - [x] Rendered Nature QML checks cover first-image start, pause/refresh, next,
   source/status UI, exit, and controller/external output leases. Physical second-screen
   and subjective listening acceptance remain distinct from these automated checks.
-- [ ] Finish the running-app smoke with isolated `DATA_ROOT` and packaged helper checks.
+- [x] Finish the running-app smoke with isolated `DATA_ROOT`: live images/audio,
+  pause/refresh/resume, stop, persisted OFF/volume after relaunch, and no idle overlay.
+  Verify unsigned package dependencies/helpers and repeat the real decoder test
+  with locally ad-hoc-signed bundled mpv. Public signed-artifact acceptance follows.
+- [x] Bound CI compilation to three jobs. The prior bare parallel flag expands to
+  unlimited `make -j`; the previous release launched 83 compilations within a minute.
 - [x] Open release PR #23.
 - [ ] Require the PR build/test/package checks and merge.
 - [ ] Wait for the exact merged main commit's successful CI and retained attested app.
