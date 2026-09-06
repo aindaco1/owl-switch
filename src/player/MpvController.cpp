@@ -144,7 +144,8 @@ static QString writeFontconfigOverride(const QString &fontsDir) {
 }
 #endif
 
-MpvController::MpvController(const QString &appRoot, AppCore *appCore, QObject *parent)
+MpvController::MpvController(const QString &appRoot, AppCore *appCore, QObject *parent,
+                             bool isolated)
     : QObject(parent)
     , m_appCore(appCore)
     , m_appRoot(appRoot)
@@ -152,7 +153,15 @@ MpvController::MpvController(const QString &appRoot, AppCore *appCore, QObject *
     , m_inputConfPath(QDir::tempPath() + "/owl-switch-input.conf")
     , m_logFilePath(QDir::tempPath() + "/owl-switch-mpv.log")
 {
-    writeInputConfig();
+    if (isolated) {
+        m_privateDirectory = std::make_unique<QTemporaryDir>(
+            QDir::tempPath() + QStringLiteral("/owl-audio-XXXXXX"));
+        m_socketPath = m_privateDirectory->filePath(QStringLiteral("mpv.sock"));
+        m_inputConfPath = m_privateDirectory->filePath(QStringLiteral("input.conf"));
+        m_logFilePath = m_privateDirectory->filePath(QStringLiteral("mpv.log"));
+    }
+    if (!m_privateDirectory || m_privateDirectory->isValid())
+        writeInputConfig();
 
     m_ipc = new QLocalSocket(this);
     connect(m_ipc, &QLocalSocket::connected, this, [this] {
@@ -164,6 +173,7 @@ MpvController::MpvController(const QString &appRoot, AppCore *appCore, QObject *
         sendCommand({"observe_property", 3, "playlist-pos"});
         sendCommand({"observe_property", 4, "pause"});
         sendCommand({"observe_property", 5, "path"});
+        sendCommand({"observe_property", 6, "audio-params"});
         const QList<QJsonArray> pendingCommands = m_pendingPlaylistCommands;
         m_pendingPlaylistCommands.clear();
         for (const QJsonArray &command : pendingCommands)
@@ -307,6 +317,19 @@ void MpvController::loadAndPlay(const QString &url, float startSeconds,
 }
 
 void MpvController::loadAndPlayWithOptions(const QString &url, const QVariantMap &options) {
+    const quint64 generation = ++m_generation;
+    m_audioOnly = options.value("audioOnly").toBool();
+    m_terminalEmitted = false;
+    if (m_privateDirectory && !m_privateDirectory->isValid()) {
+        QTimer::singleShot(0, this, [this, generation] {
+            if (generation != m_generation || m_terminalEmitted)
+                return;
+            m_terminalEmitted = true;
+            emit playbackEnded(0, 0, QStringLiteral("failed"));
+            emit playbackFailed();
+        });
+        return;
+    }
     const float startSeconds = options.value("startSeconds").toFloat();
     const int audioTrack = options.value("audioTrack").toInt();
     const int subTrack = options.contains("subtitleTrack")
@@ -365,7 +388,10 @@ void MpvController::loadAndPlayWithOptions(const QString &url, const QVariantMap
     const QString bin = HelperResolver::mpv(m_appRoot);
     if (bin.isEmpty()) {
         qWarning("[MpvController] mpv not found in app bundle or PATH");
-        QTimer::singleShot(0, this, [this]() {
+        QTimer::singleShot(0, this, [this, generation]() {
+            if (generation != m_generation || m_terminalEmitted)
+                return;
+            m_terminalEmitted = true;
             emit playbackEnded(0, 0, QStringLiteral("failed"));
             emit playbackFailed();
         });
@@ -388,106 +414,122 @@ void MpvController::loadAndPlayWithOptions(const QString &url, const QVariantMap
     }
 
     QStringList args;
-    args << url
-         << QString("--input-ipc-server=%1").arg(m_socketPath)
-         << QString("--log-file=%1").arg(m_logFilePath)
-         << (hasOscScript ? "--osc=no" : "--osc=yes")
-         << "--osd-level=0";
+    if (m_audioOnly) {
+        args << url << QString("--input-ipc-server=%1").arg(m_socketPath)
+             << "--no-config" << "--load-scripts=no" << "--no-video"
+             << "--force-window=no" << "--no-terminal" << "--osc=no"
+             << "--input-default-bindings=no" << "--input-vo-keyboard=no"
+             << "--input-media-keys=no" << "--ytdl=no" << "--tls-verify=yes"
+             << "--cache=yes" << "--cache-on-disk=no" << "--cache-secs=15"
+             << "--demuxer-max-bytes=16MiB" << "--demuxer-max-back-bytes=0"
+             << "--network-timeout=15" << "--demuxer-lavf-o=max_redirects=0"
+             << "--demuxer-lavf-format=mp3" << "--audio-display=no"
+             << "--keep-open=no" << "--idle=yes"
+             << QString("--volume=%1").arg(qBound(0.0, options.value("volume", 0).toDouble(), 100.0))
+             << (options.value("paused", true).toBool() ? "--pause=yes" : "--pause=no");
+        args << extraArguments;
+    } else {
+        args << url
+             << QString("--input-ipc-server=%1").arg(m_socketPath)
+             << QString("--log-file=%1").arg(m_logFilePath)
+             << (hasOscScript ? "--osc=no" : "--osc=yes")
+             << "--osd-level=0";
 
-    if (hasOscScript)
-        args << QString("--script=%1").arg(oscScript);
-    if (QFile::exists(mediaKeysScript))
-        args << QString("--script=%1").arg(mediaKeysScript);
-    int screensaverTimeout = 0;
-    if (m_appCore) {
-        screensaverTimeout = m_appCore->get_setting({}, "screensaver_timeout").toString().toInt();
-        const QString screensaverScript = m_appRoot + "/scripts/screensaver.lua";
-        if (screensaverTimeout > 0 && QFile::exists(screensaverScript))
-            args << QString("--script=%1").arg(screensaverScript);
+        if (hasOscScript)
+            args << QString("--script=%1").arg(oscScript);
+        if (QFile::exists(mediaKeysScript))
+            args << QString("--script=%1").arg(mediaKeysScript);
+        int screensaverTimeout = 0;
+        if (m_appCore) {
+            screensaverTimeout = m_appCore->get_setting({}, "screensaver_timeout").toString().toInt();
+            const QString screensaverScript = m_appRoot + "/scripts/screensaver.lua";
+            if (screensaverTimeout > 0 && QFile::exists(screensaverScript))
+                args << QString("--script=%1").arg(screensaverScript);
+        }
+
+        if (playlistStart >= 0)
+            args << QString("--playlist-start=%1").arg(playlistStart);
+        if (startSeconds > 0.5f) {
+            args << QString("--start=%1").arg(double(startSeconds), 0, 'f', 3);
+            m_pendingStartClear = true;
+        }
+        if (audioTrack > 0)
+            args << QString("--aid=%1").arg(audioTrack);
+        for (const QString &sf : subFiles)
+            args << QString("--sub-file=%1").arg(sf);
+        if (subTrack > 0)
+            args << QString("--sid=%1").arg(subTrack);
+        else if (subTrack < -1)
+            args << QStringLiteral("--sid=no");
+        else if (subTrack == -1)
+            args << QStringLiteral("--subs-with-matching-audio=forced")
+                 << QStringLiteral("--subs-fallback-forced=always");
+        else if (subTrack == 0) {
+            args << QStringLiteral("--subs-with-matching-audio=yes")
+                 << QStringLiteral("--subs-fallback=yes");
+            if (subFiles.isEmpty())
+                args << QStringLiteral("--sid=auto");
+        }
+        // else: external sub(s) loaded, subTrack==0 → mpv auto-selects first loaded sub
+        if (!subLangs.isEmpty())
+            args << QString("--slang=%1").arg(subLangs.join(QLatin1Char(',')));
+
+        if (transcodeOffsetSec > 0.5f)
+            args << QString("--script-opts-append=transcode-offset=%1").arg(double(transcodeOffsetSec), 0, 'f', 3);
+        if (oscMode == QStringLiteral("retro"))
+            args << QStringLiteral("--script-opts-append=retro-tv=1");
+        if (oscMode == QStringLiteral("karaoke"))
+            args << QStringLiteral("--script-opts-append=karaoke=1");
+        if (screensaverTimeout > 0)
+            args << QString("--script-opts-append=screensaver-timeout=%1").arg(screensaverTimeout);
+
+        if (repeatMode == QLatin1String("one"))
+            args << QStringLiteral("--loop-file=inf");
+        else if (loop || repeatMode == QLatin1String("queue"))
+            args << QStringLiteral("--loop-playlist=inf");
+        if (shuffle)
+            args << QStringLiteral("--shuffle");
+        if (muteAudio)
+            args << QStringLiteral("--no-audio");
+        if (!videoFilters.trimmed().isEmpty())
+            args << QStringLiteral("--vf=%1").arg(videoFilters.trimmed());
+        if (m_appCore) {
+            const QString crop = m_appCore->get_setting({}, "auto_crop").toString();
+            if (crop.compare("On", Qt::CaseInsensitive) == 0)
+                args << QStringLiteral("--panscan=1");
+            const QString levels = m_appCore->get_setting({}, "video_output_levels").toString();
+            if (levels == QLatin1String("Limited"))
+                args << QStringLiteral("--video-output-levels=limited");
+            else if (levels == QLatin1String("Full"))
+                args << QStringLiteral("--video-output-levels=full");
+        }
+        if (imageDurationSeconds > 0)
+            args << QString("--image-display-duration=%1").arg(imageDurationSeconds);
+        args << extraArguments;
+
+        const YouTubePolicy::MediaProfile youtubeProfile =
+            YouTubePolicy::profileFromName(youtubeProfileName);
+        if (youtubeProfile != YouTubePolicy::MediaProfile::None)
+            args << YouTubePolicy::mpvArguments(m_appRoot, youtubeProfile);
+
+        QStringList playbackHeaders = httpHeaderFields;
+        if (!plexToken.isEmpty()) {
+            playbackHeaders << QString("X-Plex-Token:%1").arg(plexToken);
+            // Plex URLs are direct file paths — yt-dlp hook is not needed and causes
+            // spurious 401 errors when mpv encounters a non-2xx response from PMS.
+        }
+        m_httpHeaderConfPath = writeHttpHeaderConfig(playbackHeaders);
+        if (!m_httpHeaderConfPath.isEmpty()) {
+            args << QString("--include=%1").arg(m_httpHeaderConfPath);
+            args << QStringLiteral("--ytdl=no");
+        }
+
+        // plex.direct certs are Let's Encrypt-signed but ffmpeg's bundled CA bundle
+        // may not trust the full chain (same reason Qt needs ignoreSslErrors for these
+        // hosts). Disable TLS verification only for plex.direct playback URLs.
+        if (QUrl(url).host().endsWith(QStringLiteral(".plex.direct")))
+            args << QStringLiteral("--tls-verify=no");
     }
-
-    if (playlistStart >= 0)
-        args << QString("--playlist-start=%1").arg(playlistStart);
-    if (startSeconds > 0.5f) {
-        args << QString("--start=%1").arg(double(startSeconds), 0, 'f', 3);
-        m_pendingStartClear = true;
-    }
-    if (audioTrack > 0)
-        args << QString("--aid=%1").arg(audioTrack);
-    for (const QString &sf : subFiles)
-        args << QString("--sub-file=%1").arg(sf);
-    if (subTrack > 0)
-        args << QString("--sid=%1").arg(subTrack);
-    else if (subTrack < -1)
-        args << QStringLiteral("--sid=no");
-    else if (subTrack == -1)
-        args << QStringLiteral("--subs-with-matching-audio=forced")
-             << QStringLiteral("--subs-fallback-forced=always");
-    else if (subTrack == 0) {
-        args << QStringLiteral("--subs-with-matching-audio=yes")
-             << QStringLiteral("--subs-fallback=yes");
-        if (subFiles.isEmpty())
-            args << QStringLiteral("--sid=auto");
-    }
-    // else: external sub(s) loaded, subTrack==0 → mpv auto-selects first loaded sub
-    if (!subLangs.isEmpty())
-        args << QString("--slang=%1").arg(subLangs.join(QLatin1Char(',')));
-
-    if (transcodeOffsetSec > 0.5f)
-        args << QString("--script-opts-append=transcode-offset=%1").arg(double(transcodeOffsetSec), 0, 'f', 3);
-    if (oscMode == QStringLiteral("retro"))
-        args << QStringLiteral("--script-opts-append=retro-tv=1");
-    if (oscMode == QStringLiteral("karaoke"))
-        args << QStringLiteral("--script-opts-append=karaoke=1");
-    if (screensaverTimeout > 0)
-        args << QString("--script-opts-append=screensaver-timeout=%1").arg(screensaverTimeout);
-
-    if (repeatMode == QLatin1String("one"))
-        args << QStringLiteral("--loop-file=inf");
-    else if (loop || repeatMode == QLatin1String("queue"))
-        args << QStringLiteral("--loop-playlist=inf");
-    if (shuffle)
-        args << QStringLiteral("--shuffle");
-    if (muteAudio)
-        args << QStringLiteral("--no-audio");
-    if (!videoFilters.trimmed().isEmpty())
-        args << QStringLiteral("--vf=%1").arg(videoFilters.trimmed());
-    if (m_appCore) {
-        const QString crop = m_appCore->get_setting({}, "auto_crop").toString();
-        if (crop.compare("On", Qt::CaseInsensitive) == 0)
-            args << QStringLiteral("--panscan=1");
-        const QString levels = m_appCore->get_setting({}, "video_output_levels").toString();
-        if (levels == QLatin1String("Limited"))
-            args << QStringLiteral("--video-output-levels=limited");
-        else if (levels == QLatin1String("Full"))
-            args << QStringLiteral("--video-output-levels=full");
-    }
-    if (imageDurationSeconds > 0)
-        args << QString("--image-display-duration=%1").arg(imageDurationSeconds);
-    args << extraArguments;
-
-    const YouTubePolicy::MediaProfile youtubeProfile =
-        YouTubePolicy::profileFromName(youtubeProfileName);
-    if (youtubeProfile != YouTubePolicy::MediaProfile::None)
-        args << YouTubePolicy::mpvArguments(m_appRoot, youtubeProfile);
-
-    QStringList playbackHeaders = httpHeaderFields;
-    if (!plexToken.isEmpty()) {
-        playbackHeaders << QString("X-Plex-Token:%1").arg(plexToken);
-        // Plex URLs are direct file paths — yt-dlp hook is not needed and causes
-        // spurious 401 errors when mpv encounters a non-2xx response from PMS.
-    }
-    m_httpHeaderConfPath = writeHttpHeaderConfig(playbackHeaders);
-    if (!m_httpHeaderConfPath.isEmpty()) {
-        args << QString("--include=%1").arg(m_httpHeaderConfPath);
-        args << QStringLiteral("--ytdl=no");
-    }
-
-    // plex.direct certs are Let's Encrypt-signed but ffmpeg's bundled CA bundle
-    // may not trust the full chain (same reason Qt needs ignoreSslErrors for these
-    // hosts). Disable TLS verification only for plex.direct playback URLs.
-    if (QUrl(url).host().endsWith(QStringLiteral(".plex.direct")))
-        args << QStringLiteral("--tls-verify=no");
 
     m_process = new QProcess(this);
     m_process->setProcessChannelMode(QProcess::MergedChannels);
@@ -503,6 +545,10 @@ void MpvController::loadAndPlayWithOptions(const QString &url, const QVariantMap
         m_watchdogTimer->stop();
         QFile::remove(m_socketPath);
         removeHttpHeaderConfig();
+        if (!m_terminalEmitted) {
+            m_terminalEmitted = true;
+            emit playbackEnded(0, 0, QStringLiteral("failed"));
+        }
         emit playbackFailed();
     });
     connect(m_process, &QProcess::readyRead, this, [this]() {
@@ -511,8 +557,12 @@ void MpvController::loadAndPlayWithOptions(const QString &url, const QVariantMap
             qWarning("[mpv] %s", qPrintable(redactedTextForLog(QString::fromUtf8(out).trimmed())));
     });
 
-    m_headlessMode = detectHeadlessMode();
-    if (m_headlessMode) {
+    m_headlessMode = !m_audioOnly && detectHeadlessMode();
+    if (m_audioOnly) {
+        m_process->setProcessEnvironment(HelperResolver::processEnvironment(m_appRoot));
+        m_process->start(bin, args);
+        m_connectTimer->start();
+    } else if (m_headlessMode) {
         {
             QProcessEnvironment env = HelperResolver::processEnvironment(m_appRoot);
 #ifdef Q_OS_LINUX
@@ -608,6 +658,38 @@ void MpvController::stop() {
     } else if (m_process && m_process->state() != QProcess::NotRunning) {
         m_process->terminate();
     }
+}
+
+bool MpvController::running() const {
+    return m_process && m_process->state() != QProcess::NotRunning;
+}
+
+void MpvController::stopImmediately() {
+    ++m_generation;
+    m_terminalEmitted = true;
+    m_connectTimer->stop();
+    m_watchdogTimer->stop();
+    m_ipc->abort();
+    m_pendingPlaylistCommands.clear();
+    if (m_process) {
+        m_process->disconnect(this);
+        if (running()) {
+            m_process->kill();
+            m_process->waitForFinished(1000);
+        }
+        m_process->deleteLater();
+        m_process = nullptr;
+    }
+    QFile::remove(m_socketPath);
+}
+
+void MpvController::setPaused(bool paused) {
+    sendPlaylistCommand({"set_property", "pause", paused});
+}
+
+void MpvController::setVolume(double volume) {
+    if (qIsFinite(volume))
+        sendPlaylistCommand({"set_property", "volume", qBound(0.0, volume, 100.0)});
 }
 
 void MpvController::seekTo(int positionMs) {
@@ -836,6 +918,7 @@ void MpvController::onIpcReadyRead() {
         }
 
         if (event == QStringLiteral("playback-restart")) {
+            emit playbackReady();
             if (m_pendingStartClear) {
                 m_pendingStartClear = false;
                 sendCommand({"set_property", "start", "none"});
@@ -854,6 +937,10 @@ void MpvController::onIpcReadyRead() {
         const QString     name = obj["name"].toString();
         const QJsonValue  data = obj["data"];
         if (data.isNull() || data.isUndefined()) continue; // property unavailable during shutdown
+        if (name == QStringLiteral("audio-params") && data.isObject() && !data.toObject().isEmpty()) {
+            emit playbackReady();
+            continue;
+        }
         if (name == QStringLiteral("pause")) {
             m_paused = data.toBool();
             continue;
@@ -879,6 +966,9 @@ void MpvController::onIpcReadyRead() {
 }
 
 void MpvController::onProcessFinished() {
+    if (m_terminalEmitted)
+        return;
+    m_terminalEmitted = true;
     int exitCode = m_process ? m_process->exitCode() : -1;
     if (m_process) {
         const QByteArray remaining = m_process->readAll();

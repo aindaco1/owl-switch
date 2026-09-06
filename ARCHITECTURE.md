@@ -34,6 +34,7 @@ owl-switch/
         KaraokeBackend.h/.cpp       # multi-source catalog cache and persistent queue
       nature/
         NatureBackend.h/.cpp        # iNaturalist query policy and metadata cache
+        NatureSoundtrack.h/.cpp     # Earth Garden catalog policy and audio session
       ...
     player/
       MpvController.h/.cpp          # mpv subprocess controller: QProcess launch + IPC socket
@@ -305,6 +306,11 @@ Nature lives in `modules/nature/` and `src/modules/nature/`.
 - The backend maps the common/scientific names and rightmost public `place_guess` components into city, state-or-province, and country, then prefers English town/state/country names from the observation's public iNaturalist place IDs when available. The IDs are resolved in one capped batch and never persisted. If no English record exists, Latin-script official names are preserved and non-Latin names receive an offline Core Foundation transliteration fallback. The backend removes US postal suffixes, expands two-letter country codes through Qt's locale data, discards leading venue/park components, and does not expose coordinates or private location fields.
 - `nature_observations.json` is an atomic, schema-versioned, owner-only metadata cache capped at 100 records and 2 MiB. Cached URLs and licenses are revalidated before reuse. A fresh cache avoids a request; stale data is emitted immediately and refreshed in the background; failed refreshes leave saved observations visible. Image files are never persisted.
 - `Player.qml` uses the same `ImageMontage` and `MontageMedia` path as Tumblr, adding a compact three-line name/species/`City, State/Province, Country` panel and keyboard controls for next, pause, refresh, source observation, and back.
+
+- `NatureBackend.soundtrack` exposes the composed `NatureSoundtrack`, whose requests and cache remain independent of observation refreshes. Manifest settings flow through the existing module registration and `onSettingChanged`; the global input bridge routes Nature controls to its QML view. A requested Nature session inhibits the app screensaver even with sound disabled or unavailable.
+- The fixed Earth Garden v1 manifest endpoint supplies Freesound previews. The shared network/cache parser requires numeric sound IDs, explicit `cc0` and the CC0 license URL, matching exact HTTPS CDN preview paths, a bounded uploader/title, and finite durations of 30–600 seconds. It rejects redirects, duplicate IDs, credentials, queries, and unapproved paths. Requests are anonymous, capped at 8 MiB/5,000 rows/15 seconds, with one request in flight and bounded Retry-After handling. The owner-only atomic `nature_sounds.json` has a 24-hour freshness window and caps of 2,500 accepted records/4 MiB; valid stale metadata survives failed refreshes. Coordinates and media files are not cached.
+- `AudioCrossfadePlayer` owns at most two isolated instances of the existing `MpvController`. Its named audio-only profile uses verified HTTPS, no redirects or yt-dlp, no inherited mpv config/scripts/video windows, MP3 demuxing, and at most 16 MiB of memory buffering per player. Private IPC/config/log directories prevent interference with video playback. Only the next recording is prepared, muted and paused, with a 20-second readiness/progress deadline; five failures with increasing backoff stop audio without stopping images.
+- Audio uses a shuffled C++ session deck, with no immediate repeat across deck boundaries. Decoded timing drives a five-second equal-power overlap at natural EOF; shorter decoded media gets a shorter fade. The envelope compensates for mpv's cubic volume scale and reserves 30% mix headroom. It is not loudness normalization. A late stream may leave a silence gap after a clean fade. Pause freezes both players; stop cancels preparation and releases playing sound over 200 ms. Session starts are idempotent across image refreshes, and stale callbacks cannot restart a stopped session.
 
 ## Local Module
 

@@ -13,9 +13,11 @@
 class QJsonObject;
 class QNetworkReply;
 class NatureBackendTest;
+class NatureSoundtrack;
 
 class NatureBackend final : public QObject {
     Q_OBJECT
+    Q_PROPERTY(QObject *soundtrack READ soundtrack CONSTANT)
 
 public:
     explicit NatureBackend(const QString &dataRoot, QObject *parent = nullptr);
@@ -23,8 +25,15 @@ public:
 
     Q_INVOKABLE void loadLatestObservations();
     Q_INVOKABLE void refreshObservations();
+    QObject *soundtrack() const;
+    void setSoundtrack(NatureSoundtrack *soundtrack);
+    Q_INVOKABLE void get_audio_volume_options();
+
+public slots:
+    void onSettingChanged(const QString &moduleId, const QString &key, const QVariant &value);
 
 signals:
+    void dynamicOptionsReady(const QString &key, const QVariant &options);
     void refreshStarted(bool hasCachedObservations);
     void observationsLoaded(const QVariantList &observations,
                             bool fromCache,
@@ -33,6 +42,7 @@ signals:
 
 private:
     friend class NatureBackendTest;
+    NatureSoundtrack *m_soundtrack = nullptr;
 
     void beginRefresh(bool hasCachedObservations);
     void handleReply(QNetworkReply *reply);

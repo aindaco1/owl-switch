@@ -33,7 +33,51 @@ private slots:
     void muteAudioUsesNoAudioArgument();
     void trackSelectionPreservesLaunchMute();
     void rendersAndClearsTrackOverlay();
+    void audioOnlyUsesIsolatedBoundedPlayers();
 };
+
+void MpvControllerTest::audioOnlyUsesIsolatedBoundedPlayers()
+{
+    QTemporaryDir root;
+    QVERIFY(QDir().mkpath(root.filePath("bin")));
+    const QString marker = root.filePath("arguments");
+    QVERIFY(writeExecutable(root.filePath("bin/mpv"),
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" > '" + marker.toUtf8() + "'\nsleep 10\n"));
+    MpvController first(root.path(), nullptr, nullptr, true);
+    MpvController second(root.path(), nullptr, nullptr, true);
+    auto readArguments = [&] {
+        QFile file(marker);
+        if (!file.open(QIODevice::ReadOnly)) return QStringList{};
+        return QString::fromUtf8(file.readAll()).split('\n', Qt::SkipEmptyParts);
+    };
+    first.setPlaybackScreenIndex(1);
+    first.loadAndPlayWithOptions("https://cdn.freesound.org/previews/538/538001_6746400-hq.mp3",
+        {{"audioOnly", true}, {"videoFilters", "scale=640:480"}});
+    QTRY_VERIFY_WITH_TIMEOUT(readArguments().contains("--pause=yes"), 3000);
+    const auto firstArgs = readArguments();
+    for (const QString &argument : {"--no-config", "--no-video", "--force-window=no", "--ytdl=no",
+             "--tls-verify=yes", "--cache-on-disk=no", "--demuxer-lavf-o=max_redirects=0",
+             "--keep-open=no", "--volume=0"})
+        QVERIFY2(firstArgs.contains(argument), qPrintable(argument));
+    for (const QString &argument : firstArgs) {
+        QVERIFY(!argument.startsWith("--script="));
+        QVERIFY(!argument.startsWith("--vf="));
+        QVERIFY(!argument.startsWith("--screen="));
+        QVERIFY(!argument.startsWith("--fs-screen="));
+    }
+    const QString firstSocket = firstArgs.filter("--input-ipc-server=").value(0);
+    QVERIFY(QFile::remove(marker));
+    second.loadAndPlayWithOptions("/test/second.mp3", {{"audioOnly", true}});
+    QTRY_VERIFY_WITH_TIMEOUT(!readArguments().isEmpty(), 3000);
+    const QString secondSocket = readArguments().filter("--input-ipc-server=").value(0);
+    QVERIFY(!firstSocket.isEmpty() && !secondSocket.isEmpty());
+    QVERIFY(firstSocket != secondSocket);
+    first.stopImmediately();
+    QVERIFY(!first.running());
+    QVERIFY(second.running());
+    second.stopImmediately();
+    QVERIFY(!second.running());
+}
 
 void MpvControllerTest::youtubeModesValidateFormats_data()
 {

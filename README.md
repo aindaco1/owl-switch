@@ -95,7 +95,9 @@ Not yet implemented: music libraries and explicit watched/unwatched controls fro
 - Up to 100 recent research-grade, non-captive iNaturalist observations per refresh.
 - One CC0 photo per observation, hosted by iNaturalist's HTTPS open-data service. A live policy check still yields the full 100-observation rotation without requiring an attribution line over the image.
 - A shuffled, non-repeating montage with only the common name, scientific species name, and an English-preferred `City, State/Province, Country` line visible in a compact overlay. Non-Latin locality names fall back to offline Latin transliteration when iNaturalist has no English place record.
-- Keyboard controls for next, pause, refresh, and opening the current source observation.
+- CC0 field recordings from [Earth Garden](https://earth-garden.alen.ro/) start with the slideshow. Sounds shuffle independently, play to their natural end, and overlap with a five-second crossfade. Settings → Nature provides NATURE SOUND (default ON) and SOUND VOLUME (default 30%).
+- Space/Enter pauses images and sound together; Right advances only the image, R refreshes observations, I opens the photo source, A opens the current recording on Freesound, and Back stops Nature. Audio failures leave the slideshow running.
+- Audio streams from Freesound previews; only a 24-hour sound catalog is cached. Internet access is required for sound. The listening pool uses CC0 recordings lasting 30 seconds–10 minutes and keeps their original dynamics.
 - A one-hour metadata-only cache that displays saved observations immediately, refreshes stale data in the background, and leaves saved data visible when the network is unavailable. Image files are not persisted.
 
 ### Plex
@@ -148,11 +150,12 @@ User configuration is stored outside the app bundle:
   local_queue.json
   local_queue.m3u8
   nature_observations.json
+  nature_sounds.json
   diagnostics/
     owlswitch.jsonl
 ```
 
-`jellyfin_auth.json` stores the Jellyfin server URL, access token, user ID, username, server identity, and client device ID. Passwords are not persisted. Karaoke files contain public catalog metadata, queue state, and validated canonical YouTube watch URLs; they contain no credentials. Local files contain owner-only resume state, root-contained local paths, queue UUIDs, track choices, validated YouTube video IDs/titles for imported soundtrack entries, and a generated local media playlist. `nature_observations.json` is a bounded metadata-only cache of validated public observations and CC0 photo URLs; image files are not stored.
+`jellyfin_auth.json` stores the Jellyfin server URL, access token, user ID, username, server identity, and client device ID. Passwords are not persisted. Karaoke files contain public catalog metadata, queue state, and validated canonical YouTube watch URLs; they contain no credentials. Local files contain owner-only resume state, root-contained local paths, queue UUIDs, track choices, validated YouTube video IDs/titles for imported soundtrack entries, and a generated local media playlist. `nature_observations.json` is a bounded metadata-only cache of validated public observations and CC0 photo URLs; image files are not stored. `nature_sounds.json` stores revalidated CC0 Freesound recording identities and display metadata; audio files and coordinates are not stored.
 
 ## Security Notes
 

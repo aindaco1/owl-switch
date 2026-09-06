@@ -12,11 +12,13 @@ FocusScope {
     property bool paused: false
     property bool showingCachedData: false
     property bool showingStaleData: false
+    readonly property var soundtrack: natureBackend.soundtrack
     readonly property bool usingExternalOutput: outputLease.active
 
     signal goBack()
 
     focus: true
+    onPausedChanged: if (soundtrack) soundtrack.setPaused(paused)
 
     function currentTitle() {
         var item = montage.currentItem
@@ -55,6 +57,7 @@ FocusScope {
         errorText = message
         paused = false
         montage.stop()
+        if (soundtrack) soundtrack.stop()
     }
 
     function refresh() {
@@ -80,6 +83,7 @@ FocusScope {
     function handlePlayerKey(event) {
         if (event.key === Qt.Key_Escape || event.key === Qt.Key_Back || event.key === Qt.Key_Backspace) {
             montage.stop()
+            if (soundtrack) soundtrack.stop()
             goBack()
             event.accepted = true
         } else if (loadState === "error" &&
@@ -90,7 +94,8 @@ FocusScope {
                    (event.key === Qt.Key_Right || event.key === Qt.Key_Down)) {
             montage.next()
             event.accepted = true
-        } else if (loadState === "playing" && event.key === Qt.Key_Space) {
+        } else if (loadState === "playing" && (event.key === Qt.Key_Space ||
+                   event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
             togglePause()
             event.accepted = true
         } else if (loadState === "playing" && event.key === Qt.Key_R) {
@@ -98,6 +103,10 @@ FocusScope {
             event.accepted = true
         } else if (loadState === "playing" && event.key === Qt.Key_I) {
             openCurrentObservation()
+            event.accepted = true
+        } else if (loadState === "playing" && event.key === Qt.Key_A) {
+            if (soundtrack && soundtrack.sourceUrl)
+                Qt.openUrlExternally(soundtrack.sourceUrl)
             event.accepted = true
         }
     }
@@ -111,6 +120,19 @@ FocusScope {
         requested: true
         opaque: true
         acceptsFocus: true
+    }
+
+    Connections {
+        target: playerRoot.soundtrack
+        function onStatusChanged(message) { playerRoot.setStatus(message) }
+        function onInputKey(key) {
+            var keys = { "UP": Qt.Key_Up, "DOWN": Qt.Key_Down,
+                         "LEFT": Qt.Key_Left, "RIGHT": Qt.Key_Right,
+                         "ENTER": Qt.Key_Return, "SPACE": Qt.Key_Space,
+                         "ESC": Qt.Key_Escape, "q": Qt.Key_Escape }
+            if (keys[key] !== undefined)
+                playerRoot.handlePlayerKey({ key: keys[key], accepted: false })
+        }
     }
 
     Connections {
@@ -133,7 +155,6 @@ FocusScope {
                 playerRoot.showError("No usable Nature observations were returned.")
                 return
             }
-            playerRoot.paused = false
             montage.items = playerRoot.observations
             montage.start()
             if (stale)
@@ -174,12 +195,13 @@ FocusScope {
         stateText: playerRoot.loadState === "loading" ? "LOADING INATURALIST"
                    : playerRoot.loadState === "error" ? playerRoot.errorText
                    : (playerRoot.paused ? "PAUSED / " : "") + playerRoot.currentTitle()
-        footerText: "[ESC]:BACK [SPACE]:PAUSE [RIGHT]:NEXT [R]:REFRESH [I]:SOURCE"
+        footerText: "[ESC]:BACK [SPACE]:PAUSE [RIGHT]:NEXT [R]:REFRESH [I]:PHOTO [A]:SOUND"
         controls: [
             { key: "RIGHT / DOWN", action: "Next observation" },
-            { key: "SPACE", action: "Pause or resume" },
+            { key: "SPACE / ENTER", action: "Pause or resume" },
             { key: "R", action: "Refresh observations" },
             { key: "I", action: "Open on iNaturalist" },
+            { key: "A", action: "Open sound on Freesound" },
             { key: "ESC / BACK", action: "Stop Nature" }
         ]
     }
@@ -200,6 +222,10 @@ FocusScope {
             onStarted: {
                 playerRoot.loadState = "playing"
                 playerRoot.errorText = ""
+                if (playerRoot.soundtrack) {
+                    playerRoot.soundtrack.setPaused(playerRoot.paused)
+                    playerRoot.soundtrack.start()
+                }
                 if (!playerRoot.showingStaleData)
                     playerRoot.setStatus(playerRoot.cacheLabel())
             }
@@ -331,6 +357,12 @@ FocusScope {
         }
     }
 
-    Component.onCompleted: natureBackend.loadLatestObservations()
-    Component.onDestruction: montage.stop()
+    Component.onCompleted: {
+        if (soundtrack) soundtrack.prepare()
+        natureBackend.loadLatestObservations()
+    }
+    Component.onDestruction: {
+        if (soundtrack) soundtrack.stop()
+        montage.stop()
+    }
 }

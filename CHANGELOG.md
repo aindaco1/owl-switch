@@ -4,6 +4,22 @@ All notable OwlSwitch changes are documented here. Releases through 1.6.3 used t
 
 ## [Unreleased]
 
+## [1.6.6] - 2026-09-06
+
+### Added
+
+- Nature now starts CC0 environmental recordings from Earth Garden's Freesound catalog when its slideshow begins. Recordings shuffle independently of the photos, play to their natural end, and overlap with a five-second crossfade.
+- Added persistent Nature sound and volume settings, combined slideshow/audio pause with Space or Enter, and an A shortcut to open the current recording on Freesound. Leaving Nature fades out and stops its sound.
+
+### Changed
+
+- Photo refreshes preserve Nature's pause state and current audio session. Network or audio failures leave the slideshow running, and an active Nature session keeps the app screensaver from covering it.
+- Extended the shared mpv controller with isolated audio-only players, bounded preloading, and equal-power fades that account for mpv's volume curve and reserve overlap headroom.
+
+### Security
+
+- Nature accepts only explicit CC0 recordings with validated Freesound HTTPS preview identities. Catalog and audio redirects are disabled, requests and buffers are bounded, and only revalidated metadata is cached with owner-only permissions. No audio downloads, provider credentials, website embedding, or analytics are added.
+
 ## [1.6.5] - 2026-08-29
 
 ### Added

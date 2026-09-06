@@ -6,7 +6,7 @@ OwlSwitch is distributed as `OwlSwitch.app` inside a macOS Apple Silicon DMG nam
 
 - Apple Silicon Mac.
 - macOS current enough to run the Qt 6 app bundle.
-- Network access to your Jellyfin server for Jellyfin playback, to YouTube for Karaoke/Retro playback and imported Local soundtracks, and to iNaturalist for fresh Nature observations. Nature can reuse its saved metadata while offline.
+- Network access to your Jellyfin server for Jellyfin playback, to YouTube for Karaoke/Retro playback and imported Local soundtracks, and to iNaturalist for fresh Nature observations. Nature sound also needs Earth Garden’s catalog and Freesound’s preview CDN. Nature can reuse saved metadata while offline, but images and audio are not downloaded for offline use.
 
 The packaged app bundles `mpv`, `ffmpeg`, `ffprobe`, the pinned official yt-dlp onedir runtime, pinned Deno, and required non-system dynamic libraries. End users do not need to install Homebrew, Python, mpv, FFmpeg, yt-dlp, or a JavaScript runtime.
 
@@ -35,7 +35,7 @@ Manual updating remains supported:
 2. Verify the checksum with `shasum -a 256 -c <downloaded-file>.sha256`.
 3. Quit the older app, remove any pre-1.6.4 compatibility copy if present, then drag `OwlSwitch.app` onto the Applications shortcut.
 
-Your settings, Jellyfin authentication, Karaoke catalog cache and queue, Local queues (including imported YouTube soundtrack entries) and resume history, and Nature observation metadata cache are kept in `~/Library/Application Support/owl-switch/`, so replacing the app bundle does not erase them. The first compatible build moves the legacy data directory to this location atomically when possible and continues using the original directory if the move cannot safely complete.
+Your settings, Jellyfin authentication, Karaoke catalog cache and queue, Local queues (including imported YouTube soundtrack entries) and resume history, and Nature observation and sound metadata caches are kept in `~/Library/Application Support/owl-switch/`, so replacing the app bundle does not erase them. The first compatible build moves the legacy data directory to this location atomically when possible and continues using the original directory if the move cannot safely complete.
 
 ## Uninstall
 
