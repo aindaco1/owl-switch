@@ -20,7 +20,9 @@ queued video, a deliberately delayed startup with another test app focused,
 cancelled startup, same-screen playback, 1×/2× scaling, letterboxing on a non-16:9 display, and
 left/above placement.
 It seeds the existing Local saved queue with two generated clips under an isolated
-`DATA_ROOT`; `TMPDIR` and mpv configuration are isolated too. It does not use a
+`DATA_ROOT`; `TMPDIR` and mpv configuration are isolated too. Each cold start
+focuses the controller and uses Tab/Return to start the queue, matching a user
+opening video rather than racing background saved-queue autoplay. It does not use a
 product test mode or alter the installed app's settings.
 
 The native trace polls WindowServer during window creation. It rejects a small

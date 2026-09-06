@@ -68,6 +68,7 @@ class AppCase:
     def __init__(self, tools, app, root, media, display, same=False):
         self.tools, self.root, self.app, self.mpv = tools, root, app, None
         self.trace = None
+        self.start_key = None
         root.mkdir()
         data = root / "data"; data.mkdir()
         temporary = root / "tmp"; temporary.mkdir()
@@ -80,7 +81,7 @@ class AppCase:
         settings = {"app": {"startup_module": "com.owlswitch.local_files", "prevent_sleep": "OFF",
                     "controller_display_index": controller, "media_display_index": media_index},
                     "modules": {"com.owlswitch.local_files": {"media_directory": str(media),
-                    "auto_launch": "ON", "resume_playback": "no"}}}
+                    "auto_launch": "OFF", "resume_playback": "no"}}}
         (data / "config.json").write_text(json.dumps(settings))
         (data / "local_queue.json").write_text(json.dumps({"schemaVersion": 2, "media": [
             {"entryId": str(uuid.uuid4()), "filePath": str(clip)} for clip in sorted(media.glob("*.mp4"))],
@@ -91,6 +92,16 @@ class AppCase:
                  "DATA_ROOT": str(data), "TMPDIR": str(temporary) + "/",
                  "MPV_HOME": str(config)}, stdout=self.log, stderr=self.log, start_new_session=True)
         self.ipc = IPC(temporary / "owl-switch-mpv.sock")
+
+    def start_queue(self):
+        wait_for(lambda: self.tools.window("snapshot", self.process.pid)["accessibleWindows"],
+                 "controller window")
+        self.activate(self.process.pid)
+        self.tools.window("key", self.process.pid, 48)  # Tab -> saved queue pane
+        # Observe mpv from the key-down onward, including while the key helper
+        # finishes delivery, so delayed-start cases can hold it before creation.
+        self.start_key = subprocess.Popen([str(self.tools.build / "WindowProbe"),
+            "key", str(self.process.pid), "36"], stdout=subprocess.DEVNULL)  # Return -> play
 
     def child(self):
         result = subprocess.run(["pgrep", "-P", str(self.process.pid), "-x", "mpv"],
@@ -161,6 +172,8 @@ class AppCase:
                 signal_owned(signal.SIGKILL)
                 wait_for(lambda: not living(), "owned app/helpers exit", timeout=3)
         finally:
+            if self.start_key is not None:
+                terminate(self.start_key)
             if self.trace is not None:
                 terminate(self.trace)
             self.log.close()
@@ -214,6 +227,7 @@ def run(arguments):
                             app = AppCase(tools, arguments.app, root / f"case-{len(results['cases'])}",
                                           media, display, same=scenario == "same-screen")
                             try:
+                                app.start_queue()
                                 app.mpv = wait_for(app.child, "owned mpv process")
                                 app.trace = subprocess.Popen([str(root / "WindowProbe"), "trace", str(app.mpv)],
                                                              stdout=subprocess.PIPE, text=True)
@@ -228,7 +242,10 @@ def run(arguments):
                                     if scenario == "cancelled-start":
                                         app.activate(app.process.pid)
                                         tools.window("key", app.process.pid, 53)  # Escape -> real QML stop
-                                        os.kill(app.mpv, signal.SIGCONT)
+                                        try:
+                                            os.kill(app.mpv, signal.SIGCONT)
+                                        except ProcessLookupError:
+                                            pass  # Cancellation may already have terminated it.
                                         wait_for(lambda: app.child() is None, "cancelled mpv exits")
                                         state = tools.window("snapshot", sentinel.pid)
                                         if state["frontPID"] != app.process.pid:
