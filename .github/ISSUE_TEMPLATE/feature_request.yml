@@ -39,7 +39,7 @@ body:
     id: principles
     attributes:
       label: Alignment with the project's approach
-      description: OwlSwitch is a browsing shell that hands off to purpose-built tools, navigable with a simple remote. See [CONTRIBUTING.md](https://github.com/aindaco1/owl-switch/blob/main/CONTRIBUTING.md).
+      description: OwlSwitch is a browsing shell that hands off to purpose-built tools, navigable with a simple remote. See [CONTRIBUTING.md](https://github.com/aindaco1/owl-switch/blob/main/docs/CONTRIBUTING.md).
       options:
         - label: This fits the "browse & hand-off" approach and works with remote-only navigation (up/down/left/right, enter, esc/back).
           required: true

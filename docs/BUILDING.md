@@ -2,6 +2,8 @@
 
 OwlSwitch lives in the `owl-switch` repository and builds and installs as `OwlSwitch.app`. The signed DMG supplies only the hidden legacy aliases required by pre-1.6.4 updater contracts. This fork is macOS-only; CMake intentionally fails configuration on non-macOS hosts.
 
+Run these commands from the repository root.
+
 ## macOS (ARM)
 
 ### Prerequisites (one-time)
@@ -67,26 +69,9 @@ APP_ROOT=$(pwd) ./build/OwlSwitch.app/Contents/MacOS/OwlSwitch
 
 ### Configuration
 
-On macOS all user configuration is stored at:
-
-```
-~/Library/Application Support/owl-switch/
-  config.json          ← app and module settings
-  jellyfin_auth.json   ← Jellyfin auth
-  karaoke_catalog.json ← cached public eighteen-source Karaoke catalog (refreshed after 24 hours)
-  karaoke_queue.json   ← persistent Karaoke queue
-  karaoke_queue.m3u8   ← generated canonical playback URLs
-  local_files_history.json ← Local resume history
-  local_queue.json     ← persistent Local media and soundtrack queues, including validated YouTube soundtrack entries
-  local_queue.m3u8     ← generated root-contained Local playback paths
-  nature_observations.json ← cached public iNaturalist metadata (no image files)
-```
-
-Tumblr's current URL and favorites are ordinary module settings inside `config.json`; no separate database or credential file is used. Global Controls remappings are bounded integer input identifiers under `app.remote_keymap`; they add to rather than replace the built-in navigation keys.
-
-Nature's atomic cache contains at most 100 validated public observation records and CC0 photo URLs. It contains no credentials or downloaded image data and is refreshed after one hour.
-
-This directory is created automatically on first run. It is separate from the app itself, so deleting or rebuilding the app will not wipe your settings.
+See [Config Storage](ARCHITECTURE.md#config-storage) for the data directory,
+file inventory, and settings schema, and [installation and updates](INSTALL.md#update)
+for legacy data migration.
 
 ### App icon
 
@@ -139,19 +124,11 @@ The workflow writes credentials only under the ephemeral runner temp directory, 
 
 ### How to trigger a build
 
-Releases are built automatically when you push a version tag:
-
-```bash
-git tag v1.1.0
-git push origin v1.1.0
-```
-
-And you can use pre-release tags to test CI without making a public release:
-
-```bash
-git tag v1.1.0-rc1
-git push origin v1.1.0-rc1
-```
+Pushing a new version tag triggers the release workflow. After updating the
+version declarations and dated changelog entry, tag the verified commit with the
+full `APP_RELEASE_TAG` value from `CMakeLists.txt` and push that tag. Choose a new
+release version; never retag an existing release. Pre-release tags exercise the
+same distribution workflow and are published as GitHub pre-releases.
 
 Before pushing the tag, wait for the exact commit's `main` CI run to succeed.
 That run assembles, verifies, provenance-attests, and retains the unsigned
@@ -177,7 +154,8 @@ The exact-commit `main` CI job pins Xcode 26.3, installs Qt and the media helper
 from the Apple Silicon runner's Homebrew snapshot, configures CMake for `arm64`,
 downloads and verifies pinned yt-dlp/Deno, builds and tests, embeds all helpers,
 runs `macdeployqt` without its temporary ad-hoc signing, prunes unused QML
-plugins, and verifies the unsigned bundle. CI records a complete file, mode,
+plugins, and verifies the bundle. CI ad-hoc signs the prepared app and runs the
+native display regression suite. It records a complete file, mode,
 hash, and contained-symlink manifest, packages the app as a seven-day internal
 artifact, and issues GitHub-hosted build provenance for that exact source
 commit. The release downloads only that artifact from the exact successful
@@ -186,9 +164,9 @@ bundle manifest, app identity/version/architecture, helper versions, and every
 Mach-O dependency before signing. It then performs the same stripped-runtime
 checks (including one live extraction from each Karaoke source, one Local
 playlist expansion canary, and one actual Local YouTube audio-stream attempt),
-Developer-ID signs, notarizes, and staples the app. Build/test/deployment work
-is not repeated after tagging, while signing and all distribution trust checks
-remain fresh.
+Developer-ID signs, runs the native display suite against that signed app,
+then notarizes and staples it. Compilation and deployment are not repeated after
+tagging; native regression, signing, and distribution trust checks remain fresh.
 
 The notarized app crosses jobs only as a `ditto` ZIP so signatures,
 entitlements, and the stapled ticket survive intact. A fresh macOS 26 job
@@ -266,6 +244,23 @@ Nature's backend suite also skips its real-service canary by default. Run it whe
 NATURE_LIVE_TEST=1 ./build/nature_backend_tests fetchesLiveObservations
 ```
 
+Nature sound has a separate catalog canary and a real-mpv decoder check. The
+latter exercises three generated recordings with null audio output; it verifies
+rotation and overlaps but does not replace physical listening:
+
+```bash
+NATURE_AUDIO_LIVE_TEST=1 ./build/naturesoundtrack_tests liveCatalog
+NATURE_AUDIO_REAL_MPV=/absolute/path/to/mpv ./build/audiocrossfadeplayer_tests realDecoderRotatesToNaturalEnd
+```
+
+For video-window changes, follow the [native display regression guide](../tests/native_display/README.md)
+on an idle Mac. It owns the virtual-display commands, prerequisites, and evidence
+contract. CI runs the suite on the prepared app, and the release workflow runs it
+on the Developer ID signed app before publication. Missing prerequisites fail
+the gate. Virtual displays do not replace physical-monitor wake/cable checks.
+
+For manual media checks, use the [contribution checklist](CONTRIBUTING.md#testing).
+
 For packaging changes, also run a local install into a temporary prefix and confirm bundled helpers launch:
 
 ```bash
@@ -276,6 +271,9 @@ cmake --install build --prefix /tmp/owl-switch-install-test
 /tmp/owl-switch-install-test/OwlSwitch.app/Contents/Resources/bin/yt-dlp --version
 /tmp/owl-switch-install-test/OwlSwitch.app/Contents/Resources/bin/deno --version
 ```
+
+Also verify the installed helpers with a stripped `PATH` so development-only
+dependencies cannot satisfy the packaging check.
 
 Run the DMG layout fixtures independently when changing packaging or release workflows:
 

@@ -9,8 +9,8 @@ if(NOT DEFINED RELEASE_TAG OR RELEASE_TAG STREQUAL "")
 endif()
 
 file(READ "${SOURCE_ROOT}/README.md" readme)
-file(READ "${SOURCE_ROOT}/CHANGELOG.md" changelog)
-file(READ "${SOURCE_ROOT}/INSTALL.md" install_guide)
+file(READ "${SOURCE_ROOT}/docs/CHANGELOG.md" changelog)
+file(READ "${SOURCE_ROOT}/docs/INSTALL.md" install_guide)
 
 set(expected_artifact_pattern "owl-switch-<tag>-macOS-arm64.dmg")
 string(FIND "${readme}" "${expected_artifact_pattern}" artifact_pattern_index)

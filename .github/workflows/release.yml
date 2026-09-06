@@ -466,7 +466,7 @@ jobs:
             index($0, "## [" version "]") == 1 { capture = 1; next }
             capture && /^## \[/ { exit }
             capture { print }
-          ' CHANGELOG.md > "$notes"
+          ' docs/CHANGELOG.md > "$notes"
           test -s "$notes"
           cat >> "$notes" <<EOF
 

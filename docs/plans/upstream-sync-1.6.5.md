@@ -1,6 +1,11 @@
 # OwlSwitch 1.6.5 Upstream Review
 
-This release reviews `anthonycaccese/240-MP` through commit `fbbcd3c1fecfc56967f43999495c722553d19a5a`, from the shared base `11c215f27b4b55e098881821634e13e95e10044d`. At review time OwlSwitch was 75 commits ahead of that base and upstream was 100 commits ahead, so the safe integration strategy is a behavior-level selective port rather than a merge or broad cherry-pick.
+Status: historical — selective integration shipped in
+[1.6.5](https://github.com/aindaco1/owl-switch/releases/tag/v1.6.5). Current behavior
+lives in the [architecture guide](../ARCHITECTURE.md); deferred priorities live in
+the [roadmap](../ROADMAP.md). The evidence below is the original review record.
+
+This release reviewed `anthonycaccese/240-MP` through commit `fbbcd3c1fecfc56967f43999495c722553d19a5a`, from the shared base `11c215f27b4b55e098881821634e13e95e10044d`. At review time OwlSwitch was 75 commits ahead of that base and upstream was 100 commits ahead, so the safe integration strategy is a behavior-level selective port rather than a merge or broad cherry-pick.
 
 ## Adopted
 

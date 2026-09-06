@@ -44,14 +44,9 @@ A module is a folder under `modules/` with a `manifest.json` and QML views, plus
 
 ## Testing
 
-Before opening a PR, run the checks that apply:
-
-```bash
-cmake --build build
-ctest --test-dir build --output-on-failure
-qmllint -I views Main.qml views/*.qml views/Components/*.qml modules/jellyfin/views/*.qml modules/karaoke/views/*.qml modules/retro_tv/views/*.qml modules/local_files/views/*.qml modules/tumblr_screensaver/views/*.qml modules/nature/views/*.qml
-git diff --check
-```
+Before opening a PR, follow [Local Verification](BUILDING.md#local-verification)
+for build, CTest, QML lint, live-service canaries, packaging, and native display
+checks. Run the checks that apply to the change.
 
 Manual checks for media changes:
 
@@ -63,12 +58,12 @@ Manual checks for media changes:
 - Confirm Local browsing, Play Now, track probing, sidecar subtitles, queue/soundtrack add, duplicate persistence, reorder/remove/clear, local playlist expansion, ordered YouTube soundtrack import/reorder/audio-only streaming, media-queue muting, tagged/fallback artist-song overlays at video and soundtrack changes, Repeat Off/Queue/One, shuffle, resume, failed retention, configurable root, separate audio recovery, and saved-queue auto-launch.
 - Confirm Tumblr URL loading, favorites persistence/editing, shuffled non-repeating still/GIF playback, pause/resume, and 90s-style transitions.
 - Confirm Nature cold load, cached and stale-cache load, next/pause/refresh/source controls, compact name/species/location presentation, comma-separated `City, State/Province, Country` formatting, English place resolution, non-repeating playback, and offline fallback.
-- Confirm Nature sound starts only after the first displayed image, stays independent of next/refresh, pauses with the slideshow, and stops on Back. Test sound OFF/volume persistence, repeated five-second crossfades, a late/unavailable stream, and both output roles. `NATURE_AUDIO_LIVE_TEST=1 ./build/naturesoundtrack_tests liveCatalog` checks the current provider; `NATURE_AUDIO_REAL_MPV=/absolute/path/to/mpv ./build/audiocrossfadeplayer_tests realDecoderRotatesToNaturalEnd` exercises three generated recordings with real decoding and null audio output. These do not substitute for physical listening.
+- Confirm Nature sound starts only after the first displayed image, stays independent of next/refresh, pauses with the slideshow, and stops on Back. Test sound OFF/volume persistence, repeated five-second crossfades, a late/unavailable stream, and both output roles. Automated decoder checks do not substitute for physical listening.
 - Confirm app settings persist after restart.
 - Confirm a current or failed launch update check stays unobtrusive, a newer valid release presents the keyboard-first **View / Later** prompt exactly once, **View** opens the existing Software Update screen, and the manual check remains available.
-- For packaging changes, run `cmake --install` into a temporary prefix and verify bundled `mpv`, `ffmpeg`, `ffprobe`, `yt-dlp`, and Deno launch with a stripped `PATH`.
-- For video-window changes, run the real native suite on an idle Mac: `python3 tests/native_display/regression.py --app build/OwlSwitch.app --evidence dist/native-display-regression.json`. See [native display tests](tests/native_display/README.md) for packaged apps and prerequisites. CI gates its prepared app and the release workflow gates the signed app with the same suite.
-- Before tagging, wait for the exact commit's successful `main` CI run. Releases reuse only its seven-day, provenance-attested unsigned app artifact and still perform fresh signing, notarization, DMG, and downloaded-release verification.
+
+For release preparation, use the exact-commit CI and distribution gates in
+[the release workflow guide](BUILDING.md#github-actions).
 
 ## AI Use
 
@@ -76,4 +71,4 @@ AI-assisted contributions are allowed, but contributors are responsible for unde
 
 ## License
 
-By contributing, you agree your contributions are licensed under GPL-3.0. See [LICENSE](LICENSE).
+By contributing, you agree your contributions are licensed under GPL-3.0. See [LICENSE](../LICENSE).

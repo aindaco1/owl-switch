@@ -1,5 +1,9 @@
 # Separate-screen video: fullscreen and controller focus
 
+Status: implemented in [PR #24](https://github.com/aindaco1/owl-switch/pull/24);
+awaiting merge and a future signed release. Source and packaged regression
+acceptance are recorded below. Reconciled September 6, 2026.
+
 Implementation branch: `plan/video-fullscreen-focus`, based on released 1.6.6
 (`50daf669415555eb688ef9c0ce8a8ef7e486fc30`). Release/version selection follows
 acceptance; this change does not retag or overwrite 1.6.6.
@@ -49,7 +53,7 @@ rewrite was justified.
 ## Regression and release checks
 
 The reusable suite is documented in
-[`tests/native_display/README.md`](../tests/native_display/README.md). It launches
+[`tests/native_display/README.md`](../../tests/native_display/README.md). It launches
 the real app with an isolated saved Local queue, generated clips, private IPC
 paths, a native virtual display, and an independent test app for focus checks.
 It uses WindowServer geometry, Accessibility chrome inspection, mpv state, and
