@@ -55,6 +55,8 @@ def window_failures(state, screen, front, settled=True):
     if len(windows) != 1 or (settled and not frame_matches(windows[0]["frame"], screen)):
         failures.append("video does not cover the selected display")
     accessible = state["accessibleWindows"]
+    if state.get("accessibilityErrors") or any(not w.get("valid") for w in accessible):
+        failures.append("Accessibility window inspection failed")
     if len(accessible) != 1:
         failures.append("one accessible video window is required for the chrome assertion")
     elif accessible[0]["buttons"]:
@@ -119,7 +121,23 @@ class AppCase:
         wait_for(decoded, "first decoded video frame", timeout=20)
 
     def snapshot(self):
-        state = self.tools.window("snapshot", self.mpv)
+        # Decoder readiness precedes native window creation on some signed
+        # launches. Wait for observable data, never for the expected geometry,
+        # chrome or foreground app: those remain assertions on the result.
+        start = time.monotonic()
+        attempts = []
+        while True:
+            state = self.tools.window("snapshot", self.mpv)
+            visible = [w for w in state["windows"] if w["layer"] == 0 and w["alpha"] > 0]
+            accessible = state["accessibleWindows"]
+            if (visible and accessible and not state["accessibilityErrors"] and
+                    all(w["valid"] for w in accessible)):
+                break
+            attempts.append({"elapsed": time.monotonic() - start, **state})
+            if time.monotonic() - start >= 8:
+                break
+            time.sleep(0.05)
+        state["readinessAttempts"] = attempts
         state["fullscreen"] = self.ipc.get("fullscreen")
         state["border"] = self.ipc.get("border")
         return state
@@ -298,8 +316,19 @@ def run(arguments):
                                     app.ipc.command("set_property", "geometry", "640x360")
                                     app.ipc.command("set_property", "fullscreen", False)
                                     wait_for(lambda: not app.ipc.get("fullscreen"), "windowed negative control")
-                                    time.sleep(0.5)  # Allow AppKit's window transition to finish.
-                                    state = app.snapshot()
+                                    # IPC acknowledges the requested state before AppKit
+                                    # completes its transition. Observe the native change.
+                                    deadline = time.monotonic() + 8
+                                    while True:
+                                        state = app.snapshot()
+                                        windows = [w for w in state["windows"] if w["layer"] == 0 and w["alpha"] > 0]
+                                        accessible = state["accessibleWindows"]
+                                        if (len(windows) == 1 and not frame_matches(windows[0]["frame"], app.screen) and
+                                                len(accessible) == 1 and accessible[0]["buttons"]):
+                                            break
+                                        if time.monotonic() >= deadline:
+                                            break
+                                        time.sleep(0.05)
                                     errors = window_failures(state, app.screen, state["frontPID"])
                                     case["observations"].append({"stage": "deliberately-decorated", **state})
                                     for error in ["video does not cover the selected display", "video exposes title-bar controls"]:
@@ -337,6 +366,7 @@ def run(arguments):
                                 case["failures"].append(str(error))
                             finally:
                                 app.close()
+                                case["appLogTail"] = (app.root / "app.log").read_text(errors="replace")[-16000:]
                                 arguments.evidence.write_text(json.dumps(results, indent=2) + "\n")
                                 print(f"{'FAIL' if case['failures'] else 'PASS'}: {name}: {'; '.join(case['failures'])}", flush=True)
                     results.setdefault("cleanup", []).append(f"{label}: original displays restored")

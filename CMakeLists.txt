@@ -398,6 +398,12 @@ if(BUILD_TESTING)
     )
 
     add_test(
+        NAME native_window_observation
+        COMMAND /usr/bin/python3
+            "${CMAKE_SOURCE_DIR}/tests/native_display/test_regression.py"
+    )
+
+    add_test(
         NAME release_ci_reuse
         COMMAND /bin/zsh
             "${CMAKE_SOURCE_DIR}/tests/ReleaseCiReuseTest.zsh"

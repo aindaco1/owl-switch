@@ -35,6 +35,15 @@ chrome oracle requires a real accessible video window and no close/minimize/zoom
 controls. A deliberately decorated, windowed negative control must fail both the
 geometry and chrome assertions. A true mpv fullscreen property alone cannot pass.
 
+Decoder readiness can precede WindowServer visibility. Snapshots allow eight
+seconds for native window and Accessibility data to become readable, recording
+failed observations and AX error codes. They never wait for the desired bounds,
+chrome, or focus before asserting those values. Unreadable frame/button attributes
+fail explicitly; an AX error cannot count as an absent title bar. The negative
+control also waits for its native window transition rather than an IPC property
+acknowledgment. CTest exercises these observation rules with deterministic delayed,
+unreadable, undersized, decorated, and incorrectly focused fixtures.
+
 Requirements: macOS with WindowServer, Xcode command-line tools, Python 3,
 `pkg-config`, Qt 6, and existing Accessibility inspection/event-posting permission
 for the test runner. The bundled ffmpeg generates the clip; development builds can

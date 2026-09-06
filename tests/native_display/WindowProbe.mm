@@ -4,24 +4,36 @@
 #include <cstdio>
 #include <initializer_list>
 #include <csignal>
+#include <cmath>
 
 static volatile sig_atomic_t stopping = 0;
 static void stop(int) { stopping = 1; }
 
-static id attribute(AXUIElementRef element, CFStringRef name) {
+static id attribute(AXUIElementRef element, CFStringRef name,
+                    NSMutableArray *errors = nil, bool optional = false) {
     CFTypeRef value = nullptr;
-    AXUIElementCopyAttributeValue(element, name, &value);
+    AXError error = AXUIElementCopyAttributeValue(element, name, &value);
+    if (error != kAXErrorSuccess && !(optional &&
+            (error == kAXErrorNoValue || error == kAXErrorAttributeUnsupported)))
+        [errors addObject:@{@"attribute": (__bridge NSString *)name, @"error": @(error)}];
     return CFBridgingRelease(value);
 }
 
-static NSDictionary *axFrame(AXUIElementRef element) {
-    id position = attribute(element, kAXPositionAttribute);
-    id size = attribute(element, kAXSizeAttribute);
+static NSDictionary *axFrame(AXUIElementRef element, NSMutableArray *errors) {
+    id position = attribute(element, kAXPositionAttribute, errors);
+    id size = attribute(element, kAXSizeAttribute, errors);
     CGPoint point = {}; CGSize dimensions = {};
-    if (position) AXValueGetValue((__bridge AXValueRef)position, kAXValueTypeCGPoint, &point);
-    if (size) AXValueGetValue((__bridge AXValueRef)size, kAXValueTypeCGSize, &dimensions);
+    bool valid = position && size &&
+        CFGetTypeID((__bridge CFTypeRef)position) == AXValueGetTypeID() &&
+        CFGetTypeID((__bridge CFTypeRef)size) == AXValueGetTypeID() &&
+        AXValueGetValue((__bridge AXValueRef)position, kAXValueTypeCGPoint, &point) &&
+        AXValueGetValue((__bridge AXValueRef)size, kAXValueTypeCGSize, &dimensions) &&
+        std::isfinite(point.x) && std::isfinite(point.y) &&
+        std::isfinite(dimensions.width) && std::isfinite(dimensions.height) &&
+        dimensions.width > 0 && dimensions.height > 0;
+    if (!valid) [errors addObject:@{@"attribute": @"frame", @"error": @"invalid AX geometry"}];
     return @{@"X": @(point.x), @"Y": @(point.y),
-             @"Width": @(dimensions.width), @"Height": @(dimensions.height)};
+             @"Width": @(dimensions.width), @"Height": @(dimensions.height), @"valid": @(valid)};
 }
 
 static NSArray *windowsForPID(pid_t pid) {
@@ -118,25 +130,32 @@ int main(int argc, char **argv) {
                     [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
                 }
             } else if ([command isEqual:@"snapshot"]) {
+                // Bound each remote AX request and record failures instead of
+                // silently treating unreadable attributes as absent chrome.
+                AXUIElementRef system = AXUIElementCreateSystemWide();
+                AXUIElementSetMessagingTimeout(system, 0.5);
+                CFRelease(system);
+                NSMutableArray *errors = [NSMutableArray array];
                 result[@"observerPID"] = @(getpid());
                 result[@"frontPID"] = @([NSWorkspace sharedWorkspace].frontmostApplication.processIdentifier);
                 result[@"windows"] = windowsForPID(pid);
                 AXUIElementRef app = AXUIElementCreateApplication(pid);
                 NSMutableArray *accessible = [NSMutableArray array];
-                for (id item in attribute(app, kAXWindowsAttribute)) {
+                for (id item in attribute(app, kAXWindowsAttribute, errors)) {
                     AXUIElementRef window = (__bridge AXUIElementRef)item;
-                    NSMutableDictionary *details = [NSMutableDictionary dictionaryWithDictionary:axFrame(window)];
+                    NSMutableDictionary *details = [NSMutableDictionary dictionaryWithDictionary:axFrame(window, errors)];
                     NSMutableArray *buttons = [NSMutableArray array];
                     for (NSString *name in @[@"AXCloseButton", @"AXMinimizeButton", @"AXZoomButton"]) {
-                        id button = attribute(window, (__bridge CFStringRef)name);
+                        id button = attribute(window, (__bridge CFStringRef)name, errors, true);
                         if (button) [buttons addObject:@{@"kind": name,
-                            @"frame": axFrame((__bridge AXUIElementRef)button)}];
+                            @"frame": axFrame((__bridge AXUIElementRef)button, errors)}];
                     }
                     details[@"buttons"] = buttons;
                     [accessible addObject:details];
                 }
                 CFRelease(app);
                 result[@"accessibleWindows"] = accessible;
+                result[@"accessibilityErrors"] = errors;
             } else return 64;
         }
         NSData *json = [NSJSONSerialization dataWithJSONObject:result options:0 error:nil];
