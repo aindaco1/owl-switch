@@ -49,10 +49,10 @@ def frame_matches(frame, screen):
         ("X", "x"), ("Y", "y"), ("Width", "width"), ("Height", "height")])
 
 
-def window_failures(state, screen, front):
+def window_failures(state, screen, front, settled=True):
     windows = [w for w in state["windows"] if w["layer"] == 0 and w["alpha"] > 0]
     failures = []
-    if len(windows) != 1 or not frame_matches(windows[0]["frame"], screen):
+    if len(windows) != 1 or (settled and not frame_matches(windows[0]["frame"], screen)):
         failures.append("video does not cover the selected display")
     accessible = state["accessibleWindows"]
     if len(accessible) != 1:
@@ -118,33 +118,52 @@ class AppCase:
         wait_for(lambda: self.tools.window("snapshot", pid)["frontPID"] == pid,
                  "test-owned app activation")
 
-    def close(self):
-        # Only this app's newly created process group; includes its own mpv/helpers.
-        try:
-            os.killpg(self.process.pid, signal.SIGCONT)
-            os.killpg(self.process.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
-        try:
-            self.process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            os.killpg(self.process.pid, signal.SIGKILL)
-            self.process.wait(timeout=5)
-        if self.trace is not None:
-            terminate(self.trace)
-        try:
-            wait_for(lambda: not self.group_running(), "owned app/helper process cleanup", timeout=3)
-        except RuntimeError:
-            os.killpg(self.process.pid, signal.SIGKILL)
-            wait_for(lambda: not self.group_running(), "owned process group exits", timeout=3)
-        self.log.close()
+    @staticmethod
+    def processes():
+        output = subprocess.check_output(["ps", "-axo", "pid=,ppid=,uid=,stat="],
+                                         text=True, timeout=5)
+        return {int(pid): (int(parent), int(uid), status)
+                for pid, parent, uid, status in (line.split() for line in output.splitlines())}
 
-    def group_running(self):
+    def close(self):
+        # AppKit may attach system services to a GUI process group. Target only
+        # descendants owned by our user, never the whole group or system services.
+        table = self.processes()
+        owned = {self.process.pid}
+        while True:
+            children = {pid for pid, (parent, uid, _) in table.items()
+                        if parent in owned and uid == os.getuid()}
+            if children <= owned:
+                break
+            owned |= children
+        if self.mpv in table and table[self.mpv][0] in (1, self.process.pid) and table[self.mpv][1] == os.getuid():
+            owned.add(self.mpv)
+
+        def living():
+            return {pid: status for pid, (_, uid, status) in self.processes().items()
+                    if pid in owned and uid == os.getuid() and not status.startswith("Z")}
+
+        def signal_owned(number):
+            for pid, status in living().items():
+                try:
+                    os.kill(pid, number)
+                    if "T" in status:
+                        os.kill(pid, signal.SIGCONT)
+                except ProcessLookupError:
+                    pass
+
         try:
-            os.killpg(self.process.pid, 0)
-            return True
-        except ProcessLookupError:
-            return False
+            signal_owned(signal.SIGTERM)
+            terminate(self.process)
+            try:
+                wait_for(lambda: not living(), "owned app/helper process cleanup", timeout=3)
+            except RuntimeError:
+                signal_owned(signal.SIGKILL)
+                wait_for(lambda: not living(), "owned app/helpers exit", timeout=3)
+        finally:
+            if self.trace is not None:
+                terminate(self.trace)
+            self.log.close()
 
 
 def run(arguments):
@@ -230,7 +249,7 @@ def run(arguments):
                                     if abs(video_width - video_height * 16 / 9) > 2:
                                         case["failures"].append(f"{stage}: video aspect ratio changed")
                                     case["failures"] += [f"{stage}: {error}" for error in
-                                                         window_failures(state, app.screen, expected_front)]
+                                                         window_failures(state, app.screen, expected_front, settled=stage != "first-frame")]
                                     if state["fullscreen"] is not True:
                                         case["failures"].append(f"{stage}: mpv fullscreen is false")
 
@@ -251,6 +270,7 @@ def run(arguments):
                                                  ("X", "x", "width"), ("Y", "y", "height"),
                                                  ("Width", "width", "width"), ("Height", "height", "height")]):
                                         case["failures"].append("initial video window is undersized or misplaced")
+                                observe("settled")
                                 if scenario == "negative-control":
                                     app.ipc.command("set_property", "border", True)
                                     app.ipc.command("set_property", "geometry", "640x360")
@@ -264,8 +284,7 @@ def run(arguments):
                                         if error not in errors:
                                             case["failures"].append(f"negative control did not detect: {error}")
                                 elif scenario == "same-screen":
-                                    time.sleep(0.3)
-                                    observe("settled")
+                                    pass
                                 else:
                                     app.activate(app.process.pid)
                                     expected_front = app.process.pid

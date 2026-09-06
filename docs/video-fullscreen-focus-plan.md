@@ -63,8 +63,8 @@ control must be rejected by both the frame and chrome checks.
   cancellation, same-screen playback, 1×/2× scaling, and left/above placement.
 - [x] Verify the hosted `macos-26` runner can create displays and inspect native windows.
 - [x] Pass the expanded 18-case packaged suite, including a non-16:9 display and aspect-ratio assertions.
-- [ ] Pass the final branch's full CI, including the prepared-app native gate.
-- [ ] Open a focused PR with source/package/native evidence.
+- Final hosted CI acceptance is tracked by the required check on [PR #24](https://github.com/aindaco1/owl-switch/pull/24).
+- [x] Open a focused PR with source/package/native evidence.
 - [ ] On the next release, pass the same suite against the Developer ID signed app before publication.
 
 CI now runs the native suite after bundle preparation and before the exact-commit
