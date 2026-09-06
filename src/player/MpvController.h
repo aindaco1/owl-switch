@@ -40,7 +40,10 @@ public:
     int duration()    const { return m_duration;    }
     int playlistPos() const { return m_playlistPos; }
     QString currentPath() const { return m_currentPath; }
-    void setPlaybackScreenIndex(int index) { m_playbackScreenIndex = index; }
+    void setPlaybackDisplay(int index, bool separateFromController) {
+        m_playbackScreenIndex = index;
+        m_separatePlaybackScreen = separateFromController;
+    }
 
     Q_INVOKABLE void loadAndPlay(const QString &url, float startSeconds,
                                   int audioTrack, int subTrack,
@@ -154,6 +157,7 @@ private:
     int           m_duration     = 0;
     int           m_playlistPos  = -1;
     int           m_playbackScreenIndex = -1;
+    bool          m_separatePlaybackScreen = false;
     bool          m_headlessMode = false;
     bool          m_pendingStartClear = false;
     bool          m_paused = false;

@@ -34,6 +34,8 @@ private slots:
     void trackSelectionPreservesLaunchMute();
     void rendersAndClearsTrackOverlay();
     void audioOnlyUsesIsolatedBoundedPlayers();
+    void videoWindowPolicy_data();
+    void videoWindowPolicy();
 };
 
 void MpvControllerTest::audioOnlyUsesIsolatedBoundedPlayers()
@@ -57,7 +59,7 @@ void MpvControllerTest::audioOnlyUsesIsolatedBoundedPlayers()
         if (!file.open(QIODevice::ReadOnly)) return QStringList{};
         return QString::fromUtf8(file.readAll()).split('\n', Qt::SkipEmptyParts);
     };
-    first.setPlaybackScreenIndex(1);
+    first.setPlaybackDisplay(1, true);
     first.loadAndPlayWithOptions("https://cdn.freesound.org/previews/538/538001_6746400-hq.mp3",
         {{"audioOnly", true}, {"videoFilters", "scale=640:480"}});
     QTRY_VERIFY_WITH_TIMEOUT(readArguments().contains("--pause=yes"), 3000);
@@ -72,6 +74,10 @@ void MpvControllerTest::audioOnlyUsesIsolatedBoundedPlayers()
         QVERIFY(!argument.startsWith("--vf="));
         QVERIFY(!argument.startsWith("--screen="));
         QVERIFY(!argument.startsWith("--fs-screen="));
+        QVERIFY(!argument.startsWith("--focus-on="));
+        QVERIFY(!argument.startsWith("--border="));
+        QVERIFY(!argument.startsWith("--geometry="));
+        QVERIFY(!argument.startsWith("--macos-geometry-calculation="));
     }
     const QString firstSocket = firstArgs.filter("--input-ipc-server=").value(0);
     QVERIFY(QFile::remove(marker));
@@ -85,6 +91,37 @@ void MpvControllerTest::audioOnlyUsesIsolatedBoundedPlayers()
     QVERIFY(second.running());
     second.stopImmediately();
     QVERIFY(!second.running());
+}
+
+void MpvControllerTest::videoWindowPolicy_data()
+{
+    QTest::addColumn<bool>("separate");
+    QTest::newRow("separate media display") << true;
+    QTest::newRow("same display") << false;
+}
+
+void MpvControllerTest::videoWindowPolicy()
+{
+    QFETCH(bool, separate);
+    QTemporaryDir root;
+    QVERIFY(QDir().mkpath(root.filePath("bin")));
+    const QString marker = root.filePath("arguments");
+    QVERIFY(writeExecutable(root.filePath("bin/mpv"),
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" > '" + marker.toUtf8() + "'\n"));
+    MpvController controller(root.path(), nullptr, nullptr, true);
+    controller.setPlaybackDisplay(separate ? 1 : 0, separate);
+    controller.loadAndPlayWithOptions("/test/video.mp4");
+    QTRY_VERIFY_WITH_TIMEOUT(QFile::exists(marker), 3000);
+    QFile file(marker);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    const auto arguments = QString::fromUtf8(file.readAll()).split('\n', Qt::SkipEmptyParts);
+    QVERIFY(arguments.contains("--fullscreen"));
+    QVERIFY(arguments.contains("--no-native-fs"));
+    QVERIFY(arguments.contains(QString("--screen=%1").arg(separate ? 1 : 0)));
+    QCOMPARE(arguments.contains("--focus-on=never"), separate);
+    QCOMPARE(arguments.contains("--border=no"), separate);
+    QCOMPARE(arguments.contains("--geometry=100%x100%+0+0"), separate);
+    QCOMPARE(arguments.contains("--macos-geometry-calculation=whole"), separate);
 }
 
 void MpvControllerTest::youtubeModesValidateFormats_data()
@@ -123,7 +160,7 @@ void MpvControllerTest::youtubeModesValidateFormats()
     QVERIFY(writeExecutable(fakeDenoPath, QByteArrayLiteral("#!/bin/sh\nexit 0\n")));
 
     MpvController controller(appRoot);
-    controller.setPlaybackScreenIndex(1);
+    controller.setPlaybackDisplay(1, true);
     controller.loadAndPlay(QStringLiteral("https://www.youtube.com/watch?v=abcdefghijk"),
                            0.0f, 0, -1, QStringList{}, false, -1, 0.0f,
                            QString{}, false, oscMode);

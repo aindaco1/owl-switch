@@ -60,6 +60,11 @@ jobs:
           fi
           echo "QT_ROOT_DIR=$(brew --prefix qt)" >> "$GITHUB_ENV"
 
+      - name: Verify native desktop prerequisites
+        run: |
+          export PKG_CONFIG_PATH="${QT_ROOT_DIR}/lib/pkgconfig"
+          python3 tests/native_display/smoke.py --require-window-access --evidence native-display-capability.json
+
       - name: Configure
         run: |
           cmake -B build \
@@ -101,6 +106,29 @@ jobs:
           ./scripts/macos_prepare_release_bundle.zsh \
             "$GITHUB_WORKSPACE/build" "$GITHUB_WORKSPACE/install" \
             "$GITHUB_WORKSPACE" "$QT_ROOT_DIR"
+
+      - name: Ad-hoc sign the native test app
+        # Executing normalized Mach-O files on Apple Silicon requires valid
+        # local signatures. The release workflow replaces these with Developer ID.
+        run: |
+          for helper in mpv ffmpeg ffprobe; do
+            codesign --force --sign - "install/OwlSwitch.app/Contents/Resources/bin/$helper"
+          done
+          codesign --force --deep --sign - install/OwlSwitch.app
+
+      - name: Native video display regressions
+        run: |
+          export PKG_CONFIG_PATH="${QT_ROOT_DIR}/lib/pkgconfig"
+          python3 tests/native_display/regression.py --app install/OwlSwitch.app --evidence native-display-regression.json
+
+      - name: Retain native display evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-display-evidence
+          path: native-display-*.json
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Package exact-commit unsigned app for release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
