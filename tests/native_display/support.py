@@ -99,7 +99,11 @@ class NativeTools:
                     raise RuntimeError("Existing display geometry changed during the fixture")
                 return observed
 
-            observed = wait_for(configured, "Qt virtual display geometry and scale")
+            try:
+                observed = wait_for(configured, "Qt virtual display geometry and scale")
+            except RuntimeError as error:
+                raise RuntimeError(f"{error}; expected {width}x{height}@{scale} at {origin}; "
+                                   f"observed {self.screens()}; native {native}") from error
             yield {"native": native, "screens": observed, "screen": next(
                 s for s in observed if s["name"] == NAME),
                 "index": next(i for i, s in enumerate(observed) if s["name"] == NAME)}

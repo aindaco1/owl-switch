@@ -128,7 +128,19 @@ class AppCase:
             self.process.wait(timeout=5)
         if self.trace is not None:
             terminate(self.trace)
+        try:
+            wait_for(lambda: not self.group_running(), "owned app/helper process cleanup", timeout=3)
+        except RuntimeError:
+            os.killpg(self.process.pid, signal.SIGKILL)
+            wait_for(lambda: not self.group_running(), "owned process group exits", timeout=3)
         self.log.close()
+
+    def group_running(self):
+        try:
+            os.killpg(self.process.pid, 0)
+            return True
+        except ProcessLookupError:
+            return False
 
 
 def run(arguments):
@@ -217,9 +229,11 @@ def run(arguments):
                                     # macOS animates a newly ordered window at roughly 98% of its
                                     # final size. Reject the small video-sized launch while allowing
                                     # that OS animation; settled frames must still match every edge.
-                                    elif any(w["frame"]["Width"] < app.screen["width"] * 0.9 or
-                                             w["frame"]["Height"] < app.screen["height"] * 0.9 for w in visible):
-                                        case["failures"].append("initial video window is undersized")
+                                    elif any(abs(w["frame"][key] - app.screen[value]) > app.screen[axis] * 0.05
+                                             for w in visible for key, value, axis in [
+                                                 ("X", "x", "width"), ("Y", "y", "height"),
+                                                 ("Width", "width", "width"), ("Height", "height", "height")]):
+                                        case["failures"].append("initial video window is undersized or misplaced")
                                 if scenario == "negative-control":
                                     app.ipc.command("set_property", "border", True)
                                     app.ipc.command("set_property", "geometry", "640x360")
