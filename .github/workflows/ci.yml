@@ -65,15 +65,6 @@ jobs:
           export PKG_CONFIG_PATH="${QT_ROOT_DIR}/lib/pkgconfig"
           python3 tests/native_display/smoke.py --require-window-access --evidence native-display-capability.json
 
-      - name: Retain native display evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: native-display-evidence
-          path: native-display-*.json
-          if-no-files-found: ignore
-          retention-days: 7
-
       - name: Configure
         run: |
           cmake -B build \
@@ -115,6 +106,20 @@ jobs:
           ./scripts/macos_prepare_release_bundle.zsh \
             "$GITHUB_WORKSPACE/build" "$GITHUB_WORKSPACE/install" \
             "$GITHUB_WORKSPACE" "$QT_ROOT_DIR"
+
+      - name: Native video display regressions
+        run: |
+          export PKG_CONFIG_PATH="${QT_ROOT_DIR}/lib/pkgconfig"
+          python3 tests/native_display/regression.py --app install/OwlSwitch.app --evidence native-display-regression.json
+
+      - name: Retain native display evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-display-evidence
+          path: native-display-*.json
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Package exact-commit unsigned app for release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

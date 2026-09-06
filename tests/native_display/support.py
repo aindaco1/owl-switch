@@ -2,6 +2,7 @@
 import contextlib
 import fcntl
 import json
+import os
 import pathlib
 import selectors
 import shlex
@@ -80,6 +81,9 @@ class NativeTools:
         baseline = self.screens()
         if not baseline or any(item["name"] == NAME for item in baseline):
             raise RuntimeError("An active desktop and no concurrent virtual fixture are required")
+        hosted_virtual_controller = (os.environ.get("GITHUB_ACTIONS") == "true" and
+                                     len(baseline) == 1 and baseline[0]["name"] == "Apple Virtual")
+        automatic_origin = origin is None
         args = [str(self.build / "VirtualDisplayProbe"), str(width), str(height), str(scale)]
         if origin is None:
             origin = (max(s["x"] + s["width"] for s in baseline), 0)
@@ -91,11 +95,23 @@ class NativeTools:
             def configured():
                 observed = self.screens()
                 virtual = [s for s in observed if s["name"] == NAME]
+                physical = [s for s in observed if s["name"] != NAME]
+                expected_origin = origin
+                if hosted_virtual_controller and automatic_origin and physical:
+                    expected_origin = (max(s["x"] + s["width"] for s in physical), 0)
                 if len(virtual) != 1 or any(virtual[0][key] != value for key, value in [
                         ("width", width), ("height", height), ("scale", scale),
-                        ("x", origin[0]), ("y", origin[1])]):
+                        ("x", expected_origin[0]), ("y", expected_origin[1])]):
                     return None
-                if canonical([s for s in observed if s["name"] != NAME]) != canonical(baseline):
+                if hosted_virtual_controller:
+                    # The hosted VM resizes its synthetic primary to the added monitor.
+                    # Only its dimensions may change; cleanup must still restore the
+                    # exact original topology. Never relax physical-display checks.
+                    unchanged = lambda items: [{k: v for k, v in item.items()
+                                                if k not in ("width", "height")} for item in items]
+                    if canonical(unchanged(physical)) != canonical(unchanged(baseline)):
+                        raise RuntimeError("Hosted virtual controller identity/origin/scale changed")
+                elif canonical(physical) != canonical(baseline):
                     raise RuntimeError("Existing display geometry changed during the fixture")
                 return observed
 
@@ -104,7 +120,8 @@ class NativeTools:
             except RuntimeError as error:
                 raise RuntimeError(f"{error}; expected {width}x{height}@{scale} at {origin}; "
                                    f"observed {self.screens()}; native {native}") from error
-            yield {"native": native, "screens": observed, "screen": next(
+            yield {"native": native, "screens": observed,
+                   "hostedVirtualController": hosted_virtual_controller, "screen": next(
                 s for s in observed if s["name"] == NAME),
                 "index": next(i for i, s in enumerate(observed) if s["name"] == NAME)}
         finally:

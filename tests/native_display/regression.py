@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Exercise the real OwlSwitch app and bundled mpv on native virtual monitors."""
 import argparse
+import hashlib
+import platform
+import plistlib
 import json
 import os
 import pathlib
@@ -144,12 +147,18 @@ class AppCase:
 
 
 def run(arguments):
-    results = {"app": str(arguments.app), "cases": [], "status": "failed"}
+    results = {"app": str(arguments.app), "cases": [], "status": "failed",
+               "os": platform.mac_ver()[0], "architecture": platform.machine(),
+               "fullMatrix": not arguments.basic_only and arguments.cold_starts >= 10}
     arguments.evidence.parent.mkdir(parents=True, exist_ok=True)
     try:
         with serial_desktop(), tempfile.TemporaryDirectory(prefix="owl-window-", dir="/tmp") as directory:
             root = pathlib.Path(directory)
             tools = NativeTools(root, window=True)
+            executable = arguments.app / "Contents/MacOS/OwlSwitch"
+            results["executableSHA256"] = hashlib.sha256(executable.read_bytes()).hexdigest()
+            with open(arguments.app / "Contents/Info.plist", "rb") as info:
+                results["version"] = plistlib.load(info).get("CFBundleShortVersionString")
             permissions = tools.window("permissions")
             results["permissions"] = permissions
             if not permissions["accessibility"]:
@@ -170,6 +179,7 @@ def run(arguments):
                 matrix = [("standard", 1920, 1080, 1, None)]
                 if not arguments.basic_only:
                     matrix += [("retina", 1280, 720, 2, None),
+                               ("letterboxed", 1280, 800, 2, None),
                                ("left", 1920, 1080, 1, (-1920, 0)),
                                ("above", 1280, 720, 2, (0, -720))]
                 for label, width, height, scale, origin in matrix:
@@ -213,6 +223,11 @@ def run(arguments):
                                 def observe(stage):
                                     state = app.snapshot()
                                     case["observations"].append({"stage": stage, **state})
+                                    dimensions = app.ipc.get("osd-dimensions")
+                                    video_width = dimensions["w"] - dimensions["ml"] - dimensions["mr"]
+                                    video_height = dimensions["h"] - dimensions["mt"] - dimensions["mb"]
+                                    if abs(video_width - video_height * 16 / 9) > 2:
+                                        case["failures"].append(f"{stage}: video aspect ratio changed")
                                     case["failures"] += [f"{stage}: {error}" for error in
                                                          window_failures(state, app.screen, expected_front)]
                                     if state["fullscreen"] is not True:
