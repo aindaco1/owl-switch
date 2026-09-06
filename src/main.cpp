@@ -155,7 +155,8 @@ int main(int argc, char *argv[]) {
     NatureSoundtrack     natureSoundtrack(appRoot, dataRoot, &appCore);
     natureBackend.setSoundtrack(&natureSoundtrack);
     MpvController       mpvController(appRoot, &appCore);
-    mpvController.setPlaybackScreenIndex(displaySelection.mediaIndex);
+    mpvController.setPlaybackDisplay(displaySelection.mediaIndex,
+                                    displaySelection.hasSeparateMediaScreen());
     IdleTracker         idleTracker;
     InputManager        inputManager(&appCore);
     UpdateManager       updateManager(dataRoot);

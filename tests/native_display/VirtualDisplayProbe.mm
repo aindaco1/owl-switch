@@ -19,10 +19,12 @@ static volatile sig_atomic_t stopping = 0;
 static void stop(int) { stopping = 1; }
 
 int main(int argc, char **argv) {
-    if (argc != 4) return 64;
+    if (argc != 4 && argc != 7) return 64;
     const int width = std::atoi(argv[1]), height = std::atoi(argv[2]), scale = std::atoi(argv[3]);
     if (width < 640 || width > 3840 || height < 480 || height > 2160 ||
         (scale != 1 && scale != 2)) return 64;
+    const int lifetime = argc == 7 ? std::atoi(argv[6]) : 30;
+    if (lifetime < 1 || lifetime > 600) return 64;
     std::signal(SIGTERM, stop);
     std::signal(SIGINT, stop);
     @autoreleasepool {
@@ -55,10 +57,21 @@ int main(int argc, char **argv) {
         while (!stopping && !CGDisplayIsOnline(displayID) && deadline.timeIntervalSinceNow > 0)
             [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
         if (!CGDisplayIsOnline(displayID)) return 77;
+        if (argc == 7) {
+            CGDisplayConfigRef configuration = nullptr;
+            if (CGBeginDisplayConfiguration(&configuration) != kCGErrorSuccess) return 77;
+            if (CGConfigureDisplayOrigin(configuration, displayID, std::atoi(argv[4]),
+                                         std::atoi(argv[5])) != kCGErrorSuccess) {
+                CGCancelDisplayConfiguration(configuration);
+                return 77;
+            }
+            if (CGCompleteDisplayConfiguration(configuration, kCGConfigureForSession) != kCGErrorSuccess)
+                return 77;
+        }
         std::printf("{\"displayID\":%u,\"online\":true}\n", displayID);
         std::fflush(stdout);
         // A hard lifetime bound also cleans up after an interrupted test driver.
-        deadline = [NSDate dateWithTimeIntervalSinceNow:30];
+        deadline = [NSDate dateWithTimeIntervalSinceNow:lifetime];
         while (!stopping && deadline.timeIntervalSinceNow > 0)
             [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
         (void)[display displayID]; // Retain the display until the test ends.

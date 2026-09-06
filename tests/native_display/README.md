@@ -1,44 +1,56 @@
-# Native display tests
+# Native video display regressions
 
-This test-only fixture creates a real macOS virtual display, checks its geometry
-and scale through Qt, and verifies cleanup. It is not included in the app bundle.
+These tests run the actual OwlSwitch app and its mpv subprocess on real macOS
+virtual monitors. The private CoreGraphics display helper is test-only and is
+never installed in the application. No display driver or third-party app is needed.
 
-From the checkout root:
+Run serially on an idle, logged-in macOS desktop. The suite activates its own app
+windows; concurrent human input or other GUI tests can invalidate focus checks.
+Use the existing release bundle, or the development app after building:
 
 ```sh
-python3 tests/native_display/smoke.py --evidence dist/window-investigation/virtual-display-evidence.json
+python3 tests/native_display/regression.py --app build/OwlSwitch.app \
+  --evidence dist/native-display-regression.json
 ```
 
-Requirements: macOS with an active WindowServer desktop, Xcode command-line
-tools, Python 3, `pkg-config`, and Qt 6. The script compiles its two small helpers
-into a temporary directory and removes them afterward. No third-party display
-app or driver installation is required.
+The default suite checks ten fresh app launches, the first visible video window,
+settled bounds on all four edges, absence of accessible title-bar controls,
+controller focus, pause/resume/seek/stop through actual keyboard input, the next
+queued video, a deliberately delayed startup with another test app focused,
+cancelled startup, same-screen playback, 1×/2× scaling, and left/above placement.
+It seeds the existing Local saved queue with two generated clips under an isolated
+`DATA_ROOT`; `TMPDIR` and mpv configuration are isolated too. It does not use a
+product test mode or alter the installed app's settings.
 
-The check temporarily adds a monitor to the active desktop. Run it on its own,
-not concurrently with another display test or while changing display settings.
-It checks 1920×1080 at 1× and 1280×720 logical pixels at 2×. Each case verifies
-Qt's enumeration, dimensions, scale, unchanged existing displays, and restoration
-of the original display list when the helper exits. The helper also has a
-30-second lifetime limit if its driver is interrupted.
+The native trace polls WindowServer during window creation. It rejects a small
+video-sized initial window while allowing macOS's brief window-opening animation;
+settled frames must match the selected screen within one logical point. The
+chrome oracle requires a real accessible video window and no close/minimize/zoom
+controls. A deliberately decorated, windowed negative control must fail both the
+geometry and chrome assertions. A true mpv fullscreen property alone cannot pass.
 
-Local verification on September 6, 2026: both cases passed on macOS 26.6.2,
-Apple Silicon, Qt 6.11.1. The existing built-in 1728×1117 display remained at 2×.
+Requirements: macOS with WindowServer, Xcode command-line tools, Python 3,
+`pkg-config`, Qt 6, and existing Accessibility inspection/event-posting permission
+for the test runner. The bundled ffmpeg generates the clip; development builds can
+use ffmpeg on PATH. Permission checks do not prompt or modify system permissions.
+Missing prerequisites fail explicitly. Screen Recording is reported but is not
+required: this suite uses WindowServer geometry and Accessibility, not screenshots.
 
-## Coverage boundary
+A quick capability check (no video assertions) is also available:
 
-This is a passing **fixture capability check**. It does not yet launch OwlSwitch
-video, assert its title bar, test its focus behavior, or fix either reported bug.
-Those regression assertions are specified in
-[`docs/video-fullscreen-focus-plan.md`](../../docs/video-fullscreen-focus-plan.md).
+```sh
+python3 tests/native_display/smoke.py --require-window-access \
+  --evidence dist/native-display-capability.json
+```
 
-The helper uses private `CGVirtualDisplay` interfaces, following the approach
-documented in [Chromium's own macOS display tests](https://chromium.googlesource.com/chromium/src/+/HEAD/ui/display/mac/test/virtual_display_util_mac.mm).
-Runtime lookup detects missing classes. Any unsupported environment, timeout,
-wrong geometry, or cleanup failure makes the smoke check fail; it is never a
-silent success. An active GUI session and API availability on the hosted runner
-must be verified before making this a required CI/release check.
+Both scripts share the same display fixture and desktop lock. Each display helper
+has a ten-minute lifetime bound. Normal exit, assertion failure, and interruption
+close only test-owned processes and restore the original display geometry/scale.
+JSON evidence contains only test-owned window/focus/display state. Reduced
+`--cold-starts` or `--basic-only` runs are diagnostics, not full release acceptance.
 
-Future native window tests may require Screen Recording or Accessibility
-permission for pixel/chrome assertions. Detect those prerequisites without
-automatically prompting or editing system permissions. An unavailable native
-test is not evidence of fullscreen/focus acceptance.
+The virtual display API follows [Chromium's own macOS display tests](https://chromium.googlesource.com/chromium/src/+/HEAD/ui/display/mac/test/virtual_display_util_mac.mm).
+It is runtime-checked because it is private. Local fixture capability passed on
+macOS 26.6.2, Apple Silicon, Qt 6.11.1. Hosted-runner availability must be verified
+separately; a passing offscreen test or fixture smoke is not a native video pass.
+Physical cable/firmware/wake behavior is outside this simulated display coverage.
