@@ -229,6 +229,7 @@ def run(arguments):
                             try:
                                 app.start_queue()
                                 app.mpv = wait_for(app.child, "owned mpv process")
+                                case["appPID"], case["mpvPID"] = app.process.pid, app.mpv
                                 app.trace = subprocess.Popen([str(root / "WindowProbe"), "trace", str(app.mpv)],
                                                              stdout=subprocess.PIPE, text=True)
                                 if scenario in ("delayed-switch", "cancelled-start"):

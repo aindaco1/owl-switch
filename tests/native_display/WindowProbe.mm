@@ -42,6 +42,8 @@ static NSArray *windowsForPID(pid_t pid) {
 int main(int argc, char **argv) {
     @autoreleasepool {
         [NSApplication sharedApplication];
+        // Inspection and key delivery must never activate the probe itself.
+        [NSApp setActivationPolicy:NSApplicationActivationPolicyProhibited];
         if (argc < 2) return 64;
         NSString *command = @(argv[1]);
         NSMutableDictionary *result = [NSMutableDictionary dictionary];
@@ -102,6 +104,7 @@ int main(int argc, char **argv) {
                     [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
                 }
             } else if ([command isEqual:@"snapshot"]) {
+                result[@"observerPID"] = @(getpid());
                 result[@"frontPID"] = @([NSWorkspace sharedWorkspace].frontmostApplication.processIdentifier);
                 result[@"windows"] = windowsForPID(pid);
                 AXUIElementRef app = AXUIElementCreateApplication(pid);
