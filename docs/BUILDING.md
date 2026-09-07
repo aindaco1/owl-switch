@@ -28,6 +28,13 @@ brew install mpv ffmpeg
 
 OwlSwitch uses mpv as an external subprocess for video playback, `ffprobe` for local audio/subtitle track probing, and `ffmpeg` to merge high-quality Karaoke prefetches. Development runs can use Homebrew copies from `PATH`. Packaged apps embed all three helpers and their non-system dynamic libraries during `cmake --install`.
 
+MoltenVK, installed as an mpv dependency, is also packaged with its license and
+Vulkan driver manifest. It is discovered dynamically, so copying only `otool`
+dependencies is insufficient. `HelperResolver` selects the enclosed manifest
+through the child process's `VK_DRIVER_FILES`; installed apps do not depend on
+Homebrew's driver search paths. Bundle validation requires this runtime, and
+native release tests reject a fallback from `gpu-next`.
+
 CMake also downloads pinned Apple Silicon-compatible Deno and the official universal yt-dlp onedir archive, verifies their SHA-256 checksums, and embeds them with their license files. The installed `helper-manifest.json` is the authority for versions, archive digests, paths, and the required onedir runtime. This avoids yt-dlp's first-use self-extraction while remaining independent of a user's Python, JavaScript runtime, yt-dlp, or Homebrew installation. Maintainers can test a local standalone helper with `-DYT_DLP_EXECUTABLE_OVERRIDE=/path/to/yt-dlp` or `-DDENO_EXECUTABLE_OVERRIDE=/path/to/deno`; release builds must use the pinned defaults.
 
 Jellyfin playback sends authentication headers to mpv through a temporary owner-only mpv include file. Tokens are not placed in normal Jellyfin stream URLs, and the app's playback launch log redacts known token query parameters.

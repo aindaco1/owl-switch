@@ -63,7 +63,7 @@ control must be rejected by both the frame and chrome checks.
 
 - [x] Implement shared video policy and same-screen/audio-only argument tests.
 - [x] Reproduce focus stealing in signed 1.6.6 and record its initial undersized window.
-- [x] Pass all 30 CTest targets and the full repository QML lint command.
+- [x] Pass all 31 CTest targets and the full repository QML lint command.
 - [x] Pass the 17-case source native suite, including ten cold starts, delayed focus,
   cancellation, same-screen playback, 1×/2× scaling, and left/above placement.
 - [x] Verify the hosted `macos-26` runner can create displays and inspect native windows.
@@ -81,6 +81,13 @@ Silicon. Release signing replaces those signatures, and the release workflow
 runs the same tests against the signed app before notarization/publication.
 Missing prerequisites and failures stop the corresponding job; an offscreen or
 fixture-only pass cannot satisfy this gate.
+
+The 1.6.7 signed gate also exposed a missing dynamically loaded MoltenVK driver:
+CI used Homebrew's driver, while the release runner fell back to a software Cocoa
+renderer with repeated Accessibility timeouts. The bundled-driver contract is
+documented in [BUILDING.md](../BUILDING.md). Native cases now require `gpu-next`
+with an invalid inherited Vulkan discovery path, so external development tools
+cannot conceal an incomplete release bundle.
 
 The hosted VM's `Apple Virtual` primary automatically resizes when a monitor is
 added. The fixture permits that controller dimension change only on that hosted

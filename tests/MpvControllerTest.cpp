@@ -1,8 +1,10 @@
 #include "player/MpvController.h"
+#include "tools/HelperResolver.h"
 
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
+#include <QScopeGuard>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -36,7 +38,36 @@ private slots:
     void audioOnlyUsesIsolatedBoundedPlayers();
     void videoWindowPolicy_data();
     void videoWindowPolicy();
+    void bundledVulkanDriverOverridesExternalDiscovery();
 };
+
+void MpvControllerTest::bundledVulkanDriverOverridesExternalDiscovery()
+{
+    QTemporaryDir root;
+    QVERIFY(QDir().mkpath(root.filePath("bin")));
+    QVERIFY(writeExecutable(root.filePath("bin/mpv"), "#!/bin/sh\nexit 0\n"));
+    const bool wasSet = qEnvironmentVariableIsSet("VK_DRIVER_FILES");
+    const QByteArray previous = qgetenv("VK_DRIVER_FILES");
+    const auto restore = qScopeGuard([&] {
+        if (wasSet) qputenv("VK_DRIVER_FILES", previous);
+        else qunsetenv("VK_DRIVER_FILES");
+    });
+    qputenv("VK_DRIVER_FILES", "/missing-external-driver.json");
+    QCOMPARE(HelperResolver::processEnvironment(root.path()).value("VK_DRIVER_FILES"),
+             QString("/missing-external-driver.json"));
+    QVERIFY(QDir().mkpath(root.filePath("vulkan/icd.d")));
+    const QString manifest = root.filePath("vulkan/icd.d/MoltenVK_icd.json");
+    QFile file(manifest);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.write("{}\n"); // The bundle validator checks the real manifest contents.
+    file.close();
+    QCOMPARE(QDir::cleanPath(HelperResolver::processEnvironment(root.path()).value("VK_DRIVER_FILES")),
+             manifest);
+    QVERIFY(file.remove());
+    QVERIFY(QFile::link(root.filePath("bin/mpv"), manifest));
+    QCOMPARE(HelperResolver::processEnvironment(root.path()).value("VK_DRIVER_FILES"),
+             QString("/missing-external-driver.json"));
+}
 
 void MpvControllerTest::audioOnlyUsesIsolatedBoundedPlayers()
 {

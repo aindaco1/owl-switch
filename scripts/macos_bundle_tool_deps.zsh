@@ -15,8 +15,8 @@ if [[ ! -d "$app/Contents" ]]; then
     exit 1
 fi
 
-if [[ ! -x "$tool" ]]; then
-    echo "Executable helper not found: $tool" >&2
+if [[ ! -f "$tool" || ! -r "$tool" || ( ! -x "$tool" && "$tool" != *.dylib ) ]]; then
+    echo "Helper or dynamic library not found: $tool" >&2
     exit 1
 fi
 
@@ -49,7 +49,7 @@ rewrite_dependency() {
     local copied_name="${copied_path:t}"
     local new_path
 
-    if [[ "$binary" == "$tool_dest" ]]; then
+    if [[ "$binary" == "$tool_dest" && "$tool_dir" != "$frameworks" ]]; then
         new_path="@loader_path/../../Frameworks/$copied_name"
     else
         new_path="@loader_path/$copied_name"

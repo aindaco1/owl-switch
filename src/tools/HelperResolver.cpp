@@ -133,6 +133,17 @@ QProcessEnvironment processEnvironment(const QString &appRoot)
 
     environment.insert(QStringLiteral("PATH"), paths.join(':'));
     environment.insert(QStringLiteral("APP_ROOT"), appRoot);
+#ifdef Q_OS_MACOS
+    // MoltenVK is a dynamically discovered Vulkan driver, not a linked mpv
+    // dependency. Prefer the packaged driver even on a developer's machine.
+    const QString mpvPath = helpers.constLast();
+    if (!mpvPath.isEmpty()) {
+        const QFileInfo driver(QDir(QFileInfo(mpvPath).absolutePath())
+            .filePath(QStringLiteral("../vulkan/icd.d/MoltenVK_icd.json")));
+        if (driver.isFile() && driver.isReadable() && !driver.isSymLink())
+            environment.insert(QStringLiteral("VK_DRIVER_FILES"), driver.absoluteFilePath());
+    }
+#endif
     return environment;
 }
 

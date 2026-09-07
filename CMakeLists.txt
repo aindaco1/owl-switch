@@ -42,6 +42,21 @@ configure_file(
 if(MPV_EXECUTABLE)
     get_filename_component(MPV_EXECUTABLE_REAL "${MPV_EXECUTABLE}" REALPATH)
     message(STATUS "mpv found and will be bundled for packaged macOS apps: ${MPV_EXECUTABLE_REAL}")
+    # Vulkan discovers MoltenVK through a JSON manifest rather than an otool
+    # dependency. Package it explicitly so clean Macs use the same GPU backend.
+    find_library(MOLTENVK_LIBRARY NAMES MoltenVK REQUIRED
+        PATHS /opt/homebrew/opt/molten-vk/lib /usr/local/opt/molten-vk/lib)
+    get_filename_component(MOLTENVK_LIBRARY_REAL "${MOLTENVK_LIBRARY}" REALPATH)
+    get_filename_component(MOLTENVK_LIBRARY_DIR "${MOLTENVK_LIBRARY_REAL}" DIRECTORY)
+    get_filename_component(MOLTENVK_ROOT "${MOLTENVK_LIBRARY_DIR}" DIRECTORY)
+    set(MOLTENVK_LICENSE "${MOLTENVK_ROOT}/LICENSE")
+    if(NOT EXISTS "${MOLTENVK_LICENSE}")
+        message(FATAL_ERROR "MoltenVK's distribution license is missing")
+    endif()
+    file(READ "${MOLTENVK_ROOT}/etc/vulkan/icd.d/MoltenVK_icd.json" MOLTENVK_ICD)
+    string(JSON MOLTENVK_ICD SET "${MOLTENVK_ICD}" ICD library_path
+        "\"../../../Frameworks/libMoltenVK.dylib\"")
+    file(WRITE "${CMAKE_BINARY_DIR}/generated/MoltenVK_icd.json" "${MOLTENVK_ICD}\n")
 else()
     message(WARNING "mpv was not found. Packaged apps will still build, but playback will require mpv on PATH.")
 endif()
@@ -547,7 +562,24 @@ if(MPV_EXECUTABLE)
         if(NOT bundle_mpv_result EQUAL 0)
             message(FATAL_ERROR \"Failed to bundle mpv into ${APP_DISPLAY_NAME}.app\")
         endif()
+        execute_process(
+            COMMAND /bin/zsh
+                \"${CMAKE_SOURCE_DIR}/scripts/macos_bundle_tool_deps.zsh\"
+                \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${APP_DISPLAY_NAME}.app\"
+                \"${MOLTENVK_LIBRARY_REAL}\"
+                \"Contents/Frameworks\"
+            RESULT_VARIABLE bundle_moltenvk_result
+        )
+        if(NOT bundle_moltenvk_result EQUAL 0)
+            message(FATAL_ERROR \"Failed to bundle MoltenVK into ${APP_DISPLAY_NAME}.app\")
+        endif()
     ")
+    install(FILES "${CMAKE_BINARY_DIR}/generated/MoltenVK_icd.json"
+        DESTINATION "${APP_DISPLAY_NAME}.app/Contents/Resources/vulkan/icd.d"
+        COMPONENT Runtime)
+    install(FILES "${MOLTENVK_LICENSE}"
+        DESTINATION "${APP_DISPLAY_NAME}.app/Contents/Resources/licenses"
+        RENAME LICENSE.MoltenVK COMPONENT Runtime)
 endif()
 
 if(FFPROBE_EXECUTABLE)

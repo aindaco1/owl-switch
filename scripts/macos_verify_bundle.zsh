@@ -12,6 +12,26 @@ if [[ ! -d "$app/Contents" ]]; then
     exit 1
 fi
 
+if [[ -x "$app/Contents/Resources/bin/mpv" ]]; then
+    /usr/bin/python3 - "$app" <<'PY'
+import json, pathlib, sys
+app = pathlib.Path(sys.argv[1]).resolve()
+manifest = app / "Contents/Resources/vulkan/icd.d/MoltenVK_icd.json"
+driver = app / "Contents/Frameworks/libMoltenVK.dylib"
+license = app / "Contents/Resources/licenses/LICENSE.MoltenVK"
+for path in (manifest, driver, license):
+    if not path.is_file() or path.is_symlink() or not path.stat().st_size:
+        sys.exit(f"Missing or unsafe bundled Vulkan runtime file: {path}")
+data = json.loads(manifest.read_text())
+if data["ICD"]["library_path"] != "../../../Frameworks/libMoltenVK.dylib":
+    sys.exit("Bundled Vulkan manifest must select the enclosed MoltenVK driver")
+if (manifest.parent / data["ICD"]["library_path"]).resolve() != driver:
+    sys.exit("Bundled Vulkan driver escapes its expected location")
+print("Verified bundled MoltenVK driver, manifest, and license")
+PY
+    lipo -archs "$app/Contents/Frameworks/libMoltenVK.dylib" | grep -qw arm64
+fi
+
 if find "$app" -name .DS_Store -print -quit | grep -q .; then
     echo "App bundle contains .DS_Store files" >&2
     exit 1

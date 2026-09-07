@@ -37,6 +37,8 @@ class Probe:
 
 class IPC:
     def get(self, key):
+        if key == "current-vo":
+            return "gpu-next"
         return key == "fullscreen"
 
 

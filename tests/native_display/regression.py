@@ -89,8 +89,13 @@ class AppCase:
             {"entryId": str(uuid.uuid4()), "filePath": str(clip)} for clip in sorted(media.glob("*.mp4"))],
             "soundtrack": []}))
         self.log = open(root / "app.log", "w")
+        runtime_environment = dict(os.environ)
+        if (app / "Contents/Resources/vulkan/icd.d/MoltenVK_icd.json").is_file():
+            # A global Homebrew driver must not make an incomplete app pass.
+            # HelperResolver must replace this with the app's packaged manifest.
+            runtime_environment["VK_DRIVER_FILES"] = str(root / "missing-driver.json")
         self.process = subprocess.Popen([str(app / "Contents/MacOS/OwlSwitch")],
-            env={**os.environ, "APP_ROOT": str(app / "Contents/Resources"),
+            env={**runtime_environment, "APP_ROOT": str(app / "Contents/Resources"),
                  "DATA_ROOT": str(data), "TMPDIR": str(temporary) + "/",
                  "MPV_HOME": str(config)}, stdout=self.log, stderr=self.log, start_new_session=True)
         self.ipc = IPC(temporary / "owl-switch-mpv.sock")
@@ -140,6 +145,7 @@ class AppCase:
         state["readinessAttempts"] = attempts
         state["fullscreen"] = self.ipc.get("fullscreen")
         state["border"] = self.ipc.get("border")
+        state["videoOutput"] = self.ipc.get("current-vo")
         return state
 
     def activate(self, pid):
@@ -292,6 +298,8 @@ def run(arguments):
                                                          window_failures(state, app.screen, expected_front, settled=stage != "first-frame")]
                                     if state["fullscreen"] is not True:
                                         case["failures"].append(f"{stage}: mpv fullscreen is false")
+                                    if state["videoOutput"] != "gpu-next":
+                                        case["failures"].append(f"{stage}: expected gpu-next video output, got {state['videoOutput']}")
 
                                 observe("first-frame")
                                 trace_output, _ = app.trace.communicate(timeout=5)

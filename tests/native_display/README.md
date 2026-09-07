@@ -44,6 +44,11 @@ control also waits for its native window transition rather than an IPC property
 acknowledgment. CTest exercises these observation rules with deterministic delayed,
 unreadable, undersized, decorated, and incorrectly focused fixtures.
 
+Packaged-app cases start with an invalid inherited Vulkan driver path. The app
+must replace it with its bundled MoltenVK manifest and report `gpu-next` as the
+active video output. This prevents a developer's Homebrew installation from
+masking a missing driver and a software-rendering fallback on clean Macs.
+
 Requirements: macOS with WindowServer, Xcode command-line tools, Python 3,
 `pkg-config`, Qt 6, and existing Accessibility inspection/event-posting permission
 for the test runner. The bundled ffmpeg generates the clip; development builds can
