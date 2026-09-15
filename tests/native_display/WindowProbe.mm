@@ -116,6 +116,10 @@ int main(int argc, char **argv) {
                 NSRunningApplication *app = [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
                 result[@"activated"] = @([app activateWithOptions:0]);
                 AXUIElementRef application = AXUIElementCreateApplication(pid);
+                // This command represents an explicit test-owned user switch.
+                // A background probe cannot rely on cooperative app activation.
+                result[@"frontmostError"] = @(AXUIElementSetAttributeValue(
+                    application, kAXFrontmostAttribute, kCFBooleanTrue));
                 NSArray *windows = attribute(application, kAXWindowsAttribute);
                 if (windows.count) AXUIElementPerformAction((__bridge AXUIElementRef)windows[0], kAXRaiseAction);
                 CFRelease(application);
@@ -137,7 +141,9 @@ int main(int argc, char **argv) {
                 CFRelease(system);
                 NSMutableArray *errors = [NSMutableArray array];
                 result[@"observerPID"] = @(getpid());
-                result[@"frontPID"] = @([NSWorkspace sharedWorkspace].frontmostApplication.processIdentifier);
+                NSRunningApplication *front = [NSWorkspace sharedWorkspace].frontmostApplication;
+                result[@"frontPID"] = @(front.processIdentifier);
+                result[@"frontBundleIdentifier"] = front.bundleIdentifier ?: @"";
                 result[@"windows"] = windowsForPID(pid);
                 AXUIElementRef app = AXUIElementCreateApplication(pid);
                 NSMutableArray *accessible = [NSMutableArray array];

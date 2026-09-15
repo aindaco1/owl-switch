@@ -51,6 +51,12 @@ class WindowObservationTest(unittest.TestCase):
             result = app.snapshot()
         return result, clock.elapsed
 
+    def test_activation_failure_is_reported_before_observation(self):
+        app = object.__new__(regression.AppCase)
+        app.tools = Probe(Clock(), [{"frontmostError": -25205}])
+        with self.assertRaisesRegex(RuntimeError, "AX activation failed: -25205"):
+            app.activate(20)
+
     def test_waits_for_native_visibility_after_decoder_readiness(self):
         pending = snapshot()
         pending["windows"] = []
