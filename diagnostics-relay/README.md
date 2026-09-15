@@ -34,10 +34,18 @@ The initial test used a temporary public-DNS resolver because this Mac cached th
 hostname's earlier NXDOMAIN result; hostname and TLS verification remained enabled.
 No private application logs, configuration, or media were submitted.
 
+After refreshing this Mac's DNS cache, the normal HTTPS health request returned
+200. A temporary native harness compiled the actual
+`DiagnosticsManager::submitReport` implementation and returned
+`REPORT SENT - THANK YOU` using the normal system resolver and the unchanged
+eight-second client timeout. The GitHub App created
+[issue #29](https://github.com/aindaco1/owl-switch/issues/29) with exactly the
+single synthetic event and count one; the issue was verified and closed.
+
 Seven local tests, deployment dry-run, workflow lint, and dependency audit pass.
-The dedicated relay CI check also passed. A temporary native harness using the
-actual `DiagnosticsManager::submitReport` compiles; its live verification remains
-pending this Mac's DNS cache refresh.
+The dedicated relay CI check also passed. Report delivery is operational without
+a new desktop build; these checks exercise the relay and native submission code,
+not a click through the installed app's QML interface.
 
 The dedicated Diagnostics relay CI workflow runs these tests and the deployment
 dry-run without credentials or live reports. Deployment remains a deliberate
