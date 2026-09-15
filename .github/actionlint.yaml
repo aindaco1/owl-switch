@@ -4,3 +4,6 @@ paths:
   .github/workflows/ci.yml:
     ignore:
       - 'label "xcode-27" is unknown'
+  .github/workflows/verify-distributed-macos.yml:
+    ignore:
+      - 'label "xcode-27" is unknown'
