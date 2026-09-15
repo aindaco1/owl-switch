@@ -88,7 +88,7 @@ for legacy data migration.
 
 OwlSwitch logs to **stdout/stderr** via Qt's `qDebug` / `qWarning` and writes already-sanitized, owner-only rotating structured events under `diagnostics/` in the existing Application Support directory. Settings → Diagnostics previews the bounded events and provides explicit Send Report/Clear Local Log actions; reports are never sent automatically.
 
-The GitHub-issue aggregation Worker lives in `diagnostics-relay/`. `npm run check` tests and dry-runs it without deployment. Its README documents the dedicated KV bindings and GitHub App secrets that must be configured before a deliberate, separate deploy.
+The GitHub-issue aggregation Worker lives in `diagnostics-relay/`. `npm run check` tests and dry-runs it without deployment. Its [deployment guide](../diagnostics-relay/README.md) documents the dedicated KV bindings, GitHub App secrets, configuration health check, and explicit synthetic delivery test. Relay deployment is independent of desktop app releases; a healthy configuration alone does not establish GitHub delivery.
 
 ### Running from source
 

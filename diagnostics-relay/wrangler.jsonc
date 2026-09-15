@@ -5,11 +5,24 @@
   "compatibility_date": "2026-08-29",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
+  "preview_urls": false,
   "routes": [
     { "pattern": "owlswitch-crash.dustwave.xyz", "custom_domain": true }
   ],
+  "kv_namespaces": [
+    {
+      "binding": "RATELIMIT",
+      "id": "0a7e2820c161400eb0cdeba17bbcba6a",
+      "preview_id": "d610d1d6fdc94580a6762b3c753d7271"
+    },
+    {
+      "binding": "REPORT_INDEX",
+      "id": "17b4a476d87d4bf4ad4ab6bbfa605b4f",
+      "preview_id": "a84900e06ef04d1093c8538dd4185f31"
+    }
+  ],
   "vars": {
-    "REPORTS_ENABLED": "true",
+    "REPORTS_ENABLED": "false",
     "ALLOWED_APP_IDENTIFIER": "com.240mp.jellyfin",
     "GITHUB_OWNER": "aindaco1",
     "GITHUB_REPO": "owl-switch",

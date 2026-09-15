@@ -4,6 +4,15 @@ const MAX_PAYLOAD_BYTES = 24576;
 const MAX_EVENTS = 20;
 const GITHUB_API_VERSION = '2022-11-28';
 
+function readiness(env) {
+  const reportingEnabled = String(env.REPORTS_ENABLED || 'false') === 'true';
+  const storageConfigured = Boolean(env.RATELIMIT && env.REPORT_INDEX);
+  const githubConfigured = ['GITHUB_APP_ID', 'GITHUB_APP_INSTALLATION_ID',
+    'GITHUB_APP_PRIVATE_KEY'].every((key) => Boolean(env[key]));
+  return { ok: reportingEnabled && storageConfigured && githubConfigured,
+    service: 'owlswitch-diagnostics-relay', reportingEnabled, storageConfigured, githubConfigured };
+}
+
 function boundText(value, maximum = 600) {
   return String(value ?? '')
     .replace(/["']\/(?:Users|Volumes|private|tmp)\/[^"'\r\n]*["']/g, '[redacted-path]')
@@ -243,7 +252,8 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === '/health') {
-      return json({ ok: true, service: 'owlswitch-diagnostics-relay' });
+      const status = readiness(env);
+      return json(status, status.ok ? 200 : 503);
     }
     if (request.method !== 'POST' || url.pathname !== '/v1/reports') return json({ error: 'Not found' }, 404);
     if (String(env.REPORTS_ENABLED || 'false') !== 'true') return json({ error: 'Reporting disabled' }, 503);
