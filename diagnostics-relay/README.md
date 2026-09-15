@@ -21,16 +21,23 @@ npm run check
 
 ## Deployment status (September 15, 2026)
 
-Worker version `4899b6a0-f3b4-4fd0-9892-e2cad2415bf2` is deployed with its custom
-domain and all four dedicated KV namespaces. The existing GitHub App installation
-now includes OwlSwitch. **Intake is paused pending the App private key**, which
-was not present in the local repository credential files. No live report delivery
-is claimed. Install the three secrets, enable intake, and run the acceptance test
-below before treating Send Report as operational.
+Worker version `adfd8189-9398-4469-8513-f4c8c2855f9f` is deployed and enabled with
+its custom domain, all four dedicated KV namespaces, and all three GitHub App
+secrets. The existing App installation includes OwlSwitch; credential preflight
+verified metadata read and Issues read/write access with its other five selected
+repositories retained.
+
+The explicit synthetic delivery test created
+[issue #28](https://github.com/aindaco1/owl-switch/issues/28), verified a second
+report aggregated into the same issue at count two, and closed the test issue.
+The initial test used a temporary public-DNS resolver because this Mac cached the
+hostname's earlier NXDOMAIN result; hostname and TLS verification remained enabled.
+No private application logs, configuration, or media were submitted.
 
 Seven local tests, deployment dry-run, workflow lint, and dependency audit pass.
-A temporary native harness using the actual `DiagnosticsManager::submitReport`
-also compiles; its live submission still needs the configured relay.
+The dedicated relay CI check also passed. A temporary native harness using the
+actual `DiagnosticsManager::submitReport` compiles; its live verification remains
+pending this Mac's DNS cache refresh.
 
 The dedicated Diagnostics relay CI workflow runs these tests and the deployment
 dry-run without credentials or live reports. Deployment remains a deliberate
