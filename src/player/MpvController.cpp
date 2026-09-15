@@ -644,13 +644,14 @@ void MpvController::loadAndPlayWithOptions(const QString &url, const QVariantMap
              << "--hwdec=videotoolbox"
              << QString("--osd-fonts-dir=%1").arg(m_appRoot + "/assets/fonts");
 #ifdef Q_OS_MACOS
+        // The video helper belongs to OwlSwitch and needs no separate Dock app.
+        // Promoting mpv to a regular app can activate Finder on macOS 27.
+        // Accessory policy still permits focus for same-screen playback.
+        args << "--macos-app-activation-policy=accessory";
         if (m_separatePlaybackScreen) {
             // Keep controls on the controller (or the app the user switched to
             // while loading), including during the initial fullscreen transition.
-            // A separate video surface does not need its own Dock/menu-bar app.
-            // Promoting mpv to a regular app can activate Finder on macOS 27.
-            args << "--focus-on=never" << "--border=no"
-                 << "--macos-app-activation-policy=accessory";
+            args << "--focus-on=never" << "--border=no";
             // mpv creates a window before queuing non-native fullscreen. Size
             // that initial window to the entire selected display as well.
             args << "--geometry=100%x100%+0+0" << "--macos-geometry-calculation=whole";

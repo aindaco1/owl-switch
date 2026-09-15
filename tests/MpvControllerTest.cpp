@@ -151,7 +151,7 @@ void MpvControllerTest::videoWindowPolicy()
     QVERIFY(arguments.contains("--no-native-fs"));
     QVERIFY(arguments.contains(QString("--screen=%1").arg(separate ? 1 : 0)));
     QCOMPARE(arguments.contains("--focus-on=never"), separate);
-    QCOMPARE(arguments.contains("--macos-app-activation-policy=accessory"), separate);
+    QVERIFY(arguments.contains("--macos-app-activation-policy=accessory"));
     QCOMPARE(arguments.contains("--border=no"), separate);
     QCOMPARE(arguments.contains("--geometry=100%x100%+0+0"), separate);
     QCOMPARE(arguments.contains("--macos-geometry-calculation=whole"), separate);

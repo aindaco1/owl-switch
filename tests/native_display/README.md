@@ -87,3 +87,5 @@ Physical cable/firmware/wake behavior is outside this simulated display coverage
 ### Explicit test focus switches
 
 The probe requests `AXFrontmost` only in its explicit `activate` command and reports any accessibility error. Ordinary snapshots, startup tracing, and key delivery keep the probe prohibited from activation. This models the test's deliberate user switch while preserving the assertions that playback must not steal focus. Snapshots retain the frontmost bundle identifier to distinguish an app regression from a hosted-desktop interruption.
+
+The independent sentinel completes AppKit launch and processes native events, so AX activation requests are serviced before focus assertions. macOS 27 acceptance exercises the accessory video-helper policy for both same-screen and separate-screen playback.
