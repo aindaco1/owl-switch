@@ -19,8 +19,12 @@ defaults:
 
 jobs:
   build-and-test:
-    name: macOS arm64 build and test
-    runs-on: macos-26
+    name: ${{ matrix.os == 'macos-26' && 'macOS arm64 build and test' || 'Xcode 27 compatibility' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, xcode-27]
     timeout-minutes: 45
     permissions:
       contents: read
@@ -37,10 +41,23 @@ jobs:
           persist-credentials: false
 
       - name: Select pinned build Xcode
+        if: matrix.os == 'macos-26'
         run: |
           sudo xcode-select --switch /Applications/Xcode_26.3.app/Contents/Developer
           xcode_version="$(xcodebuild -version)"
           test "${xcode_version%%$'\n'*}" = "Xcode 26.3"
+
+      - name: Record host and toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+          xcrun --show-sdk-version
+          if [[ "${{ matrix.os }}" == "xcode-27" ]]; then
+            xcode_version="$(xcodebuild -version)"
+            xcode_first_line="${xcode_version%%$'\n'*}"
+            [[ "$xcode_first_line" == "Xcode 27" || "$xcode_first_line" == "Xcode 27."* || "$xcode_first_line" == "Xcode 27 "* ]]
+          fi
 
       - name: Install dependencies
         env:
@@ -125,13 +142,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: native-display-evidence
+          name: native-display-evidence-${{ matrix.os }}
           path: native-display-*.json
           if-no-files-found: ignore
           retention-days: 7
 
       - name: Package exact-commit unsigned app for release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: matrix.os == 'macos-26' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           CI_APP_ARTIFACT: ${{ runner.temp }}/owl-switch-ci-app-${{ github.sha }}.tar.gz
         run: |
@@ -141,13 +158,13 @@ jobs:
             "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"
 
       - name: Attest exact-commit unsigned app
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: matrix.os == 'macos-26' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
         with:
           subject-path: ${{ runner.temp }}/owl-switch-ci-app-${{ github.sha }}.tar.gz
 
       - name: Retain exact-commit unsigned app for release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: matrix.os == 'macos-26' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         env:
           # The current action's transitive archive dependency still calls

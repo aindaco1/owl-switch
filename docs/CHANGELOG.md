@@ -4,6 +4,12 @@ All notable OwlSwitch changes are documented here. Releases through 1.6.3 used t
 
 ## [Unreleased]
 
+## [1.6.8] - 2026-09-15
+
+- Keep video playback in the intended app on macOS 27 by running the mpv video window as an accessory to OwlSwitch.
+- Run the complete native display and focus regression suite on Xcode 27 as well as the stable macOS runner.
+- Complete the test sentinel’s AppKit launch and event loop so deliberate app-switch checks work on both systems.
+
 ## [1.6.7] - 2026-09-06
 
 ### Fixed

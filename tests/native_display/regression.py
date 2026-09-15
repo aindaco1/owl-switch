@@ -149,7 +149,9 @@ class AppCase:
         return state
 
     def activate(self, pid):
-        self.tools.window("activate", pid)
+        activation = self.tools.window("activate", pid)
+        if activation.get("frontmostError") != 0:
+            raise RuntimeError(f"Test-owned AX activation failed: {activation.get('frontmostError')}")
         wait_for(lambda: self.tools.window("snapshot", pid)["frontPID"] == pid,
                  "test-owned app activation")
 
