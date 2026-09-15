@@ -1,0 +1,103 @@
+name: Verify distributed app on macOS 27
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published release tag to verify
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: distributed-macos27-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: xcode-27
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - name: Validate requested tag
+        run: '[[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]'
+
+      - name: Check out the release test contract
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: refs/tags/${{ inputs.tag }}
+
+      - name: Record host and source identity
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+          test "$(sw_vers -productVersion | cut -d. -f1)" = 27
+          git rev-parse HEAD
+          git rev-parse "$RELEASE_TAG^{commit}"
+
+      - name: Prepare native test prerequisites
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+        run: |
+          missing=()
+          for formula in qt pkgconf; do
+            if ! brew list --versions "$formula" >/dev/null; then
+              missing+=("$formula")
+            fi
+          done
+          if (( ${#missing[@]} )); then brew install "${missing[@]}"; fi
+          echo "PKG_CONFIG_PATH=$(brew --prefix qt)/lib/pkgconfig" >> "$GITHUB_ENV"
+
+      - name: Download and verify the public release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --json tagName,isDraft,isPrerelease,assets > release-identity.json
+          jq -e --arg tag "$RELEASE_TAG" \
+            '.tagName == $tag and .isDraft == false and .isPrerelease == false' \
+            release-identity.json
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --dir downloaded --pattern 'owl-switch-*-macOS-arm64.dmg*'
+          dmg=(downloaded/*-macOS-arm64.dmg)
+          test "${#dmg[@]}" = 1
+          test -f "${dmg[0]}.sha256"
+          expected="$(awk '{print $1}' "${dmg[0]}.sha256")"
+          [[ "$expected" =~ ^[a-f0-9]{64}$ ]]
+          actual="$(shasum -a 256 "${dmg[0]}")"
+          test "${actual%% *}" = "$expected"
+          ./scripts/macos_dmg_contract.zsh verify-notarized \
+            "$GITHUB_WORKSPACE/${dmg[0]}" "${RELEASE_TAG#v}" \
+            PWT3Q52LZ2 com.240mp.jellyfin
+          echo "DMG_PATH=$GITHUB_WORKSPACE/${dmg[0]}" >> "$GITHUB_ENV"
+
+      - name: Exercise the signed downloaded app
+        run: |
+          mount="$RUNNER_TEMP/owlswitch-public-app"
+          mkdir "$mount"
+          trap 'hdiutil detach "$mount" >/dev/null 2>&1 || true' EXIT
+          hdiutil attach -readonly -nobrowse -noautoopen -mountpoint "$mount" "$DMG_PATH"
+          python3 tests/native_display/smoke.py --require-window-access \
+            --evidence native-display-capability.json
+          python3 tests/native_display/regression.py --app "$mount/OwlSwitch.app" \
+            --evidence native-display-regression.json
+          codesign --verify --deep --strict "$mount/OwlSwitch.app"
+
+      - name: Retain downloaded-app evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: distributed-macos27-${{ inputs.tag }}
+          path: |
+            native-display-*.json
+            release-identity.json
+          if-no-files-found: error
+          retention-days: 30
