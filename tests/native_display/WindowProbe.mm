@@ -69,13 +69,19 @@ int main(int argc, char **argv) {
                 styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
             window.title = @"OwlSwitch focus test";
             [window makeKeyAndOrderFront:nil];
+            [NSApp finishLaunching];
             std::signal(SIGTERM, stop);
             std::signal(SIGINT, stop);
             std::printf("{\"pid\":%d}\n", getpid());
             std::fflush(stdout);
             NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:600];
-            while (!stopping && deadline.timeIntervalSinceNow > 0)
-                [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+            while (!stopping && deadline.timeIntervalSinceNow > 0) {
+                NSEvent *event = [NSApp nextEventMatchingMask:NSEventMaskAny
+                    untilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]
+                    inMode:NSDefaultRunLoopMode dequeue:YES];
+                if (event) [NSApp sendEvent:event];
+                [NSApp updateWindows];
+            }
             [window close];
             return 0;
         } else {

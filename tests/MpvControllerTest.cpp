@@ -106,6 +106,7 @@ void MpvControllerTest::audioOnlyUsesIsolatedBoundedPlayers()
         QVERIFY(!argument.startsWith("--screen="));
         QVERIFY(!argument.startsWith("--fs-screen="));
         QVERIFY(!argument.startsWith("--focus-on="));
+        QVERIFY(!argument.startsWith("--macos-app-activation-policy="));
         QVERIFY(!argument.startsWith("--border="));
         QVERIFY(!argument.startsWith("--geometry="));
         QVERIFY(!argument.startsWith("--macos-geometry-calculation="));
@@ -150,6 +151,7 @@ void MpvControllerTest::videoWindowPolicy()
     QVERIFY(arguments.contains("--no-native-fs"));
     QVERIFY(arguments.contains(QString("--screen=%1").arg(separate ? 1 : 0)));
     QCOMPARE(arguments.contains("--focus-on=never"), separate);
+    QCOMPARE(arguments.contains("--macos-app-activation-policy=accessory"), separate);
     QCOMPARE(arguments.contains("--border=no"), separate);
     QCOMPARE(arguments.contains("--geometry=100%x100%+0+0"), separate);
     QCOMPARE(arguments.contains("--macos-geometry-calculation=whole"), separate);

@@ -647,7 +647,10 @@ void MpvController::loadAndPlayWithOptions(const QString &url, const QVariantMap
         if (m_separatePlaybackScreen) {
             // Keep controls on the controller (or the app the user switched to
             // while loading), including during the initial fullscreen transition.
-            args << "--focus-on=never" << "--border=no";
+            // A separate video surface does not need its own Dock/menu-bar app.
+            // Promoting mpv to a regular app can activate Finder on macOS 27.
+            args << "--focus-on=never" << "--border=no"
+                 << "--macos-app-activation-policy=accessory";
             // mpv creates a window before queuing non-native fullscreen. Size
             // that initial window to the entire selected display as well.
             args << "--geometry=100%x100%+0+0" << "--macos-geometry-calculation=whole";
