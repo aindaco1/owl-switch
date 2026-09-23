@@ -11,6 +11,7 @@
 #include <QUrlQuery>
 
 #include "modules/jellyfin/JellyfinBackend.h"
+#include "RecoveryEvidence.h"
 
 class FakeJellyfinServer final : public QTcpServer {
     Q_OBJECT
@@ -88,6 +89,7 @@ class JellyfinBackendTest final : public QObject {
     Q_OBJECT
 
 private slots:
+    void rejectsMissingCredentialsWithoutStartingPlayback();
     void directPlaybackUsesPrivateHeadersAndReportsStart();
     void transcodePlaybackPreservesTracksAndAppliesQualityLimit();
 
@@ -95,6 +97,27 @@ private:
     static void writeAuth(const QString &root, quint16 port);
     static void writeQuality(const QString &root, const QString &quality);
 };
+
+void JellyfinBackendTest::rejectsMissingCredentialsWithoutStartingPlayback() {
+    QTemporaryDir dataRoot;
+    QVERIFY(dataRoot.isValid());
+    JellyfinBackend backend({}, dataRoot.path());
+    QSignalSpy errors(&backend, &JellyfinBackend::errorOccurred);
+    QSignalSpy streams(&backend, &JellyfinBackend::streamUrlReady);
+    backend.authenticate({}, {}, {});
+    QCOMPARE(errors.count(), 1);
+    QVERIFY(!QFile::exists(dataRoot.filePath(QStringLiteral("jellyfin_auth.json"))));
+    QVERIFY(writeRecoveryEvidence("jellyfin-inputs", errors.first().first().toString(),
+                                  {{"no_auth_saved", true}}));
+    backend.request_playback(QStringLiteral("synthetic-item"), {}, -1, -1, false, 0);
+    QCOMPARE(errors.count(), 2);
+    QCOMPARE(streams.count(), 0);
+    QVERIFY(writeRecoveryEvidence("jellyfin-auth", errors.last().first().toString(),
+                                  {{"no_stream_started", true}}));
+    // A rejected attempt does not swallow a subsequent user retry.
+    backend.authenticate({}, {}, {});
+    QCOMPARE(errors.count(), 3);
+}
 
 void JellyfinBackendTest::writeAuth(const QString &root, quint16 port) {
     QFile file(QDir(root).filePath(QStringLiteral("jellyfin_auth.json")));

@@ -22,3 +22,4 @@ config.json
 .dev.vars
 .env
 .env.*
+.owl-switch-development.json

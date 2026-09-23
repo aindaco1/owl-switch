@@ -8,6 +8,7 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
+#include "RecoveryEvidence.h"
 
 #include <algorithm>
 
@@ -394,6 +395,8 @@ void LocalFilesBackendTest::rejectsNonYouTubePlaylistUrls()
         QStringLiteral("https://example.com/playlist?list=PLtest_playlist_123")));
     QCOMPARE(failedSpy.size(), 1);
     QCOMPARE(backend.getQueue(QStringLiteral("soundtrack")).size(), 0);
+    QVERIFY(writeRecoveryEvidence("local-playlist", failedSpy.first().first().toString(),
+                                  {{"queue_unchanged", true}}));
 }
 
 void LocalFilesBackendTest::changingMediaRootPrunesOutOfRootQueueItems()

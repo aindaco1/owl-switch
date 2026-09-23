@@ -39,6 +39,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          submodules: true
 
       - name: Select pinned build Xcode
         if: matrix.os == 'macos-26'
@@ -67,7 +68,7 @@ jobs:
             brew untap aws/tap
           fi
           missing_formulae=()
-          for formula in cmake qt mpv ffmpeg; do
+          for formula in cmake qt mpv ffmpeg node; do
             if ! brew list --versions "$formula" >/dev/null; then
               missing_formulae+=("$formula")
             fi
@@ -90,13 +91,19 @@ jobs:
             -DCMAKE_PREFIX_PATH="${QT_ROOT_DIR}" \
             -DCMAKE_INSTALL_PREFIX="${GITHUB_WORKSPACE}/install"
 
-      - name: Build
-        # Bare --parallel becomes make -j without a limit on this generator.
-        # Keep the hosted Mac's compiler memory bounded as test targets grow.
-        run: cmake --build build --parallel 3
+      - name: Build and test (explicit offline Jev mode)
+        # Fork-safe: local tests and evidence preparation need no cloud secret.
+        # Maintainers run the same command without --offline for live review.
+        run: node scripts/test.mjs --offline
 
-      - name: Test
-        run: ctest --test-dir build --output-on-failure
+      - name: Retain recovery test evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: recovery-test-evidence-${{ matrix.os }}
+          path: build/jev/
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Lint QML
         run: |

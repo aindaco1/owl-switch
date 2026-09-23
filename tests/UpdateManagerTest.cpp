@@ -14,6 +14,7 @@
 #include <utility>
 
 #include "update/UpdateManager.h"
+#include "RecoveryEvidence.h"
 
 class StubNetworkReply final : public QNetworkReply {
 public:
@@ -59,6 +60,7 @@ public:
 
     int requestCount = 0;
     QUrl lastRequestUrl;
+    void setResponse(QByteArray response) { m_response = std::move(response); }
 
 protected:
     QNetworkReply *createRequest(Operation operation,
@@ -170,6 +172,14 @@ void UpdateManagerTest::launchCheckStaysQuietWhenReleaseIsInvalid() {
     QTRY_COMPARE(manager.state(), QStringLiteral("error"));
     QCOMPARE(network.requestCount, 1);
     QCOMPARE(availableSpy.count(), 0);
+    const QString failure = manager.statusMessage();
+    network.setResponse(releaseResponse(QStringLiteral("1.6.3")));
+    manager.checkForUpdates();
+    QTRY_COMPARE(manager.state(), QStringLiteral("upToDate"));
+    QCOMPARE(network.requestCount, 2);
+    QCOMPARE(availableSpy.count(), 0);
+    QVERIFY(writeRecoveryEvidence("update-response", failure,
+                                  {{"launch_prompt_absent", true}, {"manual_retry_recovers", true}}));
 }
 
 void UpdateManagerTest::manualCheckDoesNotEmitLaunchSignal() {

@@ -10,6 +10,7 @@
 #include <QTcpSocket>
 #include <QTemporaryDir>
 #include <QtTest>
+#include "RecoveryEvidence.h"
 
 namespace {
 QJsonObject recording()
@@ -121,6 +122,8 @@ void NatureSoundtrackTest::fetchIsAnonymousAndRejectsRedirects()
     QVERIFY(!request.toLower().contains("cookie:"));
     QVERIFY(!sound.active());
     QVERIFY(sound.m_retryAfter > QDateTime::currentDateTimeUtc());
+    QVERIFY(writeRecoveryEvidence("nature-sound", status.first().first().toString(),
+                                  {{"audio_inactive", true}, {"retry_backoff", true}}));
     sound.stop();
 }
 
