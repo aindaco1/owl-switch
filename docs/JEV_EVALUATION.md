@@ -146,3 +146,17 @@ separate `unevaluated` count; its `complete: false` and zero network attempts
 remain explicit. No prompt or threshold was changed in response to live results.
 Hosted CI, physical media/display checks and distribution acceptance are separate
 from these local results.
+
+## Deployment and local retention
+
+This integration is delivered through [PR #32](https://github.com/aindaco1/owl-switch/pull/32)
+to `main`, with no app release. The CI workflow checks both the stable macOS
+toolchain and Xcode 27, including the existing packaged native-display suite.
+CI uses explicit offline Jev mode; the live results above remain a separate gate.
+
+Keep the current `build/` tree, its pinned helper runtime, the small reference
+Jev reports above, the shared package, test fixtures and ignored local account
+configuration. Obsolete packaging trees and verified duplicate cloud-sync files
+can be removed recoverably. Follow the scoped
+[cleanup instructions](BUILDING.md#cleaning-generated-artifacts); a blanket
+ignored-file cleanup would erase the local configuration needed for live tests.

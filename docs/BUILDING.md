@@ -307,21 +307,40 @@ After running `macdeployqt`, use `scripts/macos_prune_qt_deployment.zsh` to reta
 
 ### Cleaning Generated Artifacts
 
-Preview ignored build output before removing it:
+Keep one current `build/` tree for incremental development and tests, including
+its pinned `bundled-helpers/` runtime and the small `jev/` evidence records. Keep
+the shared submodule, diagnostics-relay dependencies, test fixtures, and local
+development configuration. In particular, `.owl-switch-development.json`,
+`.env*`, `.dev.vars`, and local auth/state are not disposable build output.
+
+Preview only obsolete packaging output (and individually identified alternate
+build trees), then remove the reviewed paths:
 
 ```bash
-git clean -ndX
+git clean -ndX -- dist install
+# Only after checking that neither path contains evidence you need:
+git clean -fdX -- dist install
 ```
 
-When the preview contains only disposable generated files, remove them and recreate the single development tree:
+Do not run blanket `git clean -fdX`: it also deletes ignored local configuration
+and dependencies. Move unfamiliar generated files or duplicate cloud-sync
+copies to Trash for recovery; verify source copies against their canonical
+tracked file before removing them. Preserve active worktrees and delete only
+branches already merged (or whose squashed PR is verified merged).
+
+If the current build genuinely needs resetting, preserve needed Jev evidence,
+then clean CMake's generated targets and rebuild using the retained helper cache:
 
 ```bash
-git clean -fdX
+cmake --build build --target clean
 cmake -B build -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt .
-cmake --build build
+node scripts/test.mjs --offline
 ```
 
-This retains tracked development scripts, CMake helpers, entitlements, source, and tests while removing old build/package trees, DMGs, logs, caches, and Finder metadata.
+Testing-only Jev changes deploy by merging reviewed code and documentation to
+`main`. They do not require a version bump, release tag, app installation, relay
+deployment, or published DMG. CI's unsigned app is a verification artifact, not
+a new release.
 
 When applying hardened-runtime signatures, preserve the bundled Deno binary's
 upstream entitlements. Sign the yt-dlp onedir launcher with
