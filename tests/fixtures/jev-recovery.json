@@ -1,0 +1,35 @@
+{
+  "jellyfin-inputs": {
+    "facts": ["no_auth_saved"],
+    "requirements": {"inputs": "Communicates that server URL, username, and password are required to sign in."},
+    "good": "Enter the server URL, username and password to sign in.",
+    "bad": "Enter your username to sign in. No server address or password is needed."
+  },
+  "jellyfin-auth": {
+    "facts": ["no_stream_started"],
+    "requirements": {"authentication": "Communicates that the playback request lacks authentication."},
+    "good": "Playback cannot start because you are not signed in.",
+    "bad": "You are signed in. Playback has started."
+  },
+  "local-playlist": {
+    "facts": ["queue_unchanged"],
+    "requirements": {"url": "Asks for a valid public or unlisted YouTube playlist URL."},
+    "good": "Please enter a valid YouTube playlist link. Public and unlisted playlists are supported.",
+    "bad": "Paste any website link; private playlists are supported without signing in."
+  },
+  "nature-sound": {
+    "facts": ["audio_inactive", "retry_backoff"],
+    "requirements": {
+      "sound": "Communicates that Nature sound is unavailable.",
+      "slideshow": "Communicates that the slideshow continues despite the sound failure."
+    },
+    "good": "Nature audio is unavailable. The slideshow keeps playing.",
+    "bad": "Nature audio is playing. The slideshow has stopped."
+  },
+  "update-response": {
+    "facts": ["launch_prompt_absent", "manual_retry_recovers"],
+    "requirements": {"response": "Communicates that GitHub returned an invalid release response, rather than claiming a successful update."},
+    "good": "GitHub's release response could not be read because it was invalid.",
+    "bad": "The update was downloaded and installed successfully."
+  }
+}

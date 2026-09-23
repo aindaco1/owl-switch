@@ -1,0 +1,5 @@
+[
+  {"id": "auth-omission", "case": "jellyfin-auth", "good": "Sign-in is missing for this stream request.", "bad": "The selected video is unavailable."},
+  {"id": "sound-contradiction", "case": "nature-sound", "good": "Sound is unavailable; photos will continue to advance.", "bad": "Sound is available; the photo slideshow is paused."},
+  {"id": "response-omission", "case": "update-response", "good": "Cannot use the invalid release data received from GitHub.", "bad": "An update is available. Please install it now."}
+]

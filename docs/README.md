@@ -8,6 +8,7 @@ unless a guide says otherwise.
 | [Install](INSTALL.md) | Requirements, installation, updates, data migration, and uninstalling. |
 | [Architecture](ARCHITECTURE.md) | Module behavior, shared playback and QML patterns, settings schema, and data inventory. |
 | [Building](BUILDING.md) | Setup, build/run commands, automated checks and canaries, packaging, release gates, and recovery. |
+| [Jev evaluation](JEV_EVALUATION.md) | Development-only message/recovery checks, live/offline modes, shared client, and evidence limits. |
 | [Contributing](CONTRIBUTING.md) | Contribution principles, code style, review expectations, and manual media checks. |
 | [Security](SECURITY.md) | Vulnerability reporting, credential handling, privacy, and distribution trust requirements. |
 | [Changelog](CHANGELOG.md) | Dated, user-facing release history. |

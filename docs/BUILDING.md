@@ -226,11 +226,24 @@ Do not weaken or skip signing/notarization checks to make a release green. Keep 
 Recommended checks before committing code changes:
 
 ```bash
-cmake --build build
-ctest --test-dir build --output-on-failure
+git submodule update --init shared/dust-wave-platform
+node scripts/test.mjs
 qmllint -I views Main.qml views/*.qml views/Components/*.qml modules/jellyfin/views/*.qml modules/karaoke/views/*.qml modules/retro_tv/views/*.qml modules/local_files/views/*.qml modules/tumblr_screensaver/views/*.qml modules/nature/views/*.qml
 git diff --check
 ```
+
+The standard development command requires Node.js 20.9+ (`brew install node`).
+It builds, runs CTest and evaluator unit tests, captures five synthetic recovery
+messages, and runs live Jev meaning checks by default. See
+[Jev setup and interpretation](JEV_EVALUATION.md) for credentials, bounded costs,
+and evidence. Use `node scripts/test.mjs --offline` to explicitly run local checks
+and prepare requests without authentication or Jev calls. Offline success is not
+a combined Jev pass. CI uses this explicit offline mode so pull requests require
+no cloud credentials; native display and packaging gates still run separately.
+
+Focused `cmake --build build` and `ctest --test-dir build --output-on-failure`
+remain available and make no Jev calls. The standard runner disables the optional
+live-service canaries below; run them separately when applicable.
 
 The Karaoke backend suite skips its network integration case by default. Run it explicitly when changing the channel extractor or pinned helpers:
 
@@ -294,21 +307,40 @@ After running `macdeployqt`, use `scripts/macos_prune_qt_deployment.zsh` to reta
 
 ### Cleaning Generated Artifacts
 
-Preview ignored build output before removing it:
+Keep one current `build/` tree for incremental development and tests, including
+its pinned `bundled-helpers/` runtime and the small `jev/` evidence records. Keep
+the shared submodule, diagnostics-relay dependencies, test fixtures, and local
+development configuration. In particular, `.owl-switch-development.json`,
+`.env*`, `.dev.vars`, and local auth/state are not disposable build output.
+
+Preview only obsolete packaging output (and individually identified alternate
+build trees), then remove the reviewed paths:
 
 ```bash
-git clean -ndX
+git clean -ndX -- dist install
+# Only after checking that neither path contains evidence you need:
+git clean -fdX -- dist install
 ```
 
-When the preview contains only disposable generated files, remove them and recreate the single development tree:
+Do not run blanket `git clean -fdX`: it also deletes ignored local configuration
+and dependencies. Move unfamiliar generated files or duplicate cloud-sync
+copies to Trash for recovery; verify source copies against their canonical
+tracked file before removing them. Preserve active worktrees and delete only
+branches already merged (or whose squashed PR is verified merged).
+
+If the current build genuinely needs resetting, preserve needed Jev evidence,
+then clean CMake's generated targets and rebuild using the retained helper cache:
 
 ```bash
-git clean -fdX
+cmake --build build --target clean
 cmake -B build -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt .
-cmake --build build
+node scripts/test.mjs --offline
 ```
 
-This retains tracked development scripts, CMake helpers, entitlements, source, and tests while removing old build/package trees, DMGs, logs, caches, and Finder metadata.
+Testing-only Jev changes deploy by merging reviewed code and documentation to
+`main`. They do not require a version bump, release tag, app installation, relay
+deployment, or published DMG. CI's unsigned app is a verification artifact, not
+a new release.
 
 When applying hardened-runtime signatures, preserve the bundled Deno binary's
 upstream entitlements. Sign the yt-dlp onedir launcher with
