@@ -1,6 +1,6 @@
 # Shared support and Sparkle migration
 
-OwlSwitch 1.7.0 pins Platform Qt 0.1.0 and Desktop Core 0.2.0. Platform owns a
+OwlSwitch 1.7.1 pins Platform Qt 0.1.0 and Desktop Core 0.2.0. Platform owns a
 new MIT Qt transport and a narrow Objective-C++ Sparkle bridge. Product code,
 report schemas, UI, storage and this relay stay GPLv3 here; no OwlSwitch source
 was copied into Platform.
