@@ -99,3 +99,24 @@ native suite against the mounted signed app. It neither rebuilds nor re-signs th
 app. The retained evidence identifies the public assets and tested executable hash.
 This is a separate acceptance run from source CI and from the stable release host;
 it does not replace physical monitor/wake or prior-version updater testing.
+
+### Shared fixture migration (local review)
+
+The generic display/window helpers now come from Platform's separately licensed
+GPL-3.0 `tools/macos-display` 0.1.0 at
+`6bb9854149203ee71445bf150c4ba86fac607d04`. OwlSwitch retains its Qt enumerator,
+launch/settings/media setup and all video assertions. The adapter shares the
+original desktop lock, including compatibility with older suites.
+
+Validation on this desktop: all five deterministic native regression tests passed;
+the migrated Qt fixture passed 1×/2× capability and exact restoration checks.
+The final migrated full-app run passed all 18 cases against the existing app,
+including ten cold starts and every display layout, with exact restoration.
+Earlier desktop focus interruptions were retained as diagnostic evidence; one
+was Record taking the foreground. No assertions were weakened for the passing run.
+This validates the local migration, not a new published release or physical hardware.
+The migration is kept in the isolated `paper/shared-display-fixtures` branch.
+
+Rollback: revert this migration commit and restore its parent gitlink; the original
+local support.py and two native probes then return together. No installed app or
+user settings were changed by this source migration.
