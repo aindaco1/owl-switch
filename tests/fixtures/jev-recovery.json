@@ -28,8 +28,8 @@
   },
   "update-response": {
     "facts": ["launch_prompt_absent", "manual_retry_recovers"],
-    "requirements": {"response": "Communicates that GitHub returned an invalid release response, rather than claiming a successful update."},
-    "good": "GitHub's release response could not be read because it was invalid.",
+    "requirements": {"response": "Communicates that checking for updates failed, rather than claiming a successful update."},
+    "good": "Could not check for updates. Try again later.",
     "bad": "The update was downloaded and installed successfully."
   }
 }

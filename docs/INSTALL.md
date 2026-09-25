@@ -25,9 +25,9 @@ The app opens as a full-screen, keyboard-first media interface.
 
 The app quietly checks GitHub for a newer release whenever it opens. Current and failed checks do not interrupt the app. When a valid newer Apple Silicon release is available, choose **View** to open **Settings → Software Update**, or **Later** to dismiss the prompt. The same screen retains **Check for Updates** as a manual fallback.
 
-Downloading and installation remain user initiated. A signed app in a writable Applications folder can download, verify, install, and restart after approval. If the running app is a development build or its install location cannot be replaced safely, the same screen verifies and opens the DMG for manual installation.
+From 1.7.0, **Review Update** opens Sparkle’s standard update window. Downloading, installation and relaunch remain user initiated. Manual DMG installation remains available if the app cannot be replaced in its current location.
 
-The updater rejects releases without GitHub's SHA-256 asset digest. It also requires Apple code-signature and notarization checks, the same Developer ID team as the running app, bundle identifier `com.240mp.jellyfin`, the advertised version, and an Apple Silicon executable.
+Sparkle requires the signed appcast and Ed25519 update archive. Release gates retain Developer ID signing, notarization, bundle identifier `com.240mp.jellyfin`, advertised version and Apple Silicon architecture. Earlier OwlSwitch versions retain their GitHub SHA-256 and DMG validation path for the transition to 1.7.0.
 
 Manual updating remains supported:
 

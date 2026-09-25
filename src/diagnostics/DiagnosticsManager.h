@@ -3,7 +3,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QMutex>
-#include <QNetworkAccessManager>
+#include <DustWave/ReviewedReportClient.h>
 #include <QObject>
 #include <QtGlobal>
 
@@ -19,7 +19,8 @@ public:
     QString status() const { return m_status; }
     bool submitting() const { return m_submitting; }
 
-    Q_INVOKABLE QString reportPreview() const;
+    Q_INVOKABLE QString reportPreview();
+    Q_INVOKABLE void refreshReport();
     Q_INVOKABLE int eventCount() const;
     Q_INVOKABLE void clearLogs();
     Q_INVOKABLE void submitReport();
@@ -47,7 +48,10 @@ private:
     QString m_logPath;
     mutable QMutex m_mutex;
     QJsonArray m_recentEvents;
-    QNetworkAccessManager m_network;
+    DustWave::ReviewedReportClient m_client;
+    QByteArray m_reviewedBytes;
+    QString m_reviewedID;
+    void savePendingReport();
     QString m_status;
     bool m_submitting = false;
     QtMessageHandler m_previousHandler = nullptr;

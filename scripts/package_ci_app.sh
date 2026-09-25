@@ -59,6 +59,8 @@ packaging_contract_sha256="$({
         CMakeLists.txt \
         cmake/BundledHelpers.cmake \
         cmake/helper-manifest.json.in \
+        cmake/OwlSwitchInfo.plist.in \
+        platform-desktop.json \
         scripts/ci_app_artifact.py \
         scripts/macos_bundle_tool_deps.zsh \
         scripts/macos_prepare_release_bundle.zsh \

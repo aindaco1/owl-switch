@@ -100,6 +100,12 @@ jobs:
           scripts/macos_dmg_contract.zsh verify-notarized \
             "$DMG" "$expected_version" "$expected_team" "$expected_bundle"
 
+      - name: Require the complete Sparkle release assets
+        run: |
+          gh release download "$RELEASE_TAG" --pattern OwlSwitch.zip --pattern appcast.xml --pattern SHA256SUMS --pattern "owl-switch-source-*.tar.gz" --dir "$RUNNER_TEMP/sparkle-release"
+          (cd "$RUNNER_TEMP/sparkle-release" && shasum -a 256 -c SHA256SUMS)
+          grep -q 'sparkle:edSignature=' "$RUNNER_TEMP/sparkle-release/appcast.xml"
+
       - name: Replace draft asset and publish
         run: |
           checksum="$DMG.sha256"

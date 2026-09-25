@@ -2,6 +2,12 @@
 
 All notable OwlSwitch changes are documented here. Releases through 1.6.3 used the former project name; 1.6.4 introduced the renamed bundle while retaining compatibility aliases and trusted identifiers.
 
+## [1.7.0] - 2026-09-25
+
+- Updates use the shared Sparkle adapter, signed update archives and a signed feed. Installation remains explicit; startup checks only notify when a newer version is available.
+- Help and diagnostics shows the full sanitized report before sending, preserves the reviewed bytes for retries, and requires a matching server receipt.
+- The support relay preserves existing issue history while serializing report grouping and duplicate handling.
+
 ## [Unreleased]
 
 ## [1.6.8] - 2026-09-15

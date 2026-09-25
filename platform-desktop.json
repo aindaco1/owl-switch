@@ -1,0 +1,9 @@
+{
+  "commit": "b32a38b34f83daf142bd42d0c8f80ff4220952ad",
+  "packages": {
+    "test-core": "0.3.1",
+    "desktop-core": "0.2.0",
+    "worker-core": "0.15.0"
+  },
+  "qtVersion": "0.1.0"
+}

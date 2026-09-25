@@ -1,4 +1,7 @@
 import { createAppAuth } from '@octokit/auth-app';
+import { createGitHubIssueReporter } from '@dustwave/desktop-core/github-issues';
+import { ReviewedReportGroup } from '@dustwave/desktop-core/reviewed-report-group';
+import { readBoundedBytes } from '@dustwave/worker-core/request-validation';
 
 const MAX_PAYLOAD_BYTES = 24576;
 const MAX_EVENTS = 20;
@@ -6,7 +9,7 @@ const GITHUB_API_VERSION = '2022-11-28';
 
 function readiness(env) {
   const reportingEnabled = String(env.REPORTS_ENABLED || 'false') === 'true';
-  const storageConfigured = Boolean(env.RATELIMIT && env.REPORT_INDEX);
+  const storageConfigured = Boolean(env.RATELIMIT && env.REPORT_INDEX && env.REPORT_GROUPS && env.REPORT_IDS);
   const githubConfigured = ['GITHUB_APP_ID', 'GITHUB_APP_INSTALLATION_ID',
     'GITHUB_APP_PRIVATE_KEY'].every((key) => Boolean(env[key]));
   return { ok: reportingEnabled && storageConfigured && githubConfigured,
@@ -123,29 +126,16 @@ async function githubRequest(env, path, options = {}) {
   });
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
-  if (!response.ok) throw new Error(data?.message || `GitHub API error ${response.status}`);
+  if (!response.ok) throw Object.assign(new Error('GitHub delivery failed'), { status: response.status, errors: data?.errors, providerOperation: options.method });
   return data;
 }
 
-function stateMarker(state) {
-  return `<!-- owlswitch-report-state:${btoa(JSON.stringify(state))} -->`;
-}
-
-function parseState(body, reportFingerprint) {
-  const match = String(body || '').match(/<!-- owlswitch-report-state:([A-Za-z0-9+/=]+) -->/);
-  if (match) {
-    try { return { ...JSON.parse(atob(match[1])), fingerprint: reportFingerprint }; } catch {}
-  }
-  const now = new Date().toISOString();
-  return { fingerprint: reportFingerprint, count: 0, firstSeen: now, lastSeen: now, versions: {} };
-}
-
-function issueBody(sanitized, reportFingerprint, state) {
+function issueBody(sanitized, reportFingerprint, state, existing = '') {
   const events = JSON.stringify(sanitized.report.context.recentEvents, null, 2)
     .replace(/```/g, "''' ");
   const versions = Object.entries(state.versions || {})
     .map(([version, count]) => `- ${boundText(version, 80)}: ${count}`).join('\n') || '- none';
-  return `<!-- owlswitch-fingerprint:${reportFingerprint} -->
+  const body = `<!-- owlswitch-fingerprint:${reportFingerprint} -->
 ${stateMarker(state)}
 
 ## Summary
@@ -170,10 +160,20 @@ ${versions}
 Reports are user initiated. The client and relay both exclude media, URLs, local paths,
 emails, credentials, environment dumps, screenshots, and unrestricted log files.
 `;
+  const start = '<!-- owlswitch-diagnostics:start -->';
+  const end = '<!-- owlswitch-diagnostics:end -->';
+  const block = `${start}\n${body}\n${end}`;
+  const first = existing.indexOf(start), last = existing.indexOf(end, first);
+  if (first >= 0 && last >= first) return existing.slice(0, first) + block + existing.slice(last + end.length);
+  const oldStart = existing.indexOf(`<!-- owlswitch-fingerprint:${reportFingerprint} -->`);
+  const footer = 'emails, credentials, environment dumps, screenshots, and unrestricted log files.';
+  const oldEnd = existing.indexOf(footer, oldStart);
+  if (oldStart >= 0 && oldEnd >= oldStart) return existing.slice(0, oldStart) + block + existing.slice(oldEnd + footer.length);
+  return existing ? `${existing}\n\n${block}` : block;
 }
 
 async function rateLimit(request, env) {
-  if (!env.RATELIMIT || !env.REPORT_INDEX) {
+  if (!env.RATELIMIT || !env.REPORT_INDEX || !env.REPORT_GROUPS || !env.REPORT_IDS) {
     return { ok: false, status: 503, error: 'Report storage is not configured' };
   }
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
@@ -191,47 +191,102 @@ async function rateLimit(request, env) {
   return { ok: true };
 }
 
-async function submitToGitHub(env, sanitized, reportFingerprint) {
-  const owner = String(env.GITHUB_OWNER || 'aindaco1');
-  const repo = String(env.GITHUB_REPO || 'owl-switch');
-  const indexed = await env.REPORT_INDEX.get(`fp:${reportFingerprint}`, { type: 'json' });
-  let issue = null;
-  if (indexed?.number) {
-    issue = await githubRequest(env, `/repos/${owner}/${repo}/issues/${indexed.number}`,
-      { method: 'GET' }).catch(() => null);
-    if (issue?.state !== 'open') issue = null;
-  }
-  const state = parseState(issue?.body, reportFingerprint);
-  state.count = Number(state.count || 0) + 1;
-  state.lastSeen = new Date().toISOString();
-  state.versions = { ...(state.versions || {}) };
-  state.versions[sanitized.app.version] = Number(state.versions[sanitized.app.version] || 0) + 1;
-  const body = issueBody(sanitized, reportFingerprint, state);
+function createReporter(request = githubRequest) {
+  return createGitHubIssueReporter({
+    request, owner: 'aindaco1', repository: 'owl-switch',
+    defaultLabels: 'crash,automated-report,needs-triage',
+    markers: { state: 'owlswitch-report-state', fingerprint: 'owlswitch-fingerprint' },
+    issueTitle: (report, fp) => `[OwlSwitch ${fp}] ${report.report.context.recentEvents.at(-1)?.message || 'Diagnostic report'}`.slice(0, 120),
+    issueBody, groupingSummary: () => null,
+    checkDailyIssueLimit: async () => ({ ok: true }), shouldUpdateIssue: async () => true
+  });
+}
+const reporter = createReporter();
+const { stateMarker, parseState } = reporter;
 
-  if (issue) {
-    issue = await githubRequest(env, `/repos/${owner}/${repo}/issues/${issue.number}`, {
-      method: 'PATCH', body: JSON.stringify({ body })
-    });
-  } else {
-    const title = `[OwlSwitch ${reportFingerprint}] ${sanitized.report.context.recentEvents.at(-1)?.message || 'Diagnostic report'}`
-      .slice(0, 120);
-    const labels = String(env.GITHUB_LABELS || '').split(',').map((item) => item.trim()).filter(Boolean);
-    const create = { title, body, labels };
-    try {
-      issue = await githubRequest(env, `/repos/${owner}/${repo}/issues`, {
-        method: 'POST', body: JSON.stringify(create)
-      });
-    } catch (error) {
-      if (!labels.length) throw error;
-      issue = await githubRequest(env, `/repos/${owner}/${repo}/issues`, {
-        method: 'POST', body: JSON.stringify({ title, body })
-      });
-    }
+export class OwlReportGroup extends ReviewedReportGroup {
+  constructor(ctx, env, request = githubRequest) {
+    const api = createReporter(request);
+    const adapter = {
+      validate: value => {
+        const report = sanitizePayload(value, env);
+        return { ...report, id: report.report.id };
+      },
+      fingerprint, relayReport: report => report, repository: 'owl-switch',
+      failureCode: 'owlswitch-submit-failed', receiptRetentionMS: 30 * 86400000,
+      labels: () => env.GITHUB_LABELS || 'crash,automated-report,needs-triage',
+      issueBody,
+      reopen: issue => !issue.labels?.some(label => ['duplicate', 'do-not-reopen'].includes(typeof label === 'string' ? label : label.name)),
+      initialState: async (_report, fp, index) => {
+        // Adopt the existing issue and count before the first durable increment.
+        // Provider failures stay failures; they must never become a second POST.
+        const indexed = await env.REPORT_INDEX.get(`fp:${fp}`, { type: 'json' });
+        let issue;
+        if (indexed?.number) {
+          try { issue = await request(env, `/repos/aindaco1/owl-switch/issues/${indexed.number}`, { method: 'GET' }); }
+          catch (error) { if (error.status !== 404) throw error; }
+        }
+        if (!issue) {
+          const q = encodeURIComponent(`repo:aindaco1/owl-switch is:issue in:body ${fp}`);
+          const found = await request(env, `/search/issues?q=${q}&per_page=5`, { method: 'GET' });
+          issue = found.items?.find(item => String(item.body || '').includes(api.fingerprintMarker(fp)));
+        }
+        if (!issue) return null;
+        if (!String(issue.body || '').includes(api.fingerprintMarker(fp))) throw new Error('Legacy issue marker mismatch');
+        const state = api.parseState(issue.body, fp);
+        if (!Number.isSafeInteger(state.count) || state.count < 0) throw new Error('Invalid legacy aggregate');
+        await index.put(`fp:${fp}`, JSON.stringify({ number: issue.number, url: issue.html_url || '' }));
+        return state;
+      }
+    };
+    super(ctx, env, adapter, { submit: api.submitCrashReport, updateAggregateState: api.updateAggregateState, owner: 'aindaco1' });
   }
-  await env.REPORT_INDEX.put(`fp:${reportFingerprint}`, JSON.stringify({
-    number: issue.number, url: issue.html_url, updatedAt: new Date().toISOString()
-  }));
-  return { action: state.count === 1 ? 'created' : 'aggregated', issueNumber: issue.number };
+  alarm() {
+    const operation = this.tail.then(async () => {
+      const entries = await this.ctx.storage.list({ prefix: 'receipt:' });
+      const expired = [...entries].filter(([, value]) => value.expires <= Date.now()).map(([key]) => key);
+      for (let i = 0; i < expired.length; i += 128) await this.ctx.storage.delete(expired.slice(i, i + 128));
+      if (entries.size > expired.length) await this.ctx.storage.setAlarm(Date.now() + 86400000);
+    });
+    this.tail = operation.catch(() => {});
+    return operation;
+  }
+}
+
+// One durable inbox per report ID makes edited retries fail even if the edit
+// changes the fingerprint. The original reviewed payload remains client-owned.
+export class OwlReportID {
+  constructor(ctx, env) { this.ctx = ctx; this.env = env; this.tail = Promise.resolve(); }
+  fetch(request) {
+    const operation = this.tail.then(() => this.accept(request)).catch(() => json({ error: 'Delivery not confirmed; retry the same report' }, 503));
+    this.tail = operation.catch(() => {});
+    return operation;
+  }
+  async accept(request) {
+    const report = sanitizePayload(await request.json(), this.env);
+    const bytes = new TextEncoder().encode(JSON.stringify(report));
+    const digest = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(x => x.toString(16).padStart(2, '0')).join('');
+    let saved = await this.ctx.storage.get('report');
+    if (saved && saved.expires <= Date.now()) saved = null;
+    if (saved && saved.digest !== digest) return json({ error: 'Report ID belongs to a different reviewed draft' }, 409);
+    if (saved?.receipt) return json({ ...saved.receipt, action: 'duplicate' });
+    saved ??= { digest, expires: Date.now() + 30 * 86400000 };
+    await this.ctx.storage.put('report', saved);
+    await this.ctx.storage.setAlarm(saved.expires);
+    const fp = await fingerprint(report);
+    const group = this.env.REPORT_GROUPS.get(this.env.REPORT_GROUPS.idFromName(fp));
+    const response = await group.fetch(new Request('https://internal/report', { method: 'POST', body: JSON.stringify(report) }));
+    const receipt = await response.json();
+    if (response.ok && receipt.ok === true && receipt.reportId === report.report.id && receipt.issueNumber > 0) {
+      saved.receipt = receipt; await this.ctx.storage.put('report', saved);
+    }
+    return json(receipt, response.status);
+  }
+  async alarm() {
+    const saved = await this.ctx.storage.get('report');
+    if (!saved || saved.expires <= Date.now()) await this.ctx.storage.deleteAll();
+    else await this.ctx.storage.setAlarm(saved.expires);
+  }
 }
 
 function json(value, status = 200) {
@@ -241,10 +296,7 @@ function json(value, status = 200) {
 }
 
 async function readPayload(request) {
-  const length = Number(request.headers.get('Content-Length') || 0);
-  if (length > MAX_PAYLOAD_BYTES) throw new Error('Report is too large');
-  const bytes = await request.arrayBuffer();
-  if (bytes.byteLength > MAX_PAYLOAD_BYTES) throw new Error('Report is too large');
+  const bytes = await readBoundedBytes(request, MAX_PAYLOAD_BYTES, 'Report');
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 
@@ -261,9 +313,8 @@ export default {
     if (!limited.ok) return json({ error: limited.error }, limited.status);
     try {
       const sanitized = sanitizePayload(await readPayload(request), env);
-      const reportFingerprint = await fingerprint(sanitized);
-      const result = await submitToGitHub(env, sanitized, reportFingerprint);
-      return json({ ok: true, fingerprint: reportFingerprint, ...result });
+      const inbox = env.REPORT_IDS.get(env.REPORT_IDS.idFromName(sanitized.report.id));
+      return await inbox.fetch(new Request('https://internal/report', { method: 'POST', body: JSON.stringify(sanitized) }));
     } catch (error) {
       return json({ error: boundText(error?.message || 'Report rejected', 200) }, 400);
     }

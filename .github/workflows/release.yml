@@ -48,6 +48,7 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ env.RELEASE_TAG }}
+          submodules: recursive
 
       - name: Validate release tag
         run: |
@@ -124,7 +125,7 @@ jobs:
             test "$(readlink "$PYTHON_FRAMEWORK/Python")" = Versions/Current/Python
             test "$(readlink "$PYTHON_FRAMEWORK/Resources")" = Versions/Current/Resources
           fi
-          find "$APP/Contents/Frameworks" \( -name "*.dylib" -o -name "*.framework" \) \
+          find "$APP/Contents/Frameworks" -path "*/Sparkle.framework" -prune -o \( -name "*.dylib" -o -name "*.framework" \) \
             -exec codesign --force --options runtime --timestamp \
               --keychain "$SIGNING_KEYCHAIN" --sign "$SIGNING_IDENTITY" {} \;
           if [ -d "$APP/Contents/Resources/bin" ]; then
@@ -155,7 +156,8 @@ jobs:
               --keychain "$SIGNING_KEYCHAIN" --sign "$SIGNING_IDENTITY" \
               "$PYTHON_FRAMEWORK"
           fi
-          codesign --force --deep --options runtime \
+          ./scripts/sign_sparkle.sh "$APP" "$SIGNING_IDENTITY" "$SIGNING_KEYCHAIN"
+          codesign --force --options runtime \
             --timestamp \
             --keychain "$SIGNING_KEYCHAIN" \
             --preserve-metadata=entitlements \
@@ -218,7 +220,6 @@ jobs:
         continue-on-error: true
         run: |
           APP="${GITHUB_WORKSPACE}/install/OwlSwitch.app"
-          BIN="$APP/Contents/Resources/bin"
           HELPER_HOME="$RUNNER_TEMP/helper-home"
           ./scripts/macos_youtube_canary.sh playback "$APP" "$HELPER_HOME"
 
@@ -292,6 +293,7 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ env.RELEASE_TAG }}
+          submodules: recursive
 
       - name: Download notarized app
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -401,6 +403,13 @@ jobs:
             "$GITHUB_WORKSPACE/$DMG" \
             "$expected_version" "$EXPECTED_TEAM" "$expected_bundle"
 
+      - name: Package signed Sparkle update and corresponding source
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          ./scripts/package_sparkle.sh "$GITHUB_WORKSPACE/install/OwlSwitch.app" "$RELEASE_TAG" "$GITHUB_WORKSPACE/sparkle-release"
+          ./scripts/package_source.sh "$GITHUB_WORKSPACE/owl-switch-source-$RELEASE_TAG.tar.gz"
+
       - name: Create SHA-256 checksum
         run: |
           DMG="owl-switch-${{ env.RELEASE_TAG }}-macOS-arm64.dmg"
@@ -426,6 +435,10 @@ jobs:
           path: |
             owl-switch-*-macOS-arm64.dmg
             owl-switch-*-macOS-arm64.dmg.sha256
+            sparkle-release/OwlSwitch.zip
+            sparkle-release/appcast.xml
+            sparkle-release/SHA256SUMS
+            owl-switch-source-*.tar.gz
           if-no-files-found: error
 
   # ──────────────────────────────────────────────────────────────────────────────
@@ -448,6 +461,7 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ env.RELEASE_TAG }}
+          submodules: recursive
 
       - name: Download artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -487,3 +501,7 @@ jobs:
           files: |
             artifacts/dmg-arm64/*.dmg
             artifacts/dmg-arm64/*.dmg.sha256
+            artifacts/dmg-arm64/sparkle-release/OwlSwitch.zip
+            artifacts/dmg-arm64/sparkle-release/appcast.xml
+            artifacts/dmg-arm64/sparkle-release/SHA256SUMS
+            artifacts/dmg-arm64/owl-switch-source-*.tar.gz

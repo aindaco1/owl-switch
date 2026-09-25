@@ -11,22 +11,12 @@ FocusScope {
     property var navListState: ({})
 
     function primaryLabel() {
-        if (updateManager.state === "available") return "Download Update"
-        if (updateManager.state === "downloading" || updateManager.state === "checking") return "Cancel"
-        if (updateManager.state === "ready") return updateManager.canInstall ? "Install and Restart" : "Open Disk Image"
-        if (updateManager.state === "installing") return "Installing..."
-        return "Check for Updates"
+        if (updateManager.state === "checking") return "Checking..."
+        return updateManager.updateAvailable ? "Review Update" : "Check for Updates"
     }
 
     function activatePrimary() {
-        if (updateManager.state === "available") updateManager.downloadUpdate()
-        else if (updateManager.state === "downloading" || updateManager.state === "checking") updateManager.cancel()
-        else if (updateManager.state === "ready") {
-            if (updateManager.canInstall) updateManager.installAndRestart()
-            else updateManager.openDownloadedUpdate()
-        } else if (updateManager.state !== "installing" && updateManager.state !== "verifying") {
-            updateManager.checkForUpdates()
-        }
+        updateManager.checkForUpdates()
     }
 
     Keys.onReturnPressed: activatePrimary()
@@ -65,35 +55,19 @@ FocusScope {
             wrapMode: Text.Wrap
         }
 
-        Rectangle {
-            visible: updateManager.state === "downloading" || updateManager.state === "verifying"
-            width: parent.width
-            height: root.sh * 0.025
-            color: root.tertiaryColor
-
-            Rectangle {
-                width: parent.width * Math.max(0, Math.min(1, updateManager.progress))
-                height: parent.height
-                color: root.accentColor
-            }
-        }
-
         Text {
-            visible: updateManager.updateAvailable && updateManager.releaseNotes.length > 0
             width: parent.width
-            height: root.sh * 0.15
-            text: updateManager.releaseNotes
+            text: "Download, installation and restart require your approval in the update window."
             color: root.secondaryColor
             font.family: root.globalFont
-            font.pixelSize: root.sh * 0.0291667
+            font.pixelSize: root.sh * 0.025
             wrapMode: Text.Wrap
-            elide: Text.ElideRight
         }
 
         Rectangle {
             width: actionText.width + root.sw * 0.0375
             height: root.sh * 0.0708333
-            color: updateManager.state === "installing" || updateManager.state === "verifying"
+            color: updateManager.state === "checking"
                    ? root.tertiaryColor : root.accentColor
 
             Text {

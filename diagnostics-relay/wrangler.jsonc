@@ -6,6 +6,11 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "preview_urls": false,
+  "durable_objects": { "bindings": [
+    { "name": "REPORT_GROUPS", "class_name": "OwlReportGroup" },
+    { "name": "REPORT_IDS", "class_name": "OwlReportID" }
+  ] },
+  "migrations": [{ "tag": "reviewed-reports-v1", "new_sqlite_classes": ["OwlReportGroup", "OwlReportID"] }],
   "routes": [
     { "pattern": "owlswitch-crash.dustwave.xyz", "custom_domain": true }
   ],
