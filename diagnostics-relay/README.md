@@ -110,12 +110,12 @@ is present; it does **not** validate the private key, installation permissions,
 or GitHub delivery. The response exposes only readiness booleans, never values.
 
 `smoke:delivery` is an explicit live test requiring a signed-in `gh` account that
-can close issues in this repository. It sends two generated synthetic reports,
-verifies the GitHub App authored the resulting issue, verifies its aggregate
-count increased from one to two, and closes the synthetic issue. It reads no
-app data or logs. Allow about 65 seconds for KV propagation between submissions;
-each POST uses the desktop client's eight-second timeout. This verifies sequential
-aggregation, not concurrent delivery, retry deduplication, or closed-issue reuse.
+can close issues in this repository. It makes six synthetic submissions to verify
+creation, same-ID retry deduplication, rejection of an edited draft, concurrent
+grouping and closed-issue reopening. It verifies the GitHub App authored the
+resulting issue and closes the synthetic issue. It reads no app data or logs.
+Each POST uses the desktop client's eight-second timeout. Run only with enough
+remaining capacity in the normal ten-request hourly IP limit.
 Save the Worker version and the printed issue URL as deployment evidence.
 
 For an initial deployment before setting secrets, or to pause intake:
@@ -145,6 +145,7 @@ reports cannot acquire retroactive retry IDs.
 
 The migration creates two SQLite Durable Object namespaces. Retain them and both
 KV namespaces during rollback; never delete report state to roll back code.
-The app preview, draft persistence and explicit retry stay in the app. The old
-sequential smoke script below predates this migration; deployment acceptance must
-also check duplicate receipts, concurrent grouping and changed-payload rejection.
+The app preview, draft persistence and explicit retry stay in the app. The smoke
+script checks the new receipt contract. Historical count and operator-note
+adoption also passed against the existing synthetic issue #28 during deployment;
+that issue was reclosed after verification.

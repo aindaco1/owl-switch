@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { setTimeout } from 'node:timers/promises';
 
 // Explicit, live acceptance: sends synthetic data and closes only its own issue.
 // No app files, environment values, local logs, or credentials enter the report.
@@ -45,14 +44,16 @@ function verifyIssue(issue, receipt, count) {
   assert.equal(aggregate.versions[payload.app.version], count);
 }
 
-async function submit() {
+async function submit(report = payload, expectedStatus = 200) {
   const response = await fetch(`${origin}/v1/reports`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload), signal: AbortSignal.timeout(8000), redirect: 'error'
+    body: JSON.stringify(report), signal: AbortSignal.timeout(8000), redirect: 'error'
   });
   const receipt = await response.json();
-  assert.equal(response.status, 200, `Report rejected: ${JSON.stringify(receipt)}`);
+  assert.equal(response.status, expectedStatus, `Unexpected response: ${JSON.stringify(receipt)}`);
+  if (expectedStatus !== 200) return receipt;
   assert.equal(receipt.ok, true);
+  assert.equal(receipt.reportId, report.report.id);
   assert.match(receipt.fingerprint, /^[a-f0-9]{16}$/);
   assert.ok(Number.isSafeInteger(receipt.issueNumber) && receipt.issueNumber > 0);
   console.log(JSON.stringify(receipt));
@@ -80,21 +81,29 @@ async function main() {
     assert.equal(first.action, 'created');
     console.log(`Creation verified: ${firstIssue.html_url}`);
 
-    // Allow the KV index to propagate before checking sequential aggregation.
-    console.log('Waiting 65 seconds for the KV fingerprint index to propagate.');
-    await setTimeout(65000);
-    payload.report.id = randomUUID();
-    const second = await submit();
-    const secondIssue = github(`repos/${repository}/issues/${second.issueNumber}`);
-    if (second.issueNumber !== first.issueNumber) {
-      verifyIssue(secondIssue, second, 1);
-      ownedIssues.add(second.issueNumber);
+    assert.equal((await submit()).action, 'duplicate');
+    const changed = structuredClone(payload);
+    changed.report.context.recentEvents[0].message = 'Synthetic changed reviewed draft';
+    await submit(changed, 409);
+    verifyIssue(github(`repos/${repository}/issues/${first.issueNumber}`), first, 1);
+
+    const drafts = [structuredClone(payload), structuredClone(payload)];
+    for (const draft of drafts) draft.report.id = randomUUID();
+    const receipts = await Promise.all(drafts.map(draft => submit(draft)));
+    for (const receipt of receipts) {
+      ownedIssues.add(receipt.issueNumber);
+      assert.equal(receipt.issueNumber, first.issueNumber, 'Concurrent reports must aggregate');
+      assert.equal(receipt.action, 'updated');
     }
-    assert.equal(second.issueNumber, first.issueNumber, 'Reports must aggregate in one issue');
-    assert.equal(second.fingerprint, first.fingerprint);
-    assert.equal(second.action, 'aggregated');
-    verifyIssue(secondIssue, second, 2);
-    console.log(`Delivery and aggregation verified: ${secondIssue.html_url}`);
+    verifyIssue(github(`repos/${repository}/issues/${first.issueNumber}`), first, 3);
+    github(`repos/${repository}/issues/${first.issueNumber}`, { state: 'closed', state_reason: 'completed' });
+    const next = structuredClone(payload);
+    next.report.id = randomUUID();
+    const reopened = await submit(next);
+    ownedIssues.add(reopened.issueNumber);
+    assert.equal(reopened.issueNumber, first.issueNumber);
+    verifyIssue(github(`repos/${repository}/issues/${first.issueNumber}`), first, 4);
+    console.log(`Delivery, deduplication, immutable drafts, concurrent grouping and reopening verified: ${firstIssue.html_url}`);
   } finally {
     for (const number of ownedIssues) {
       const closed = github(`repos/${repository}/issues/${number}`, {

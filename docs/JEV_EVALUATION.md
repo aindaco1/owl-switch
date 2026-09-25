@@ -75,7 +75,7 @@ on first configuration; "offline" here disables Jev, not first-time build setup.
 | Jellyfin unauthenticated playback | No stream starts. | Playback lacks authentication. |
 | Local invalid playlist URL | The soundtrack queue remains empty. | A valid public/unlisted YouTube playlist URL is requested. |
 | Nature sound unavailable | Audio remains inactive and retry backoff is set. | Sound is unavailable and the slideshow continues. |
-| Invalid update response | No launch prompt appears; manual retry against a valid fake response recovers. | GitHub returned invalid release data. |
+| Update check failure | No launch prompt appears; manual retry against a successful fake driver recovers. | The update check failed and can be retried. |
 
 The test-only `RecoveryEvidence.h` exporter reads the messages emitted by the
 production classes after assertions succeed. Ordinary CTest does not export
