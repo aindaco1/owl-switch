@@ -19,7 +19,7 @@ and exact checks. OwlSwitch applies that approach to backend feedback rather
 than importing CutNotes' transcript-specific rubric. The existing
 `@dustwave/test-core/jev` implementation is reused through the pinned
 `shared/dust-wave-platform` submodule (commit
-`60d439b887f1244f82ff232c849d74152b28c776`). It owns request construction, bounded
+`6bb9854149203ee71445bf150c4ba86fac607d04`). It owns request construction, bounded
 Cloudflare transport, response validation and review routing. There is no second
 HTTP client or copied judge implementation. Node uses built-in modules; no npm
 install or app dependency is added.
