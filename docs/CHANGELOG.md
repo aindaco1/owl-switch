@@ -2,11 +2,18 @@
 
 All notable OwlSwitch changes are documented here. Releases through 1.6.3 used the former project name; 1.6.4 introduced the renamed bundle while retaining compatibility aliases and trusted identifiers.
 
-## [1.7.0] - 2026-09-25
+## [1.7.1] - 2026-09-25
 
 - Updates use the shared Sparkle adapter, signed update archives and a signed feed. Installation remains explicit; startup checks only notify when a newer version is available.
 - Help and diagnostics shows the full sanitized report before sending, preserves the reviewed bytes for retries, and requires a matching server receipt.
 - The support relay preserves existing issue history while serializing report grouping and duplicate handling.
+- Sign every bundled Qt plug-in explicitly and verify Developer ID signatures and secure timestamps on all bundled Mach-O code before notarization, while preserving Sparkle helper entitlements.
+
+## [1.7.0] - 2026-09-25
+
+Tagged candidate only; not published. Apple rejected unsigned Qt plug-ins during
+notarization. Version 1.7.1 contains the shared support/update migration with the
+corrected signing step; the original tag is retained unchanged.
 
 ## [Unreleased]
 

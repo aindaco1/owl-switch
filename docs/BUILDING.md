@@ -187,6 +187,14 @@ the DMG plus its SHA-256 checksum.
 
 The release also supplies `OwlSwitch.zip` and a signed `appcast.xml` for the shared Sparkle adapter. The same notarized app goes into both ZIP and legacy DMG. `scripts/package_sparkle.sh` pins Sparkle tools by checksum; the private signing key remains in the repository release secret. Corresponding source includes the pinned Platform submodule. See [shared support migration](SHARED_SUPPORT_MIGRATION.md).
 
+Qt frameworks and plug-ins are signed explicitly before the app, while Sparkle
+helpers retain their reviewed entitlements. `scripts/verify_macos_signatures.sh`
+checks every bundled Mach-O file for the expected Developer ID team and secure
+timestamp before notarization. Strict signature verification alone also accepts
+ad hoc signatures and is not sufficient for distribution. The unpublished
+1.7.0 candidate exposed this distinction; its tag is retained, and 1.7.1 includes
+the corrected signing and regression check.
+
 ### DMG signing/notarization recovery runbook
 
 The normal release workflow is canonical. Use this recovery only when the app job has completed and produced `notarized-app-arm64`, but the packaging job fails while signing the outer DMG on a hosted runner.
@@ -208,9 +216,9 @@ The recovery path deliberately separates the two operations at the failure bound
 3. Validate the candidate before it leaves the Mac:
 
    ```bash
-   hdiutil verify owl-switch-v1.7.0-macOS-arm64.dmg
-   codesign --verify --verbose=4 owl-switch-v1.7.0-macOS-arm64.dmg
-   codesign -dvvv owl-switch-v1.7.0-macOS-arm64.dmg
+   hdiutil verify owl-switch-v1.7.1-macOS-arm64.dmg
+   codesign --verify --verbose=4 owl-switch-v1.7.1-macOS-arm64.dmg
+   codesign -dvvv owl-switch-v1.7.1-macOS-arm64.dmg
    ```
 
    Confirm the output shows the expected Developer ID team, a `Timestamp=...` line, and no verification error.

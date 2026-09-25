@@ -125,7 +125,7 @@ jobs:
             test "$(readlink "$PYTHON_FRAMEWORK/Python")" = Versions/Current/Python
             test "$(readlink "$PYTHON_FRAMEWORK/Resources")" = Versions/Current/Resources
           fi
-          find "$APP/Contents/Frameworks" -path "*/Sparkle.framework" -prune -o \( -name "*.dylib" -o -name "*.framework" \) \
+          find "$APP/Contents/Frameworks" "$APP/Contents/PlugIns" -path "*/Sparkle.framework" -prune -o \( -name "*.dylib" -o -name "*.framework" \) \
             -exec codesign --force --options runtime --timestamp \
               --keychain "$SIGNING_KEYCHAIN" --sign "$SIGNING_IDENTITY" {} \;
           if [ -d "$APP/Contents/Resources/bin" ]; then
@@ -164,9 +164,7 @@ jobs:
             --sign "$SIGNING_IDENTITY" "$APP"
           codesign --verify --deep --strict "$APP"
           expected_team=$(sed -nE 's/^set\(APP_UPDATE_TEAM_ID "([^"]+)".*/\1/p' CMakeLists.txt)
-          actual_team=$(codesign -dv --verbose=4 "$APP" 2>&1 | sed -n 's/^TeamIdentifier=//p')
-          test -n "$expected_team"
-          test "$actual_team" = "$expected_team"
+          ./scripts/verify_macos_signatures.sh "$APP" "$expected_team"
 
       - name: Verify signed runtime and live sources
         run: |
