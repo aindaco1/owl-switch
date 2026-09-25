@@ -83,6 +83,9 @@ jobs:
           export PKG_CONFIG_PATH="${QT_ROOT_DIR}/lib/pkgconfig"
           python3 tests/native_display/smoke.py --require-window-access --evidence native-display-capability.json
 
+      - name: Verify shared support pins
+        run: node shared/dust-wave-platform/scripts/check-desktop-consumer.mjs
+
       - name: Configure
         run: |
           cmake -B build \

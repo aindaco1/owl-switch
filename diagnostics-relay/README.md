@@ -19,7 +19,7 @@ npm install
 npm run check
 ```
 
-## Deployment status (September 15, 2026)
+## Previous deployment evidence (September 15, 2026)
 
 Worker version `adfd8189-9398-4469-8513-f4c8c2855f9f` is deployed and enabled with
 its custom domain, all four dedicated KV namespaces, and all three GitHub App
@@ -67,7 +67,7 @@ wrangler kv namespace create OWLSWITCH_REPORT_INDEX --preview
 
 Then replace the corresponding `id` and `preview_id` in `wrangler.jsonc`; keep
 the binding names exactly `RATELIMIT` and `REPORT_INDEX`. The Worker fails closed
-with HTTP 503 without both bindings.
+with HTTP 503 without both KV and both Durable Object bindings.
 
 The existing **ASCII VJ Crash Relay** GitHub App installation includes
 `aindaco1/owl-switch` with metadata read and Issues read/write access. Its other
@@ -104,7 +104,7 @@ curl --fail https://owlswitch-crash.dustwave.xyz/health
 npm run smoke:delivery
 ```
 
-`GET /health` returns HTTP 503 if reporting is disabled, either storage binding
+`GET /health` returns HTTP 503 if reporting is disabled, any required storage binding
 is absent, or any GitHub credential is missing. HTTP 200 means the configuration
 is present; it does **not** validate the private key, installation permissions,
 or GitHub delivery. The response exposes only readiness booleans, never values.
@@ -127,3 +127,24 @@ npm run deploy -- --var REPORTS_ENABLED:false
 The next ordinary deploy restores the checked-in configuration. To keep an
 outage paused across deploys, also set `REPORTS_ENABLED` to `"false"` in
 `wrangler.jsonc`. Preserve the namespaces and credentials when rolling back.
+
+## Serialized migration for 1.7.0
+
+The existing endpoint, GitHub App credentials, sanitization and rate-limit/index
+KV remain. `REPORT_IDS` binds each ID to immutable sanitized bytes for 30 days;
+`REPORT_GROUPS` serializes issue updates per fingerprint with confirmed receipts.
+A changed payload under an existing ID returns 409. Failed or uncertain provider
+delivery returns no success receipt; retry the same ID and bytes. Approximate
+per-IP KV rate limiting is unchanged and is not a strict distributed quota.
+
+On first use, the group verifies the historical exact fingerprint marker and
+adopts its report count, version/OS buckets and issue index. Provider uncertainty
+fails closed. Issue formatting preserves text outside the generated block;
+existing operator closure/duplicate labels remain authoritative. Historical
+reports cannot acquire retroactive retry IDs.
+
+The migration creates two SQLite Durable Object namespaces. Retain them and both
+KV namespaces during rollback; never delete report state to roll back code.
+The app preview, draft persistence and explicit retry stay in the app. The old
+sequential smoke script below predates this migration; deployment acceptance must
+also check duplicate receipts, concurrent grouping and changed-payload rejection.

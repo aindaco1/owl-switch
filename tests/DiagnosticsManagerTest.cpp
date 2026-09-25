@@ -2,6 +2,8 @@
 
 #include <QFile>
 #include <QTemporaryDir>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QtTest>
 
 class DiagnosticsManagerTest final : public QObject {
@@ -11,6 +13,7 @@ private slots:
     void sanitizesSensitiveText();
     void filtersRoutineMpvTelemetry();
     void storesBoundedReviewableEvents();
+    void freezesReviewedBytesUntilExplicitRefreshAndRestoresPendingDraft();
 };
 
 void DiagnosticsManagerTest::sanitizesSensitiveText()
@@ -62,6 +65,29 @@ void DiagnosticsManagerTest::storesBoundedReviewableEvents()
     diagnostics.clearLogs();
     QCOMPARE(diagnostics.eventCount(), 0);
     QVERIFY(!QFile::exists(logPath));
+}
+
+void DiagnosticsManagerTest::freezesReviewedBytesUntilExplicitRefreshAndRestoresPendingDraft()
+{
+    QTemporaryDir root;
+    QString reviewed;
+    {
+        DiagnosticsManager diagnostics(root.path());
+        qWarning("synthetic first event");
+        reviewed = diagnostics.reportPreview();
+        const auto report = QJsonDocument::fromJson(reviewed.toUtf8()).object();
+        QVERIFY(!report.value("report").toObject().value("id").toString().isEmpty());
+        qWarning("synthetic later event");
+        QCOMPARE(diagnostics.reportPreview(), reviewed);
+    }
+    DiagnosticsManager restored(root.path());
+    QCOMPARE(restored.reportPreview(), reviewed);
+    restored.refreshReport();
+    QVERIFY(restored.reportPreview() != reviewed);
+    QVERIFY(restored.reportPreview().contains("synthetic later event"));
+    restored.clearLogs();
+    QVERIFY(!QFile::exists(root.filePath("diagnostics/pending-report.json")));
+    QCOMPARE(restored.reportPreview(), QStringLiteral("No diagnostic events have been recorded."));
 }
 
 QTEST_GUILESS_MAIN(DiagnosticsManagerTest)

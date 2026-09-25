@@ -43,13 +43,13 @@ test('creates a stable bounded fingerprint', async () => {
 });
 
 const configured = {
-  ...env, REPORTS_ENABLED: 'true', RATELIMIT: {}, REPORT_INDEX: {},
+  ...env, REPORTS_ENABLED: 'true', RATELIMIT: {}, REPORT_INDEX: {}, REPORT_GROUPS: {}, REPORT_IDS: {},
   GITHUB_APP_ID: 'synthetic-app', GITHUB_APP_INSTALLATION_ID: 'synthetic-installation',
   GITHUB_APP_PRIVATE_KEY: 'synthetic-key'
 };
 
 test('health fails closed for every missing deployment prerequisite without exposing secrets', async () => {
-  for (const key of ['REPORTS_ENABLED', 'RATELIMIT', 'REPORT_INDEX',
+  for (const key of ['REPORTS_ENABLED', 'RATELIMIT', 'REPORT_INDEX', 'REPORT_GROUPS', 'REPORT_IDS',
     'GITHUB_APP_ID', 'GITHUB_APP_INSTALLATION_ID', 'GITHUB_APP_PRIVATE_KEY']) {
     const incomplete = { ...configured };
     delete incomplete[key];
@@ -72,7 +72,7 @@ test('health reports configuration readiness without making a GitHub request', a
 });
 
 test('report intake fails closed while disabled or either KV binding is absent', async () => {
-  for (const missing of ['REPORTS_ENABLED', 'RATELIMIT', 'REPORT_INDEX']) {
+  for (const missing of ['REPORTS_ENABLED', 'RATELIMIT', 'REPORT_INDEX', 'REPORT_GROUPS', 'REPORT_IDS']) {
     const incomplete = { ...configured };
     delete incomplete[missing];
     const response = await relay.fetch(new Request('https://relay.test/v1/reports', {

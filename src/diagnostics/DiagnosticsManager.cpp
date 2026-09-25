@@ -14,6 +14,8 @@
 #include <QStandardPaths>
 #include <QSysInfo>
 #include <QUrl>
+#include <QUuid>
+#include <QSaveFile>
 
 namespace {
 
@@ -44,6 +46,31 @@ DiagnosticsManager::DiagnosticsManager(const QString &dataRoot, QObject *parent)
 {
     QDir().mkpath(m_directory);
     loadRecentEvents();
+    QFile pending(QDir(m_directory).filePath(QStringLiteral("pending-report.json")));
+    if (pending.open(QIODevice::ReadOnly) && pending.size() <= 24576) {
+        const auto bytes = pending.readAll();
+        const auto payload = QJsonDocument::fromJson(bytes).object();
+        const auto report = payload.value(QStringLiteral("report")).toObject();
+        const auto id = report.value(QStringLiteral("id")).toString();
+        if (!id.isEmpty() && id.size() <= 120 &&
+            payload.value(QStringLiteral("app")).toObject().value(QStringLiteral("identifier")).toString() == QString::fromLatin1(APP_BUNDLE_IDENTIFIER)) {
+            m_reviewedBytes = bytes; m_reviewedID = id;
+        }
+    }
+    connect(&m_client, &DustWave::ReviewedReportClient::acknowledged, this,
+            [this](const QString &id, qint64, const QString &) {
+        if (id != m_reviewedID) return;
+        setSubmitting(false);
+        setStatus(QStringLiteral("REPORT SENT - THANK YOU"));
+        emit reportSubmitted();
+        // Keep the reviewed snapshot and ID until explicit refresh. Another send
+        // receives the same acknowledgement without incrementing its issue.
+    });
+    connect(&m_client, &DustWave::ReviewedReportClient::failed, this,
+            [this](DustWave::ReviewedReportClient::Failure) {
+        setSubmitting(false);
+        setStatus(QStringLiteral("DELIVERY NOT CONFIRMED - RETRY THIS REPORT"));
+    });
     s_instance = this;
     m_previousHandler = qInstallMessageHandler(&DiagnosticsManager::messageHandler);
 }
@@ -172,19 +199,40 @@ QJsonArray DiagnosticsManager::reportEvents() const
     return events;
 }
 
-QString DiagnosticsManager::reportPreview() const
+QString DiagnosticsManager::reportPreview()
 {
-    QStringList lines;
-    const QJsonArray events = reportEvents();
-    for (const QJsonValue &value : events) {
-        const QJsonObject event = value.toObject();
-        lines.append(QStringLiteral("%1  %2  %3")
-                         .arg(event.value(QStringLiteral("at")).toString(),
-                              event.value(QStringLiteral("severity")).toString().toUpper(),
-                              event.value(QStringLiteral("message")).toString()));
+    if (m_reviewedBytes.isEmpty() && eventCount() > 0) {
+        auto payload = reportPayload();
+        auto report = payload.value(QStringLiteral("report")).toObject();
+        auto context = report.value(QStringLiteral("context")).toObject();
+        auto events = context.value(QStringLiteral("recentEvents")).toArray();
+        while (events.size() > 1 && QJsonDocument(payload).toJson(QJsonDocument::Indented).size() > 24576) {
+            events.removeFirst(); context[QStringLiteral("recentEvents")] = events;
+            report[QStringLiteral("context")] = context; payload[QStringLiteral("report")] = report;
+        }
+        m_reviewedID = payload.value(QStringLiteral("report")).toObject().value(QStringLiteral("id")).toString();
+        m_reviewedBytes = QJsonDocument(payload).toJson(QJsonDocument::Indented);
+        savePendingReport();
     }
-    return lines.isEmpty() ? QStringLiteral("No diagnostic events have been recorded.")
-                           : lines.join(QLatin1Char('\n'));
+    return m_reviewedBytes.isEmpty() ? QStringLiteral("No diagnostic events have been recorded.") : QString::fromUtf8(m_reviewedBytes);
+}
+
+void DiagnosticsManager::savePendingReport()
+{
+    QSaveFile pending(QDir(m_directory).filePath(QStringLiteral("pending-report.json")));
+    if (!pending.open(QIODevice::WriteOnly)) return;
+    pending.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+    if (pending.write(m_reviewedBytes) != m_reviewedBytes.size()) { pending.cancelWriting(); return; }
+    pending.commit();
+}
+
+void DiagnosticsManager::refreshReport()
+{
+    if (m_submitting) return;
+    m_reviewedBytes.clear(); m_reviewedID.clear();
+    QFile::remove(QDir(m_directory).filePath(QStringLiteral("pending-report.json")));
+    reportPreview();
+    setStatus(QStringLiteral("REPORT REFRESHED - REVIEW BEFORE SENDING"));
 }
 
 int DiagnosticsManager::eventCount() const
@@ -206,8 +254,7 @@ QJsonObject DiagnosticsManager::reportPayload() const
             {QStringLiteral("arch"), QSysInfo::currentCpuArchitecture()}
         }},
         {QStringLiteral("report"), QJsonObject{
-            {QStringLiteral("id"), QStringLiteral("owlswitch-%1").arg(
-                 QDateTime::currentMSecsSinceEpoch())},
+            {QStringLiteral("id"), QUuid::createUuid().toString(QUuid::WithoutBraces)},
             {QStringLiteral("kind"), QStringLiteral("native-output-error")},
             {QStringLiteral("surface"), QStringLiteral("native-output")},
             {QStringLiteral("message"), QStringLiteral("User-submitted OwlSwitch diagnostics")},
@@ -223,6 +270,7 @@ QJsonObject DiagnosticsManager::reportPayload() const
 
 void DiagnosticsManager::clearLogs()
 {
+    if (m_submitting) return;
     {
         QMutexLocker locker(&m_mutex);
         m_recentEvents = {};
@@ -230,6 +278,8 @@ void DiagnosticsManager::clearLogs()
         QFile::remove(m_logPath + QStringLiteral(".1"));
         QFile::remove(m_logPath + QStringLiteral(".2"));
     }
+    m_reviewedBytes.clear(); m_reviewedID.clear();
+    QFile::remove(QDir(m_directory).filePath(QStringLiteral("pending-report.json")));
     setStatus(QStringLiteral("LOCAL DIAGNOSTICS CLEARED"));
 }
 
@@ -237,33 +287,16 @@ void DiagnosticsManager::submitReport()
 {
     if (m_submitting)
         return;
-    if (eventCount() == 0) {
+    if (m_reviewedBytes.isEmpty()) {
         setStatus(QStringLiteral("NO DIAGNOSTIC EVENTS TO SEND"));
         return;
     }
 
     setSubmitting(true);
     setStatus(QStringLiteral("SENDING SANITIZED REPORT..."));
-    QNetworkRequest request(QUrl(
-        QStringLiteral("https://owlswitch-crash.dustwave.xyz/v1/reports")));
-    request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
-    request.setHeader(QNetworkRequest::UserAgentHeader,
-                      QStringLiteral("OwlSwitch/%1").arg(QCoreApplication::applicationVersion()));
-    request.setTransferTimeout(8000);
-    QNetworkReply *reply = m_network.post(
-        request, QJsonDocument(reportPayload()).toJson(QJsonDocument::Compact));
-    connect(reply, &QNetworkReply::finished, this, [this, reply] {
-        const bool successful = reply->error() == QNetworkReply::NoError &&
-            reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() >= 200 &&
-            reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() < 300;
-        if (successful) {
-            setStatus(QStringLiteral("REPORT SENT - THANK YOU"));
-            emit reportSubmitted();
-        } else {
-            setStatus(QStringLiteral("REPORT COULD NOT BE SENT - TRY AGAIN LATER"));
-        }
-        reply->deleteLater();
-        setSubmitting(false);
+    m_client.send(m_reviewedBytes, m_reviewedID, {
+        QUrl(QStringLiteral("https://owlswitch-crash.dustwave.xyz/v1/reports")),
+        QStringLiteral("OwlSwitch/%1").arg(QCoreApplication::applicationVersion()).toUtf8(), 8000, 24576, 4096
     });
 }
 

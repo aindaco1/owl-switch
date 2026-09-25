@@ -2,10 +2,10 @@ name: Diagnostics relay
 
 on:
   pull_request:
-    paths: ['diagnostics-relay/**', '.github/workflows/diagnostics-relay.yml']
+    paths: ['diagnostics-relay/**', 'shared/dust-wave-platform', 'platform-desktop.json', '.github/workflows/diagnostics-relay.yml']
   push:
     branches: [main]
-    paths: ['diagnostics-relay/**', '.github/workflows/diagnostics-relay.yml']
+    paths: ['diagnostics-relay/**', 'shared/dust-wave-platform', 'platform-desktop.json', '.github/workflows/diagnostics-relay.yml']
   workflow_dispatch:
 
 permissions:
@@ -22,6 +22,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          submodules: recursive
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24

@@ -185,7 +185,7 @@ image checksum, notarizes and staples it, mounts it read-only to recheck the
 shared layout and app contract, validates Gatekeeper acceptance, and publishes
 the DMG plus its SHA-256 checksum.
 
-The in-app updater consumes the same release. GitHub's API asset digest is mandatory, and the downloaded bundle must pass notarization, signature-team, bundle-ID, version, and arm64 checks before installation.
+The release also supplies `OwlSwitch.zip` and a signed `appcast.xml` for the shared Sparkle adapter. The same notarized app goes into both ZIP and legacy DMG. `scripts/package_sparkle.sh` pins Sparkle tools by checksum; the private signing key remains in the repository release secret. Corresponding source includes the pinned Platform submodule. See [shared support migration](SHARED_SUPPORT_MIGRATION.md).
 
 ### DMG signing/notarization recovery runbook
 

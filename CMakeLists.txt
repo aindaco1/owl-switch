@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(OwlSwitch VERSION 1.6.8 LANGUAGES CXX)
+project(OwlSwitch VERSION 1.7.0 LANGUAGES CXX)
 
 if(NOT APPLE)
     message(FATAL_ERROR "This fork is macOS-only. Configure and build it on macOS.")
@@ -17,7 +17,7 @@ set(APP_DISPLAY_NAME "${APP_PRODUCT_NAME}")
 # Retained only so installations older than 1.6.4 can discover and validate
 # future OwlSwitch updates. This is not used for current project or artifact naming.
 set(APP_LEGACY_NAME "240-mp-jellyfin")
-set(APP_RELEASE_TAG "v1.6.8")
+set(APP_RELEASE_TAG "v1.7.0")
 # The 1.6.4 updater requires this signed identity. Changing it requires a
 # separately released transition version whose updater trusts both identities.
 set(APP_BUNDLE_IDENTIFIER "com.240mp.jellyfin" CACHE STRING "macOS bundle identifier")
@@ -76,6 +76,7 @@ else()
 endif()
 
 enable_language(OBJCXX)
+add_subdirectory(shared/dust-wave-platform/qt)
 
 set(NATURE_AUDIO_SOURCES
     src/modules/nature/NatureSoundtrack.cpp
@@ -124,6 +125,8 @@ target_compile_definitions(owlswitch PRIVATE
 
 target_link_libraries(owlswitch PRIVATE
     app_build_config
+    DustWaveQtSupport
+    DustWaveQtUpdates
     Qt6::Core
     Qt6::Gui
     Qt6::Quick
@@ -301,7 +304,7 @@ if(BUILD_TESTING)
     )
     target_include_directories(diagnostics_manager_tests PRIVATE src)
     target_link_libraries(diagnostics_manager_tests PRIVATE
-        app_build_config Qt6::Core Qt6::Network Qt6::Test)
+        app_build_config DustWaveQtSupport Qt6::Core Qt6::Network Qt6::Test)
     add_test(NAME diagnostics_manager COMMAND diagnostics_manager_tests)
 
     add_executable(update_manager_tests
@@ -309,7 +312,7 @@ if(BUILD_TESTING)
         src/update/UpdateManager.cpp
     )
     target_include_directories(update_manager_tests PRIVATE src)
-    target_link_libraries(update_manager_tests PRIVATE app_build_config Qt6::Core Qt6::Gui Qt6::Network Qt6::Test)
+    target_link_libraries(update_manager_tests PRIVATE app_build_config DustWaveQtUpdates Qt6::Core Qt6::Gui Qt6::Network Qt6::Test)
     add_test(NAME update_manager COMMAND update_manager_tests)
 
     add_executable(jellyfin_backend_tests
@@ -437,6 +440,7 @@ endif()
 set_target_properties(owlswitch PROPERTIES
     OUTPUT_NAME "${APP_DISPLAY_NAME}"
     MACOSX_BUNDLE TRUE
+    MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/cmake/OwlSwitchInfo.plist.in"
     MACOSX_BUNDLE_BUNDLE_NAME "${APP_PRODUCT_NAME}"
     MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
@@ -444,6 +448,7 @@ set_target_properties(owlswitch PROPERTIES
     MACOSX_BUNDLE_ICON_FILE "assets/images/owl-switch"
     INSTALL_RPATH_USE_LINK_PATH TRUE
 )
+dustwave_embed_sparkle(owlswitch)
 
 # Keep a compatibility executable alias inside the renamed bundle. Released
 # 1.6.3 updaters validate this historical path before copying the new app.
@@ -544,6 +549,13 @@ install(FILES
     "${BUNDLED_DENO_LICENSE}"
     DESTINATION "${APP_DISPLAY_NAME}.app/Contents/Resources/licenses"
     COMPONENT Runtime)
+
+install(FILES "${DUSTWAVE_SPARKLE_LICENSE}"
+    DESTINATION "${APP_DISPLAY_NAME}.app/Contents/Resources/licenses"
+    RENAME LICENSE.Sparkle COMPONENT Runtime)
+install(FILES "${CMAKE_SOURCE_DIR}/shared/dust-wave-platform/LICENSE"
+    DESTINATION "${APP_DISPLAY_NAME}.app/Contents/Resources/licenses"
+    RENAME LICENSE.DustWavePlatform COMPONENT Runtime)
 
 install(FILES "${CMAKE_BINARY_DIR}/generated/helper-manifest.json"
     DESTINATION "${APP_DISPLAY_NAME}.app/Contents/Resources"

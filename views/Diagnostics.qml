@@ -32,7 +32,7 @@ FocusScope {
     }
 
     Text {
-        text: "REVIEW THE SANITIZED EVENTS INCLUDED WITH A REPORT"
+        text: "REVIEW THE FULL REPORT · UP/DOWN TO SCROLL"
         color: root.secondaryColor
         font.family: root.globalFont
         font.capitalization: Font.AllUppercase
@@ -55,16 +55,22 @@ FocusScope {
         border.width: 1
         clip: true
 
-        Text {
+        Flickable {
+            id: reportScroll
             anchors.fill: parent
             anchors.margins: root.sw * 0.0125
-            text: diagnosticsRoot.previewText
-            color: root.primaryColor
-            font.family: root.globalFont
-            font.pixelSize: root.sh * 0.0208
-            wrapMode: Text.WrapAnywhere
-            elide: Text.ElideRight
-            maximumLineCount: 13
+            contentHeight: reportText.height
+            clip: true
+            Text {
+                id: reportText
+                width: reportScroll.width
+                text: diagnosticsRoot.previewText
+                textFormat: Text.PlainText
+                color: root.primaryColor
+                font.family: root.globalFont
+                font.pixelSize: root.sh * 0.0208
+                wrapMode: Text.WrapAnywhere
+            }
         }
     }
 
@@ -76,9 +82,9 @@ FocusScope {
         spacing: root.sw * 0.025
 
         Repeater {
-            model: ["SEND REPORT", "CLEAR LOCAL LOG"]
+            model: ["SEND REPORT", "REFRESH REPORT", "CLEAR LOCAL LOG"]
             delegate: Rectangle {
-                width: root.sw * 0.31
+                width: root.sw * 0.245
                 height: root.sh * 0.065
                 color: diagnosticsRoot.actionIndex === index ? root.accentColor : "transparent"
                 border.color: diagnosticsRoot.actionIndex === index ? root.accentColor : root.tertiaryColor
@@ -87,7 +93,7 @@ FocusScope {
                     text: modelData
                     color: diagnosticsRoot.actionIndex === index ? root.surfaceColor : root.primaryColor
                     font.family: root.globalFont
-                    font.pixelSize: root.sh * 0.029
+                    font.pixelSize: root.sh * 0.023
                 }
             }
         }
@@ -126,11 +132,18 @@ FocusScope {
         anchors.bottomMargin: root.sh * 0.065
     }
 
-    Keys.onLeftPressed: actionIndex = 0
-    Keys.onRightPressed: actionIndex = 1
+    Keys.onLeftPressed: actionIndex = Math.max(0, actionIndex - 1)
+    Keys.onRightPressed: actionIndex = Math.min(2, actionIndex + 1)
+    Keys.onUpPressed: reportScroll.contentY = Math.max(0, reportScroll.contentY - root.sh * 0.1)
+    Keys.onDownPressed: reportScroll.contentY = Math.min(Math.max(0, reportScroll.contentHeight - reportScroll.height), reportScroll.contentY + root.sh * 0.1)
     Keys.onReturnPressed: {
         if (actionIndex === 0)
             diagnosticsManager.submitReport()
+        else if (actionIndex === 1) {
+            diagnosticsManager.refreshReport()
+            diagnosticsRoot.refreshPreview()
+            reportScroll.contentY = 0
+        }
         else
             diagnosticsManager.clearLogs()
     }

@@ -11,6 +11,8 @@
     "deploy": "wrangler deploy"
   },
   "dependencies": {
+    "@dustwave/desktop-core": "file:../shared/dust-wave-platform/packages/desktop-core",
+    "@dustwave/worker-core": "file:../shared/dust-wave-platform/packages/worker-core",
     "@octokit/auth-app": "8.3.0"
   },
   "devDependencies": {
