@@ -246,7 +246,14 @@ The recovery path deliberately separates the two operations at the failure bound
    codesign -dvvv owl-switch-v1.7.1-macOS-arm64.dmg
    ```
 
-   Confirm the output shows the expected Developer ID team, a `Timestamp=...` line, and no verification error.
+   Confirm the output shows the expected Developer ID signing certificate, a
+   `Timestamp=...` line, and no verification error. The checksum-pinned
+   `rcodesign` path can leave the DMG CodeDirectory's `TeamIdentifier` unset;
+   this is distinct from the signing certificate's team. Use
+   `scripts/macos_dmg_contract.zsh verify-signed <absolute-dmg-path> <version> <team> <bundle-id>`
+   to cryptographically require the certificate's team, Apple trust anchor and
+   Developer ID Application profile, then validate the mounted app. Do not infer
+   trusted identity from a displayed authority string alone.
 
 4. Upload only that signed, verified DMG to a **draft** GitHub release for the existing tag. Never publish the unstapled recovery asset.
 5. Run **Actions → Recover DMG Notarization → Run workflow**, entering that tag. The recovery workflow refuses a non-draft release or a mismatched tag/version. It downloads the exact draft asset, verifies the DMG and enclosed app (signature, stapled app ticket, team, bundle ID, version, and arm64 architecture), submits the DMG from GitHub's macOS runner, staples and validates it, replaces the draft asset, creates its SHA-256 file, and only then publishes the release.
