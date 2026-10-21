@@ -82,6 +82,11 @@ fi
 /bin/rmdir "$helper_stage_root"
 helper_stage_root=""
 
+# Qt and mpv can share dylibs, but their executables live at different depths.
+# macdeployqt may rewrite shared links relative to Contents/MacOS. Restore
+# loader-relative links before signing so nested media helpers can load them.
+/usr/bin/python3 "$source_root/scripts/macos_normalize_framework_links.py" "$app"
+
 # macdeployqt can leave ad-hoc signatures on binaries whose load commands must
 # still be normalized. Remove only those signatures before editing the rpaths.
 while IFS= read -r binary; do

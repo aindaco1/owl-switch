@@ -84,6 +84,31 @@ for legacy data migration.
 
 `assets/images/owl-switch.iconset/` is the canonical macOS icon source. Regenerate `assets/images/owl-switch.icns` with `iconutil -c icns assets/images/owl-switch.iconset`; the release uses that ICNS through `MACOSX_BUNDLE_ICON_FILE`, while the authoring iconset is excluded from installed app Resources.
 
+## TLS release acceptance
+
+Qt uses an embedded copy of the checksum-pinned CA bundle before any network
+client is created; missing or invalid trust data stops startup. Do not merge
+system-discovered roots back into that configuration. Plex API requests retain
+certificate validation, and both mpv video and audio use verified TLS with the
+bundled CA file. Servers with invalid chains now fail instead of receiving a
+hostname-based exception.
+
+Run `OWL_TLS_ACCEPTANCE=1 build/tls_trust_tests` for the opt-in Qt control and
+twelve-chain acceptance. The default CTest suite stays offline.
+
+Deno is pinned to 2.9.8. The current yt-dlp archive predates the eMudhra
+revocations, so packaging installs a separately pinned certifi 2026.10.19 CA
+file over its bundled CA file. The helper manifest records the CA version,
+path and SHA-256; the verifier rejects altered bytes. mpv uses that same CA file.
+
+Run the final app's `Contents/Resources/bin/deno` with
+`run --allow-net scripts/check-deno-tls.mjs` before release. All 12 disclosed
+chains must fail with certificate errors, while the normal HTTPS control
+succeeds. Validate the installed CA file separately with Python/OpenSSL and
+exercise yt-dlp/mpv with that same file. These opt-in network checks do not
+count DNS failures or timeouts as evidence of protection. Qt and Sparkle also
+depend on system trust and must be checked on the target Mac.
+
 ## Debugging & logs
 
 OwlSwitch logs to **stdout/stderr** via Qt's `qDebug` / `qWarning` and writes already-sanitized, owner-only rotating structured events under `diagnostics/` in the existing Application Support directory. Settings → Diagnostics previews the bounded events and provides explicit Send Report/Clear Local Log actions; reports are never sent automatically.
@@ -350,8 +375,10 @@ Testing-only Jev changes deploy by merging reviewed code and documentation to
 deployment, or published DMG. CI's unsigned app is a verification artifact, not
 a new release.
 
-When applying hardened-runtime signatures, preserve the bundled Deno binary's
-upstream entitlements. Sign the yt-dlp onedir launcher with
+When applying hardened-runtime signatures, sign Deno with
+`packaging/deno.entitlements` so V8 can allocate JIT memory. The signed-runtime
+helper check executes JavaScript; `--version` alone does not exercise V8.
+Sign the yt-dlp onedir launcher with
 `packaging/yt-dlp.entitlements` because it loads its adjacent Python runtime
 dynamically, and sign every nested Mach-O runtime file before the launcher. Sign mpv with
 `packaging/mpv.entitlements` because its LuaJIT engine generates executable

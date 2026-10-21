@@ -111,7 +111,6 @@ private:
     QNetworkReply  *plexDelete(const QUrl &url, const QString &token);
 
     // Convenience SSL-ignore connect
-    void ignoreSslErrors(QNetworkReply *reply);
 
     // Auth state accessors (read from in-memory / file)
     QString serverUrl() const;

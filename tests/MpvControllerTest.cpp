@@ -39,7 +39,35 @@ private slots:
     void videoWindowPolicy_data();
     void videoWindowPolicy();
     void bundledVulkanDriverOverridesExternalDiscovery();
+    void plexPlaybackKeepsCertificateVerification();
 };
+
+void MpvControllerTest::plexPlaybackKeepsCertificateVerification()
+{
+    QTemporaryDir root;
+    QVERIFY(QDir().mkpath(root.filePath("bin/_internal/certifi")));
+    QVERIFY(writeExecutable(root.filePath("bin/yt-dlp"), "#!/bin/sh\nexit 0\n"));
+    QFile ca(root.filePath("bin/_internal/certifi/cacert.pem"));
+    QVERIFY(ca.open(QIODevice::WriteOnly));
+    ca.write("fixture\n");
+    ca.close();
+    const auto marker = root.filePath("arguments");
+    QVERIFY(writeExecutable(root.filePath("bin/mpv"),
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" > '" + marker.toUtf8() + "'\nsleep 10\n"));
+    MpvController controller(root.path());
+    controller.loadAndPlayWithOptions("https://server.plex.direct/video", {});
+    auto read = [&] {
+        QFile arguments(marker);
+        if (!arguments.open(QIODevice::ReadOnly)) return QStringList{};
+        return QString::fromUtf8(arguments.readAll()).split('\n', Qt::SkipEmptyParts);
+    };
+    QTRY_VERIFY_WITH_TIMEOUT(!read().isEmpty(), 3000);
+    const auto arguments = read();
+    QVERIFY(arguments.contains("--tls-verify=yes"));
+    QVERIFY(!arguments.contains("--tls-verify=no"));
+    QVERIFY(arguments.contains("--tls-ca-file=" + ca.fileName()));
+    controller.stopImmediately();
+}
 
 void MpvControllerTest::bundledVulkanDriverOverridesExternalDiscovery()
 {

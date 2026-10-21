@@ -2,6 +2,15 @@
 
 All notable OwlSwitch changes are documented here. Releases through 1.6.3 used the former project name; 1.6.4 introduced the renamed bundle while retaining compatibility aliases and trusted identifiers.
 
+## [1.7.2] - 2026-10-21
+
+- Update bundled Deno to 2.9.8 to reject compromised eMudhra certificate keys.
+- Replace yt-dlp and mpv's shared CA file with a separately checksum-pinned certifi 2026.10.19 bundle; record and verify the override in the helper manifest.
+- Reject a changed CA bundle during release verification even when it still contains parseable certificates.
+- Sign Deno with its required JIT entitlement and execute JavaScript during signed-helper verification, catching failures that a version check misses.
+- Initialize Qt with the embedded pinned CA bundle before creating network clients. Remove Plex certificate-error bypasses and require verified TLS with the bundled CA file for video playback as well as audio.
+- Repair shared library paths after Qt packaging so bundled mpv can load libraries also used by the main app. Validate both executable locations with a compiled regression fixture.
+
 ## [1.7.1] - 2026-09-25
 
 - Updates use the shared Sparkle adapter, signed update archives and a signed feed. Installation remains explicit; startup checks only notify when a newer version is available.

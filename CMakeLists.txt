@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(OwlSwitch VERSION 1.7.1 LANGUAGES CXX)
+project(OwlSwitch VERSION 1.7.2 LANGUAGES CXX)
 
 if(NOT APPLE)
     message(FATAL_ERROR "This fork is macOS-only. Configure and build it on macOS.")
@@ -17,7 +17,7 @@ set(APP_DISPLAY_NAME "${APP_PRODUCT_NAME}")
 # Retained only so installations older than 1.6.4 can discover and validate
 # future OwlSwitch updates. This is not used for current project or artifact naming.
 set(APP_LEGACY_NAME "240-mp-jellyfin")
-set(APP_RELEASE_TAG "v1.7.1")
+set(APP_RELEASE_TAG "v1.7.2")
 # The 1.6.4 updater requires this signed identity. Changing it requires a
 # separately released transition version whose updater trusts both identities.
 set(APP_BUNDLE_IDENTIFIER "com.240mp.jellyfin" CACHE STRING "macOS bundle identifier")
@@ -105,6 +105,7 @@ add_executable(owlswitch
     src/input/InputManager.mm
     src/update/UpdateManager.cpp
     src/tools/HelperResolver.cpp
+    src/tools/TlsTrust.cpp
     src/tools/YouTubeJob.cpp
     src/tools/YouTubePolicy.cpp
     src/diagnostics/DiagnosticsManager.cpp
@@ -112,6 +113,11 @@ add_executable(owlswitch
 )
 
 add_library(app_build_config INTERFACE)
+set_source_files_properties("${BUNDLED_TLS_CA}" PROPERTIES QT_RESOURCE_ALIAS "cacert.pem")
+qt_add_resources(owlswitch tls_trust
+    PREFIX "/security"
+    FILES "${BUNDLED_TLS_CA}"
+)
 target_compile_definitions(app_build_config INTERFACE
     APP_VERSION="${PROJECT_VERSION}"
     APP_BUNDLE_IDENTIFIER="${APP_BUNDLE_IDENTIFIER}"
@@ -151,6 +157,12 @@ target_include_directories(owlswitch PRIVATE
 
 if(BUILD_TESTING)
     find_package(Qt6 REQUIRED COMPONENTS Test)
+
+    add_executable(tls_trust_tests tests/TlsTrustTest.cpp src/tools/TlsTrust.cpp)
+    target_include_directories(tls_trust_tests PRIVATE src)
+    target_compile_definitions(tls_trust_tests PRIVATE TEST_TLS_CA="${BUNDLED_TLS_CA}")
+    target_link_libraries(tls_trust_tests PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+    add_test(NAME tls_trust COMMAND tls_trust_tests)
 
     add_executable(app_core_tests
         tests/AppCoreTest.cpp
@@ -414,6 +426,11 @@ if(BUILD_TESTING)
     )
 
     add_test(
+        NAME macos_framework_links
+        COMMAND /usr/bin/python3 "${CMAKE_SOURCE_DIR}/tests/MacosFrameworkLinksTest.py"
+    )
+
+    add_test(
         NAME ci_app_artifact
         COMMAND /usr/bin/python3
             "${CMAKE_SOURCE_DIR}/tests/CiAppArtifactTest.py"
@@ -541,6 +558,9 @@ if(YT_DLP_RUNTIME_DIRECTORY)
         DESTINATION "${APP_DISPLAY_NAME}.app/Contents/Resources/bin"
         USE_SOURCE_PERMISSIONS
         COMPONENT Runtime)
+    install(FILES "${BUNDLED_TLS_CA}"
+        DESTINATION "${APP_DISPLAY_NAME}.app/Contents/Resources/bin/_internal/certifi"
+        RENAME cacert.pem COMPONENT Runtime)
 endif()
 
 install(PROGRAMS "${DENO_EXECUTABLE}"

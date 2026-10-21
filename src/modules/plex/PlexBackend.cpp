@@ -4,7 +4,6 @@
 #include <QJsonDocument>
 #include <QNetworkRequest>
 #include <QNetworkReply>
-#include <QSslError>
 #include <QUrlQuery>
 #include <QCoreApplication>
 #include <QSysInfo>
@@ -119,49 +118,23 @@ QNetworkRequest PlexBackend::plexRequest(const QUrl &url, const QString &token) 
     return req;
 }
 
-void PlexBackend::ignoreSslErrors(QNetworkReply *reply) {
-    connect(reply, &QNetworkReply::sslErrors, reply,
-            [reply](const QList<QSslError> &errors) {
-        // Only relax verification for Plex's LAN direct addresses. The *.plex.direct
-        // wildcard cert is Let's Encrypt-signed but may fail on systems with an
-        // incomplete CA bundle (e.g. RPi OS Lite without ca-certificates). Suppress
-        // only the chain-verification errors we expect for that host — not globally.
-        if (!reply->url().host().endsWith(QStringLiteral(".plex.direct")))
-            return;
-        static const QSet<QSslError::SslError> kExpected = {
-            QSslError::UnableToGetLocalIssuerCertificate,
-            QSslError::UnableToVerifyFirstCertificate,
-            QSslError::SelfSignedCertificateInChain,
-        };
-        QList<QSslError> allowed;
-        for (const QSslError &e : errors)
-            if (kExpected.contains(e.error())) allowed.append(e);
-        if (!allowed.isEmpty())
-            reply->ignoreSslErrors(allowed);
-    });
-}
-
 QNetworkReply *PlexBackend::plexGet(const QUrl &url, const QString &token) {
     auto *reply = m_nam->get(plexRequest(url, token));
-    ignoreSslErrors(reply);
     return reply;
 }
 
 QNetworkReply *PlexBackend::plexPost(const QUrl &url, const QString &token) {
     auto *reply = m_nam->post(plexRequest(url, token), QByteArray{});
-    ignoreSslErrors(reply);
     return reply;
 }
 
 QNetworkReply *PlexBackend::plexPut(const QUrl &url, const QString &token) {
     auto *reply = m_nam->put(plexRequest(url, token), QByteArray{});
-    ignoreSslErrors(reply);
     return reply;
 }
 
 QNetworkReply *PlexBackend::plexDelete(const QUrl &url, const QString &token) {
     auto *reply = m_nam->deleteResource(plexRequest(url, token));
-    ignoreSslErrors(reply);
     return reply;
 }
 
@@ -170,7 +143,6 @@ QNetworkReply *PlexBackend::plexPostJson(const QUrl &url, const QString &token,
     QNetworkRequest req = plexRequest(url, token);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     auto *reply = m_nam->post(req, body);
-    ignoreSslErrors(reply);
     return reply;
 }
 
@@ -1708,7 +1680,6 @@ void PlexBackend::request_transcode(const QString &ratingKey, const QString &par
     QNetworkRequest req = plexRequest(url, token);
     req.setRawHeader("X-Plex-Platform", "Chrome");
     auto *reply = m_nam->get(req);
-    ignoreSslErrors(reply);
     connect(reply, &QNetworkReply::finished, this,
             [this, reply, token, ratingKey, partKey, sessionId, audioId, subtitleId, offsetMs]() {
         reply->deleteLater();
