@@ -12,6 +12,8 @@ if [[ ! -d "$app/Contents" ]]; then
     exit 1
 fi
 
+/usr/bin/python3 "${0:A:h}/macos_normalize_framework_links.py" "$app" --check
+
 if [[ -x "$app/Contents/Resources/bin/mpv" ]]; then
     /usr/bin/python3 - "$app" <<'PY'
 import json, pathlib, sys

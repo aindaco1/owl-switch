@@ -426,6 +426,11 @@ if(BUILD_TESTING)
     )
 
     add_test(
+        NAME macos_framework_links
+        COMMAND /usr/bin/python3 "${CMAKE_SOURCE_DIR}/tests/MacosFrameworkLinksTest.py"
+    )
+
+    add_test(
         NAME ci_app_artifact
         COMMAND /usr/bin/python3
             "${CMAKE_SOURCE_DIR}/tests/CiAppArtifactTest.py"

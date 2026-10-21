@@ -63,6 +63,7 @@ packaging_contract_sha256="$({
         platform-desktop.json \
         scripts/ci_app_artifact.py \
         scripts/macos_bundle_tool_deps.zsh \
+        scripts/macos_normalize_framework_links.py \
         scripts/macos_prepare_release_bundle.zsh \
         scripts/macos_prune_qt_deployment.zsh \
         scripts/macos_verify_bundled_helpers.sh \

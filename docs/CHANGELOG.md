@@ -9,6 +9,7 @@ All notable OwlSwitch changes are documented here. Releases through 1.6.3 used t
 - Reject a changed CA bundle during release verification even when it still contains parseable certificates.
 - Sign Deno with its required JIT entitlement and execute JavaScript during signed-helper verification, catching failures that a version check misses.
 - Initialize Qt with the embedded pinned CA bundle before creating network clients. Remove Plex certificate-error bypasses and require verified TLS with the bundled CA file for video playback as well as audio.
+- Repair shared library paths after Qt packaging so bundled mpv can load libraries also used by the main app. Validate both executable locations with a compiled regression fixture.
 
 ## [1.7.1] - 2026-09-25
 
