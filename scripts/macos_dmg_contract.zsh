@@ -81,6 +81,30 @@ stage_layout() {
     validate_layout "$staging_root"
 }
 
+verify_dmg_signature() {
+    local dmg_path="$1"
+    local expected_team="$2"
+    [[ "$expected_team" =~ ^[A-Z0-9]{10}$ ]] || {
+        fail "expected Developer ID team must contain ten uppercase letters or digits"
+        return 1
+    }
+
+    # rcodesign DMGs omit the CodeDirectory TeamIdentifier. Require the actual
+    # signing certificate's team, Apple trust anchor and Developer ID profile.
+    local requirement="anchor apple generic and certificate leaf[subject.OU] = \"$expected_team\" and certificate leaf[field.1.2.840.113635.100.6.1.13] exists"
+    /usr/bin/codesign --verify --strict --verbose=4 "-R=$requirement" "$dmg_path" || {
+        fail "DMG does not satisfy the expected Developer ID certificate requirement"
+        return 1
+    }
+    local signature
+    signature="$(/usr/bin/codesign -dvvv "$dmg_path" 2>&1)" || {
+        fail "DMG signature could not be inspected"
+        return 1
+    }
+    print -r -- "$signature" | /usr/bin/grep -q '^Timestamp=' ||
+        fail "DMG signature has no secure timestamp"
+}
+
 verify_dmg() {
     local verification_mode="$1"
     local dmg_path="$2"
@@ -99,15 +123,7 @@ verify_dmg() {
     /usr/bin/hdiutil verify "$dmg_path"
 
     if [[ "$verification_mode" == "signed" ]]; then
-        /usr/bin/codesign --verify --verbose=4 "$dmg_path"
-        local dmg_signature
-        dmg_signature="$(/usr/bin/codesign -dvvv "$dmg_path" 2>&1)"
-        local actual_dmg_team
-        actual_dmg_team="$(print -r -- "$dmg_signature" | /usr/bin/sed -n 's/^TeamIdentifier=//p')"
-        [[ "$actual_dmg_team" == "$expected_team" ]] ||
-            fail "DMG was signed by an unexpected developer"
-        print -r -- "$dmg_signature" | /usr/bin/grep -q '^Timestamp=' ||
-            fail "DMG signature has no secure timestamp"
+        verify_dmg_signature "$dmg_path" "$expected_team" || return 1
     else
         /usr/bin/xcrun stapler validate "$dmg_path"
         /usr/sbin/spctl -a -t open --context context:primary-signature -vv "$dmg_path"
@@ -180,10 +196,11 @@ usage() {
     return 2
 }
 
-(( $# >= 1 )) || usage
-command_name="$1"
-shift
-case "$command_name" in
+main() {
+    (( $# >= 1 )) || usage
+    local command_name="$1"
+    shift
+    case "$command_name" in
     stage)
         (( $# == 2 )) || usage
         stage_layout "$1" "$2"
@@ -201,4 +218,10 @@ case "$command_name" in
         verify_dmg notarized "$1" "$2" "$3" "$4"
         ;;
     *) usage ;;
-esac
+    esac
+}
+
+# Permit the fixture suite to exercise the certificate-verification boundary.
+if [[ "$ZSH_EVAL_CONTEXT" == toplevel ]]; then
+    main "$@"
+fi

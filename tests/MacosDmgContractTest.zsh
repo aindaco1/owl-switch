@@ -106,4 +106,46 @@ expect_failure "relative layout root" \
 expect_failure "filesystem root" \
     /bin/zsh "$contract_script" validate-layout /
 
+# Exercise the external verifier boundary without requiring a private signing
+# identity or network fixture. A matching text header alone must never pass.
+source "$contract_script"
+fixture_signature_valid=true
+fixture_timestamp=true
+fixture_team_field="not set"
+function /usr/bin/codesign() {
+    if [[ "$1" == "--verify" ]]; then
+        [[ "$*" == *"anchor apple generic"* &&
+           "$*" == *'certificate leaf[subject.OU] = "PWT3Q52LZ2"'* &&
+           "$*" == *"certificate leaf[field.1.2.840.113635.100.6.1.13] exists"* ]] ||
+            return 1
+        [[ "$fixture_signature_valid" == true ]] || return 1
+        return 0
+    fi
+    [[ "$1" == "-dvvv" ]] || return 1
+    print -r -- "Authority=Developer ID Application: Fixture (PWT3Q52LZ2)"
+    print -r -- "TeamIdentifier=$fixture_team_field"
+    if [[ "$fixture_timestamp" == true ]]; then
+        print -r -- "Timestamp=Oct 21, 2026"
+    fi
+    return 0
+}
+
+verify_dmg_signature "$test_root/fixture.dmg" PWT3Q52LZ2 ||
+    fail "valid certificate without CodeDirectory TeamIdentifier was rejected"
+fixture_team_field=PWT3Q52LZ2
+verify_dmg_signature "$test_root/fixture.dmg" PWT3Q52LZ2 ||
+    fail "valid certificate with CodeDirectory TeamIdentifier was rejected"
+expect_failure "different certificate team" \
+    verify_dmg_signature "$test_root/fixture.dmg" AAAAAAAAAA
+fixture_signature_valid=false
+expect_failure "invalid signature despite matching displayed team" \
+    verify_dmg_signature "$test_root/fixture.dmg" PWT3Q52LZ2
+fixture_signature_valid=true
+fixture_timestamp=false
+expect_failure "missing secure timestamp" \
+    verify_dmg_signature "$test_root/fixture.dmg" PWT3Q52LZ2
+expect_failure "requirement injection in team" \
+    verify_dmg_signature "$test_root/fixture.dmg" 'PWT3Q52LZ2" or true'
+unfunction /usr/bin/codesign
+
 print -r -- "macOS DMG contract fixtures passed"
