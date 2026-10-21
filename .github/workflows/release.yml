@@ -136,6 +136,8 @@ jobs:
                 entitlement_file="packaging/mpv.entitlements"
               elif [ "$helper" = "$APP/Contents/Resources/bin/yt-dlp" ]; then
                 entitlement_file="packaging/yt-dlp.entitlements"
+              elif [ "$helper" = "$APP/Contents/Resources/bin/deno" ]; then
+                entitlement_file="packaging/deno.entitlements"
               fi
               if [ -n "$entitlement_file" ]; then
                 codesign --force --options runtime \

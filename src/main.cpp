@@ -3,6 +3,7 @@
 #include <QQmlContext>
 #include <QUrl>
 #include <QDir>
+#include <QFile>
 #include <QStandardPaths>
 #include <QTimer>
 #include <QCursor>
@@ -29,6 +30,7 @@
 #include "input/InputManager.h"
 #include "update/UpdateManager.h"
 #include "tools/YouTubeJob.h"
+#include "tools/TlsTrust.h"
 #include "diagnostics/DiagnosticsManager.h"
 #ifdef Q_OS_MAC
 #include "macos_utils.h"
@@ -91,6 +93,11 @@ static int lowBatteryThresholdFromSettings(AppCore &appCore) {
 
 int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
+    QFile tlsCa(QStringLiteral(":/security/cacert.pem"));
+    if (!tlsCa.open(QIODevice::ReadOnly) || !TlsTrust::configure(tlsCa.readAll())) {
+        qCritical("The bundled TLS trust store could not be loaded.");
+        return 1;
+    }
     app.setApplicationName("owl-switch");
     app.setApplicationDisplayName(QStringLiteral("OwlSwitch"));
 #ifdef APP_VERSION

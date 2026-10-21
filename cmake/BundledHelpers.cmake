@@ -3,8 +3,10 @@
 # layout update on its next ordinary configure.
 set(YT_DLP_VERSION "2026.08.19")
 set(YT_DLP_SHA256 "07e54b0865303c864006925913bce2604f8ee8cc6f18699bac9c309f9328a6d8")
-set(DENO_VERSION "2.9.3")
-set(DENO_SHA256 "1b2972f7ceb6df28d9600eab18d423bebb9aa18db02f01d7eb37a5b501482203")
+set(DENO_VERSION "2.9.8")
+set(DENO_SHA256 "9f0bf660393da2eaff044cdc7444cb08c73f235849b61d224d825a194ce7c98e")
+set(TLS_CA_VERSION "2026.10.19")
+set(TLS_CA_SHA256 "50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785")
 
 set(YT_DLP_EXECUTABLE_OVERRIDE "" CACHE FILEPATH
     "Use an existing yt-dlp executable instead of downloading the pinned helper")
@@ -38,6 +40,14 @@ function(download_verified url destination expected_sha256)
         endif()
     endif()
 endfunction()
+
+# yt-dlp's current immutable release predates the eMudhra revocations.
+# Install a separately pinned certifi CA file after its onedir runtime; both
+# yt-dlp and mpv use this path. The helper manifest records this override.
+set(BUNDLED_TLS_CA "${_helper_cache}/certifi-${TLS_CA_VERSION}-cacert.pem")
+download_verified(
+    "https://raw.githubusercontent.com/certifi/python-certifi/${TLS_CA_VERSION}/certifi/cacert.pem"
+    "${BUNDLED_TLS_CA}" "${TLS_CA_SHA256}")
 
 if(YT_DLP_EXECUTABLE_OVERRIDE)
     if(NOT EXISTS "${YT_DLP_EXECUTABLE_OVERRIDE}")

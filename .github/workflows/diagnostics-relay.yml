@@ -25,7 +25,7 @@ jobs:
           submodules: recursive
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 24
+          node-version: '24.22.1'
           cache: npm
           cache-dependency-path: diagnostics-relay/package-lock.json
       - run: npm ci

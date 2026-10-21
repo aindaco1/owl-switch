@@ -433,10 +433,15 @@ void MpvController::loadAndPlayWithOptions(const QString &url, const QVariantMap
         args << extraArguments;
     } else {
         args << url
+             << "--tls-verify=yes"
              << QString("--input-ipc-server=%1").arg(m_socketPath)
              << QString("--log-file=%1").arg(m_logFilePath)
              << (hasOscScript ? "--osc=no" : "--osc=yes")
              << "--osd-level=0";
+
+        const QString caBundle = HelperResolver::tlsCaBundle(m_appRoot);
+        if (!caBundle.isEmpty())
+            args << QStringLiteral("--tls-ca-file=%1").arg(caBundle);
 
         if (hasOscScript)
             args << QString("--script=%1").arg(oscScript);
@@ -527,11 +532,6 @@ void MpvController::loadAndPlayWithOptions(const QString &url, const QVariantMap
             args << QStringLiteral("--ytdl=no");
         }
 
-        // plex.direct certs are Let's Encrypt-signed but ffmpeg's bundled CA bundle
-        // may not trust the full chain (same reason Qt needs ignoreSslErrors for these
-        // hosts). Disable TLS verification only for plex.direct playback URLs.
-        if (QUrl(url).host().endsWith(QStringLiteral(".plex.direct")))
-            args << QStringLiteral("--tls-verify=no");
     }
 
     m_process = new QProcess(this);

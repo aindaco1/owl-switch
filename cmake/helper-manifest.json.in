@@ -16,5 +16,11 @@
     "bin/mpv",
     "bin/ffmpeg",
     "bin/ffprobe"
-  ]
+  ],
+  "tlsCaBundle": {
+    "provider": "certifi",
+    "version": "@TLS_CA_VERSION@",
+    "sha256": "@TLS_CA_SHA256@",
+    "path": "bin/_internal/certifi/cacert.pem"
+  }
 }

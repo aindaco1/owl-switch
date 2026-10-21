@@ -84,7 +84,9 @@ fi
 
 actual_yt_dlp="$(env -i HOME="$helper_home" PATH=/usr/bin:/bin "$resources/$yt_dlp_executable" --version)"
 ca_bundle="$resources/$yt_dlp_runtime/certifi/cacert.pem"
-/usr/bin/python3 - "$ca_bundle" <<'PY'
+/usr/bin/python3 - "$ca_bundle" "$manifest" <<'PY'
+import hashlib
+import json
 import os
 import ssl
 import sys
@@ -96,6 +98,15 @@ context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 context.load_verify_locations(cafile=path)
 if not context.get_ca_certs():
     raise SystemExit("bundled TLS certificate store is empty")
+with open(sys.argv[2], encoding="utf-8") as handle:
+    pinned = json.load(handle).get("tlsCaBundle", {})
+with open(path, "rb") as handle:
+    actual = hashlib.sha256(handle.read()).hexdigest()
+if (pinned.get("provider") != "certifi"
+        or pinned.get("version") != "2026.10.19"
+        or pinned.get("path") != "bin/_internal/certifi/cacert.pem"
+        or pinned.get("sha256") != actual):
+    raise SystemExit("bundled TLS certificate store does not match its security pin")
 PY
 deno_version_output="$(env -i HOME="$helper_home" PATH=/usr/bin:/bin "$resources/$deno_executable" --version)"
 deno_version_line="${deno_version_output%%$'\n'*}"
@@ -112,6 +123,12 @@ case "$deno_version_line" in
 esac
 
 if [[ "$mode" == "signed-runtime" ]]; then
+    deno_execution="$(env -i HOME="$helper_home" PATH=/usr/bin:/bin "$resources/$deno_executable" eval --no-config \
+        'let total = 0; for (let i = 0; i < 10000; i++) total += i; if (total !== 49995000) throw new Error("execution failed"); console.log("Deno JavaScript execution passed");')"
+    if [[ "$deno_execution" != "Deno JavaScript execution passed" ]]; then
+        echo "bundled Deno could not execute JavaScript" >&2
+        exit 1
+    fi
     for helper in mpv ffmpeg ffprobe; do
         if [[ ! -x "$bin/$helper" || -L "$bin/$helper" ]]; then
             echo "bundled helper is missing, unsafe, or not executable: $helper" >&2
