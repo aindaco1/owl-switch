@@ -33,6 +33,7 @@ jobs:
         with:
           persist-credentials: false
           ref: refs/tags/${{ inputs.tag }}
+          submodules: recursive
 
       - name: Record host and source identity
         run: |
