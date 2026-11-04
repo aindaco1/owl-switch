@@ -7,6 +7,7 @@ All notable OwlSwitch changes are documented here. Releases through 1.6.3 used t
 - Correct the audited JLo.Instru and Karaoke Office artist/song inversions, remove the legacy Ethel Merman artist wrapper, and restore the missing Hercules attribution on KaraFun's movie version of I Won't Say (I'm in Love).
 - Hide redundant Karaoke release/performance years while preserving legitimate title parentheses and numeric names. Verified different songs by the same artist retain distinguishing years in both display and duplicate matching. Cached titles and saved queue labels use the same cleanup; queue identity, order, duplicates, and failure state are preserved.
 - Validate the DMG signing certificate's Developer ID identity and team even when the outer image's CodeDirectory omits its team field.
+- Pin the build dependency snapshot to preserve the working mpv/libplacebo pair after newer Homebrew packages crashed at video startup in both native CI environments.
 
 ## [1.7.2] - 2026-10-21
 

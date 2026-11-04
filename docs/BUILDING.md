@@ -182,8 +182,9 @@ The intended workflow is a macOS Apple Silicon build:
 | `build-macos-arm64` | `macos-26` (arm64) | Notarized app artifact |
 | `package-macos-arm64` | `macos-26` (arm64) | `owl-switch-<tag>-macOS-arm64.dmg` |
 
-The exact-commit `main` CI job pins Xcode 26.3, installs Qt and the media helpers
-from the Apple Silicon runner's Homebrew snapshot, configures CMake for `arm64`,
+The exact-commit `main` CI job pins Xcode 26.3 and Homebrew's formula snapshot
+(`2086a7fd79c2936dbee4a0c8bfc8484220d0a1ae`, October 19, 2026), installs Qt and
+the media helpers without consulting Homebrew's live API, configures CMake for `arm64`,
 downloads and verifies pinned yt-dlp/Deno, builds and tests, embeds all helpers,
 runs `macdeployqt` without its temporary ad-hoc signing, prunes unused QML
 plugins, and verifies the bundle. CI ad-hoc signs the prepared app and runs the
@@ -199,6 +200,11 @@ playlist expansion canary, and one actual Local YouTube audio-stream attempt),
 Developer-ID signs, runs the native display suite against that signed app,
 then notarizes and staples it. Compilation and deployment are not repeated after
 tagging; native regression, signing, and distribution trust checks remain fresh.
+
+The formula pin preserves mpv `0.41.0_10` with libplacebo `7.360.1`. The live
+`0.41.0_12`/`7.387.0` pair crashed before the first decoded frame on both CI
+platforms during 1.7.3 preparation. Update this snapshot deliberately and require
+the complete native display gate before accepting a new media dependency set.
 
 The notarized app crosses jobs only as a `ditto` ZIP so signatures,
 entitlements, and the stapled ticket survive intact. A fresh macOS 26 job
