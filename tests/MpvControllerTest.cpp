@@ -310,12 +310,13 @@ void MpvControllerTest::muteAudioUsesNoAudioArgument()
     MpvController controller(appRoot);
     controller.loadAndPlayWithOptions(QStringLiteral("/tmp/local-queue.m3u8"),
                                       {{QStringLiteral("muteAudio"), true}});
-    QTRY_VERIFY_WITH_TIMEOUT(QFile::exists(markerPath), 3000);
-    QFile marker(markerPath);
-    QVERIFY(marker.open(QIODevice::ReadOnly | QIODevice::Text));
-    const QStringList arguments = QString::fromUtf8(marker.readAll())
-                                      .split('\n', Qt::SkipEmptyParts);
-    QVERIFY(arguments.contains(QStringLiteral("--no-audio")));
+    // The shell creates the file before printf finishes writing its arguments.
+    QTRY_VERIFY_WITH_TIMEOUT([&]() {
+        QFile marker(markerPath);
+        return marker.open(QIODevice::ReadOnly | QIODevice::Text)
+            && QString::fromUtf8(marker.readAll()).split('\n', Qt::SkipEmptyParts)
+                   .contains(QStringLiteral("--no-audio"));
+    }(), 3000);
 }
 
 void MpvControllerTest::trackSelectionPreservesLaunchMute()

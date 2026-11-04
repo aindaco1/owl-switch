@@ -1,0 +1,516 @@
+{
+  "channels": {
+    "funbox": "UCtPzvwooQ18YZ8Wq8Hka60g",
+    "jlo_instru": "UCoVB6wMm2pNGMKQTChKCiRQ",
+    "karaoke_office": "UCR0kPElUivbuZC7Myr7Tg1Q",
+    "karafun_karaoke": "UCbqcG1rdt9LMwOJN4PyGTKg",
+    "karaoke_nerds": "UCBfV298JqKc8o9CM0aANz5A",
+    "offbeat_karaoke": "UCIauImhx1GGrl7LubRCxXcg"
+  },
+  "cases": [
+    {
+      "name": "x1rQCBFCw-8",
+      "raw": "Blood Red Shoes - It's Getting Boring By The Sea - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "Blood Red Shoes - It's Getting Boring By The Sea"
+    },
+    {
+      "name": "VxrWb80htuU",
+      "raw": "Elastica - Never Here - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "Elastica - Never Here"
+    },
+    {
+      "name": "vIbLNn2PXkw",
+      "raw": "The Smashing Pumpkins - Cherub Rock - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "The Smashing Pumpkins - Cherub Rock"
+    },
+    {
+      "name": "lnsARxXdydM",
+      "raw": "Portishead - Sour Times - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "Portishead - Sour Times"
+    },
+    {
+      "name": "BRdiJY8-nYg",
+      "raw": "The Divine Comedy - Someone - Instrumental - Karaoke",
+      "sourceId": "jlo_instru",
+      "expected": "The Divine Comedy - Someone"
+    },
+    {
+      "name": "eUgLBH5zzzw",
+      "raw": "Arcade Fire - My Body Is A Cage - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "Arcade Fire - My Body Is A Cage"
+    },
+    {
+      "name": "Tb-CVCmQ6Jw",
+      "raw": "D4vd - Romantic Homicide - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "D4vd - Romantic Homicide"
+    },
+    {
+      "name": "iZBdzYQfJH4",
+      "raw": "The Divine Comedy -  Timewatching - Instrumental - Karaoke",
+      "sourceId": "jlo_instru",
+      "expected": "The Divine Comedy - Timewatching"
+    },
+    {
+      "name": "w7mvXBQwjqE",
+      "raw": "Portishead - It's A Fire - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "Portishead - It's A Fire"
+    },
+    {
+      "name": "hlIIZuvLmFk",
+      "raw": "Portishead - Roads - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "Portishead - Roads"
+    },
+    {
+      "name": "d7Ywqn7nlTE",
+      "raw": "Sex Bob Omb - We Are Sex Bob Omb - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "Sex Bob Omb - We Are Sex Bob Omb"
+    },
+    {
+      "name": "Jg4E1OLhFVs",
+      "raw": "Mitski - My Love Mine All Mine - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "Mitski - My Love Mine All Mine"
+    },
+    {
+      "name": "m2C2peKIkhc",
+      "raw": "New Order - Ceremony - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "New Order - Ceremony"
+    },
+    {
+      "name": "XYe59Rn25qA",
+      "raw": "Clara Luciani - La Grenade - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "Clara Luciani - La Grenade"
+    },
+    {
+      "name": "wCaB_4idRWU",
+      "raw": "Noir Désir - L'homme Pressé - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "Noir Désir - L'homme Pressé"
+    },
+    {
+      "name": "cNNlLRTbPP4",
+      "raw": "Elastica - Car Song - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "Elastica - Car Song"
+    },
+    {
+      "name": "F-Fnx6ZnChY",
+      "raw": "Elastica - Line Up - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "Elastica - Line Up"
+    },
+    {
+      "name": "PsWZmvuiRzw",
+      "raw": "Elastica - Stutter - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "Elastica - Stutter"
+    },
+    {
+      "name": "qylBMrh_q3Q",
+      "raw": "Elastica - Connection - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "Elastica - Connection"
+    },
+    {
+      "name": "SqFZPXggTZU",
+      "raw": "My Bloody Valentine - Only Shallow - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "My Bloody Valentine - Only Shallow"
+    },
+    {
+      "name": "nzXx6mb4YsM",
+      "raw": "The Chameleons - Tears - Instrumental - Karaoke",
+      "sourceId": "jlo_instru",
+      "expected": "The Chameleons - Tears"
+    },
+    {
+      "name": "E3WqKR4fGjE",
+      "raw": "The Chameleons - Monkeyland - Instrumental - Karaoke",
+      "sourceId": "jlo_instru",
+      "expected": "The Chameleons - Monkeyland"
+    },
+    {
+      "name": "5n3bP1SpqFg",
+      "raw": "Joy Division - Disorder - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "Joy Division - Disorder"
+    },
+    {
+      "name": "TAcSTrcqrRQ",
+      "raw": "Benjamin Biolay - Ton Héritage - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "Benjamin Biolay - Ton Héritage"
+    },
+    {
+      "name": "KHfleqbu4LE",
+      "raw": "The Smashing Pumpkins - Galapagos - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "The Smashing Pumpkins - Galapagos"
+    },
+    {
+      "name": "uqJ4OiesVYI",
+      "raw": "The Smashing Pumpkins - Bullet With Butterfly Wings - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "The Smashing Pumpkins - Bullet With Butterfly Wings"
+    },
+    {
+      "name": "iRfFaFaWaX4",
+      "raw": "The Smashing Pumpkins - Mayonaise - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "The Smashing Pumpkins - Mayonaise"
+    },
+    {
+      "name": "swwjeLkoh-8",
+      "raw": "Lana Del Rey - A&W - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "Lana Del Rey - A&W"
+    },
+    {
+      "name": "iYqoqu66v7U",
+      "raw": "The Cure -  How Beautiful You Are - Instrumental - Karaoke",
+      "sourceId": "jlo_instru",
+      "expected": "The Cure - How Beautiful You Are"
+    },
+    {
+      "name": "3L7Fz9akV5g",
+      "raw": "Cigarettes After Sex  - Apocalypse - Karaoke - Instrumental",
+      "sourceId": "jlo_instru",
+      "expected": "Cigarettes After Sex - Apocalypse"
+    },
+    {
+      "name": "OqU4_8HED78",
+      "raw": "Like A Virgin - Madonna (Karaoke Version)",
+      "sourceId": "karaoke_office",
+      "expected": "Madonna - Like A Virgin"
+    },
+    {
+      "name": "TBJxhlE8MqQ",
+      "raw": "Hallelujah - Pentatonix (Karaoke Version)",
+      "sourceId": "karaoke_office",
+      "expected": "Pentatonix - Hallelujah"
+    },
+    {
+      "name": "iFIUoUa0HT0",
+      "raw": "Because of You - Ne-Yo (Karaoke Version)",
+      "sourceId": "karaoke_office",
+      "expected": "Ne-Yo - Because of You"
+    },
+    {
+      "name": "NKvagJnT8Kg",
+      "raw": "Since U Been Gone - Kelly Clarkson (Karaoke Version)",
+      "sourceId": "karaoke_office",
+      "expected": "Kelly Clarkson - Since U Been Gone"
+    },
+    {
+      "name": "hmKAWSHKDlE",
+      "raw": "Jubel - Klingande (Karaoke Version)",
+      "sourceId": "karaoke_office",
+      "expected": "Klingande - Jubel"
+    },
+    {
+      "name": "_Hxj15qhYuk",
+      "raw": "So Sick - Ne-Yo (Karaoke Version)",
+      "sourceId": "karaoke_office",
+      "expected": "Ne-Yo - So Sick"
+    },
+    {
+      "name": "NL9QRjtmeFQ",
+      "raw": "Lucky Girl - Fazerdaze (Karaoke Version)",
+      "sourceId": "karaoke_office",
+      "expected": "Fazerdaze - Lucky Girl"
+    },
+    {
+      "name": "y9eizjjCdvc",
+      "raw": "When I'm Sixty-Four - The Beatles (Karaoke Version)",
+      "sourceId": "karaoke_office",
+      "expected": "The Beatles - When I'm Sixty-Four"
+    },
+    {
+      "name": "70KoTa3jxFM",
+      "raw": "One Call Away - Charlie Puth (Karaoke Version)",
+      "sourceId": "karaoke_office",
+      "expected": "Charlie Puth - One Call Away"
+    },
+    {
+      "name": "wWQHrWqfVk8",
+      "raw": "Replay - Iyaz (Karaoke Version)",
+      "sourceId": "karaoke_office",
+      "expected": "Iyaz - Replay"
+    },
+    {
+      "name": "N2tluEUIrRQ",
+      "raw": "Best Song Ever - One Direction (Karaoke Version)",
+      "sourceId": "karaoke_office",
+      "expected": "One Direction - Best Song Ever"
+    },
+    {
+      "name": "8UDaTFfkVdM",
+      "raw": "Oceans (Where Feet May Fail) - Hillsong UNITED (Karaoke Version)",
+      "sourceId": "karaoke_office",
+      "expected": "Hillsong UNITED - Oceans (Where Feet May Fail)"
+    },
+    {
+      "name": "91Bi-sEWNkw",
+      "raw": "How Long Will I Love You - Ellie Goulding (Karaoke Version)",
+      "sourceId": "karaoke_office",
+      "expected": "Ellie Goulding - How Long Will I Love You"
+    },
+    {
+      "name": "azUR_f4IKHE",
+      "raw": "In The End - Linkin Park (Karaoke Version)",
+      "sourceId": "karaoke_office",
+      "expected": "Linkin Park - In The End"
+    },
+    {
+      "name": "mS5oO4F6Uns",
+      "raw": "Hero - Mariah Carey (Karaoke  Version)",
+      "sourceId": "karaoke_office",
+      "expected": "Mariah Carey - Hero"
+    },
+    {
+      "name": "jlo-song-first",
+      "sourceId": "jlo_instru",
+      "raw": "Space Song - Beach House - Karaoke - Instrumental",
+      "expected": "Beach House - Space Song"
+    },
+    {
+      "name": "jlo-other-suffix",
+      "sourceId": "jlo_instru",
+      "raw": "Gold - Sigur Rós - Instrumental - Karaoke",
+      "expected": "Sigur Rós - Gold"
+    },
+    {
+      "name": "office-artist-first",
+      "sourceId": "karaoke_office",
+      "raw": "Madonna - Like A Virgin (Karaoke Version)",
+      "expected": "Madonna - Like A Virgin"
+    },
+    {
+      "name": "ethel-wrapper",
+      "sourceId": "karafun_karaoke",
+      "raw": "Karaoke There's No Business Like Show Business -  (Ethel Merman) *",
+      "expected": "Ethel Merman - There's No Business Like Show Business"
+    },
+    {
+      "name": "missing-hercules-artist",
+      "sourceId": "karafun_karaoke",
+      "raw": "Karaoke I Won't Say (I'm in Love) (Movie Version) -  *",
+      "expected": "Hercules (1997 film) - I Won't Say (I'm in Love) (Movie)"
+    },
+    {
+      "name": "attributed-hercules",
+      "sourceId": "karafun_karaoke",
+      "raw": "I Won't Say (I'm in Love) (Movie Version) - Hercules (1997 film) | Karaoke Version | KaraFun",
+      "expected": "Hercules (1997 film) - I Won't Say (I'm in Love) (Movie)"
+    },
+    {
+      "name": "numeric-title",
+      "sourceId": "funbox",
+      "raw": "Prince - 1999 (Funbox Karaoke, 1982)",
+      "expected": "Prince - 1999"
+    },
+    {
+      "name": "numeric-artist",
+      "sourceId": "funbox",
+      "raw": "Death From Above 1979 - Romantic Rights (Funbox Karaoke, 2004)",
+      "expected": "Death From Above 1979 - Romantic Rights"
+    },
+    {
+      "name": "numeric-title-and-artist",
+      "sourceId": "funbox",
+      "raw": "The 1975 - 102 (Funbox Karaoke, 2013)",
+      "expected": "The 1975 - 102"
+    },
+    {
+      "name": "parenthesized-number",
+      "sourceId": "karaoke_nerds",
+      "raw": "Artist - (1979) (Karaoke)",
+      "expected": "Artist - (1979)"
+    },
+    {
+      "name": "parentheses-and-number",
+      "sourceId": "funbox",
+      "raw": "The Four Seasons - December, 1963 (Oh, What a Night) (Funbox Karaoke, 1975)",
+      "expected": "The Four Seasons - December, 1963 (Oh, What a Night)"
+    },
+    {
+      "name": "leading-title-parentheses",
+      "sourceId": "karaoke_nerds",
+      "raw": "Blue Öyster Cult - (Don't Fear) The Reaper (Karaoke)",
+      "expected": "Blue Öyster Cult - (Don't Fear) The Reaper"
+    },
+    {
+      "name": "numeric-middle-title",
+      "sourceId": "karaoke_nerds",
+      "raw": "Pulp - Disco 2000 (Karaoke)",
+      "expected": "Pulp - Disco 2000"
+    },
+    {
+      "name": "year-before-edition",
+      "sourceId": "karaoke_nerds",
+      "raw": "Artist - Song (2001) (Acoustic) (Karaoke)",
+      "expected": "Artist - Song (Acoustic)"
+    },
+    {
+      "name": "year-after-edition",
+      "sourceId": "karaoke_nerds",
+      "raw": "Artist - Song (Live) (1999) (Karaoke)",
+      "expected": "Artist - Song (Live)"
+    },
+    {
+      "name": "year-brackets",
+      "sourceId": "karaoke_nerds",
+      "raw": "Artist - Song [2024] (Karaoke)",
+      "expected": "Artist - Song"
+    },
+    {
+      "name": "year-list",
+      "sourceId": "funbox",
+      "raw": "Artist - Song (Funbox Karaoke, 1999/2001)",
+      "expected": "Artist - Song"
+    },
+    {
+      "name": "year-version",
+      "sourceId": "karaoke_nerds",
+      "raw": "Bob Dylan - Every Grain of Sand (1980 Version) (Karaoke)",
+      "expected": "Bob Dylan - Every Grain of Sand"
+    },
+    {
+      "name": "year-qualifier",
+      "sourceId": "offbeat_karaoke",
+      "raw": "Gala - Freed From Desire (2024 Version; Diplo Edit; Karaoke Version)",
+      "expected": "Gala - Freed From Desire (Diplo Edit)"
+    },
+    {
+      "name": "distinct-song-1974",
+      "sourceId": "funbox",
+      "raw": "Fleetwood Mac - Angel (Funbox Karaoke, 1974)",
+      "expected": "Fleetwood Mac - Angel (1974)"
+    },
+    {
+      "name": "distinct-song-1979",
+      "sourceId": "karafun_karaoke",
+      "raw": "Angel (1979) - Fleetwood Mac | Karaoke Version | KaraFun",
+      "expected": "Fleetwood Mac - Angel (1979)"
+    },
+    {
+      "name": "distinct-song-live",
+      "sourceId": "karaoke_nerds",
+      "raw": "Fleetwood Mac - Angel (1974) (Live) (Karaoke)",
+      "expected": "Fleetwood Mac - Angel (1974) (Live)"
+    },
+    {
+      "name": "distinct-song-unverified-year",
+      "sourceId": "karaoke_nerds",
+      "raw": "Fleetwood Mac - Angel (2003) (Karaoke)",
+      "expected": "Fleetwood Mac - Angel"
+    },
+    {
+      "name": "other-artist-same-name",
+      "sourceId": "karaoke_nerds",
+      "raw": "Other Artist - Angel (1974) (Karaoke)",
+      "expected": "Other Artist - Angel"
+    },
+    {
+      "name": "artist-parentheses",
+      "sourceId": "karafun_karaoke",
+      "raw": "Song (Live) - Artist (Band) | Karaoke Version | KaraFun",
+      "expected": "Artist (Band) - Song (Live)"
+    },
+    {
+      "name": "live-year",
+      "sourceId": "karaoke_nerds",
+      "raw": "Genesis - The Musical Box (Live 1973) (Karaoke)",
+      "expected": "Genesis - The Musical Box (Live)"
+    },
+    {
+      "name": "dated-acoustic",
+      "sourceId": "karaoke_nerds",
+      "raw": "Thirty Seconds To Mars - The Kill (Acoustic 2026) (Karaoke)",
+      "expected": "Thirty Seconds To Mars - The Kill (Acoustic)"
+    },
+    {
+      "name": "dated-demo",
+      "sourceId": "karafun_karaoke",
+      "raw": "Face Down (2004 Demo) - The Red Jumpsuit Apparatus | Karaoke Version | KaraFun",
+      "expected": "The Red Jumpsuit Apparatus - Face Down (Demo)"
+    },
+    {
+      "name": "dated-performance",
+      "sourceId": "karaoke_nerds",
+      "raw": "Fleetwood Mac - Landslide live at Warner Bros. Studios in Burbank, CA 1997 (Karaoke)",
+      "expected": "Fleetwood Mac - Landslide (live at Warner Bros. Studios in Burbank, CA)"
+    },
+    {
+      "name": "dated-live-dash",
+      "sourceId": "karaoke_nerds",
+      "raw": "Bruce Springsteen - The River - Live Tempe 1980 (Karaoke)",
+      "expected": "Bruce Springsteen - The River (Live Tempe)"
+    },
+    {
+      "name": "dated-live-number",
+      "sourceId": "karaoke_nerds",
+      "raw": "Led Zeppelin - Bron Y Aur Stomp Live 1972 (Karaoke)",
+      "expected": "Led Zeppelin - Bron Y Aur Stomp (Live)"
+    },
+    {
+      "name": "dated-performance-date",
+      "sourceId": "karaoke_nerds",
+      "raw": "Bauhaus - Dark Entries Live in London 24 02 1982 (Karaoke)",
+      "expected": "Bauhaus - Dark Entries (Live in London)"
+    },
+    {
+      "name": "numeric-parenthetical-title",
+      "sourceId": "karaoke_nerds",
+      "raw": "Elton John - The Ballad of Danny Bailey (1909 – 34) (Karaoke)",
+      "expected": "Elton John - The Ballad of Danny Bailey (1909 – 34)"
+    },
+    {
+      "name": "numeric-intro-name",
+      "sourceId": "karafun_karaoke",
+      "raw": "See See Rider (live with 2001 Intro) - Elvis Presley | Karaoke Version | KaraFun",
+      "expected": "Elvis Presley - See See Rider (live with 2001 Intro)"
+    },
+    {
+      "name": "year-like-song-name",
+      "sourceId": "karaoke_nerds",
+      "raw": "Lemon Demon - Hyakugojyuuichi 2003 (Karaoke)",
+      "expected": "Lemon Demon - Hyakugojyuuichi 2003"
+    },
+    {
+      "name": "nested-title-parentheses",
+      "sourceId": "karaoke_nerds",
+      "raw": "Artist - Song (Part One (Reprise)) (2001) (Karaoke)",
+      "expected": "Artist - Song (Part One (Reprise))"
+    },
+    {
+      "name": "short-version-year",
+      "sourceId": "karaoke_nerds",
+      "raw": "Artist - Song (2026 ver) (Karaoke)",
+      "expected": "Artist - Song"
+    },
+    {
+      "name": "parenthetical-wording-with-year",
+      "sourceId": "karaoke_nerds",
+      "raw": "Artist - Song (I Live in 1999) (Karaoke)",
+      "expected": "Artist - Song (I Live in 1999)"
+    },
+    {
+      "name": "parenthetical-subtitle-is-distinct-identity",
+      "sourceId": "karaoke_nerds",
+      "raw": "Fleetwood Mac - Angel (Other Song) (1974) (Karaoke)",
+      "expected": "Fleetwood Mac - Angel (Other Song)"
+    }
+  ]
+}

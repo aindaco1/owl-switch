@@ -63,7 +63,18 @@ jobs:
       - name: Install dependencies
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1
+          HOMEBREW_NO_INSTALL_FROM_API: 1
         run: |
+          # Keep the mpv/libplacebo pair that passed 1.7.2's native gate.
+          # The live API moved to 0.41.0_12/7.387.0 and crashes on first frame.
+          core="$(brew --repository)/Library/Taps/homebrew/homebrew-core"
+          mkdir -p "$(dirname "$core")"
+          if [[ ! -d "$core/.git" ]]; then
+            git init "$core"
+          fi
+          git -C "$core" fetch --depth=1 https://github.com/Homebrew/homebrew-core.git \
+            2086a7fd79c2936dbee4a0c8bfc8484220d0a1ae
+          git -C "$core" checkout --detach FETCH_HEAD
           if brew tap | grep -Fxq aws/tap; then
             brew untap aws/tap
           fi
@@ -76,6 +87,8 @@ jobs:
           if (( ${#missing_formulae[@]} > 0 )); then
             brew install "${missing_formulae[@]}"
           fi
+          test "$(brew list --versions mpv)" = 'mpv 0.41.0_10'
+          test "$(brew list --versions libplacebo)" = 'libplacebo 7.360.1'
           echo "QT_ROOT_DIR=$(brew --prefix qt)" >> "$GITHUB_ENV"
 
       - name: Use patched Node for project tooling
