@@ -13,6 +13,18 @@
 
 #include <algorithm>
 
+namespace {
+
+QJsonObject titleRegressionFixture()
+{
+    QFile file(QFINDTESTDATA("fixtures/karaoke-title-normalization.json"));
+    if (!file.open(QIODevice::ReadOnly))
+        return {};
+    return QJsonDocument::fromJson(file.readAll()).object();
+}
+
+}
+
 class KaraokeBackendTest : public QObject {
     Q_OBJECT
 
@@ -20,6 +32,11 @@ private slots:
     void cleanedTitle_data();
     void cleanedTitle();
     void cleansProviderTitles();
+    void normalizesTitleRegressions_data();
+    void normalizesTitleRegressions();
+    void rejectsBlankKaraFunFields();
+    void preservesDistinctSongIdentities();
+    void upgradesSavedQueueTitles();
     void validatesCatalogSongs();
     void deduplicatesCatalogBySourcePriority();
     void validatesCatalogSizes();
@@ -51,13 +68,13 @@ void KaraokeBackendTest::cleanedTitle_data()
 
     QTest::newRow("standard")
         << QStringLiteral("Death From Above 1979 - Romantic Rights (Funbox Karaoke, 2004)")
-        << QStringLiteral("Death From Above 1979 - Romantic Rights (2004)");
+        << QStringLiteral("Death From Above 1979 - Romantic Rights");
     QTest::newRow("multiple years")
         << QStringLiteral("Artist - Song (Funbox Karaoke, 1999/2001)")
-        << QStringLiteral("Artist - Song (1999/2001)");
+        << QStringLiteral("Artist - Song");
     QTest::newRow("case insensitive")
         << QStringLiteral("Artist - Song (funbox karaoke, 2024)")
-        << QStringLiteral("Artist - Song (2024)");
+        << QStringLiteral("Artist - Song");
     QTest::newRow("obskure standard")
         << QStringLiteral("The Mars Volta - Plant a Nail in the Navel Stream - Karaoke Instrumental Lyrics - ObsKure")
         << QStringLiteral("The Mars Volta - Plant a Nail in the Navel Stream");
@@ -113,15 +130,15 @@ void KaraokeBackendTest::cleanedTitle_data()
     QTest::newRow("funbox album version")
         << QStringLiteral(
                "Afroman - Crazy Rap / Colt 45 [Album Version] (Funbox Karaoke, 2001)")
-        << QStringLiteral("Afroman - Crazy Rap / Colt 45 (Album) (2001)");
+        << QStringLiteral("Afroman - Crazy Rap / Colt 45 (Album)");
     QTest::newRow("funbox live version")
         << QStringLiteral(
                "AURORA - Teardrop [Live Version] (Funbox Karaoke, 2017)")
-        << QStringLiteral("AURORA - Teardrop (Live) (2017)");
+        << QStringLiteral("AURORA - Teardrop (Live)");
     QTest::newRow("funbox original version")
         << QStringLiteral(
                "Beastie Boys - Body Movin' [Original Version] (Funbox Karaoke, 1998)")
-        << QStringLiteral("Beastie Boys - Body Movin' (Original) (1998)");
+        << QStringLiteral("Beastie Boys - Body Movin' (Original)");
     QTest::newRow("single version")
         << QStringLiteral(
                "Beach House - Used To Be (Single Version) - Karaoke Instrumental Lyrics - ObsKure")
@@ -136,7 +153,7 @@ void KaraokeBackendTest::cleanedTitle_data()
     QTest::newRow("year version")
         << QStringLiteral(
                "Bob Dylan - Every Grain of Sand (1980 Version) (Karaoke)")
-        << QStringLiteral("Bob Dylan - Every Grain of Sand (1980)");
+        << QStringLiteral("Bob Dylan - Every Grain of Sand");
     QTest::newRow("companion version")
         << QStringLiteral(
                "Bright Eyes - Falling Out Of Love At This Volume (Companion Version) (Karaoke)")
@@ -146,11 +163,11 @@ void KaraokeBackendTest::cleanedTitle_data()
         << QStringLiteral(
                "The Champs - Tequila [\"I Don't Want to Sing Karaoke\" Version] (Funbox Karaoke, 1958)")
         << QStringLiteral(
-               "The Champs - Tequila (\"I Don't Want to Sing Karaoke\") (1958)");
+               "The Champs - Tequila (\"I Don't Want to Sing Karaoke\")");
     QTest::newRow("cursed version")
         << QStringLiteral(
                "Darude - Sandstorm (Cursed Version) (Funbox Karaoke, 2000)")
-        << QStringLiteral("Darude - Sandstorm (Cursed) (2000)");
+        << QStringLiteral("Darude - Sandstorm (Cursed)");
     QTest::newRow("solo version")
         << QStringLiteral(
                "Ernest Tubb - Too Old To Cut The Mustard (Solo Version) (Karaoke)")
@@ -159,7 +176,7 @@ void KaraokeBackendTest::cleanedTitle_data()
         << QStringLiteral(
                "Faithless - Insomnia [Monster Mix - Extended Version] (Funbox Karaoke, 1995)")
         << QStringLiteral(
-               "Faithless - Insomnia (Monster Mix - Extended) (1995)");
+               "Faithless - Insomnia (Monster Mix - Extended)");
     QTest::newRow("obskure best karaoke version")
         << QStringLiteral(
                "Imagine Dragons - Believer - Best Karaoke Version - Instrumental Lyrics - ObsKure")
@@ -191,7 +208,7 @@ void KaraokeBackendTest::cleanedTitle_data()
         << QStringLiteral("The Lemonheads - Fear of Living");
     QTest::newRow("peareoke year")
         << QStringLiteral("Aesop Rock - Citronella (Karaoke) 2007")
-        << QStringLiteral("Aesop Rock - Citronella (2007)");
+        << QStringLiteral("Aesop Rock - Citronella");
     QTest::newRow("peareoke karaoke duet")
         << QStringLiteral("The Proclaimers - Over and Done With (Karaoke Duet)")
         << QStringLiteral("The Proclaimers - Over and Done With (Duet)");
@@ -228,10 +245,10 @@ void KaraokeBackendTest::cleanedTitle_data()
         << QStringLiteral(
                "(Sonic Adventure 2) Hunnid-P - A Ghost's Pumpkin Soup [Pumpkin Hill Theme] (Funbox Karaoke, 2001)")
         << QStringLiteral(
-               "Hunnid-P - A Ghost's Pumpkin Soup (Pumpkin Hill Theme) (2001)");
+               "Hunnid-P - A Ghost's Pumpkin Soup (Pumpkin Hill Theme)");
     QTest::newRow("bracketed artist remains")
         << QStringLiteral("[spunge] - Lyrical Content (Funbox Karaoke, 1999)")
-        << QStringLiteral("(spunge) - Lyrical Content (1999)");
+        << QStringLiteral("(spunge) - Lyrical Content");
     QTest::newRow("quoted weird al")
         << QStringLiteral("\"Weird Al\" Yankovic - Harvey The Wonder Hamster (Karaoke)")
         << QStringLiteral("Weird Al Yankovic - Harvey The Wonder Hamster");
@@ -256,9 +273,9 @@ void KaraokeBackendTest::cleanedTitle_data()
                "Kasino - Can't Get Over (Live Sabadaço - Ft. Gilberto Barros)")
         << QStringLiteral(
                "Kasino Ft. Gilberto Barros - Can't Get Over (Live Sabadaço)");
-    QTest::newRow("unrelated suffix")
+    QTest::newRow("live year metadata")
         << QStringLiteral("  Artist - Song (Live, 2004)  ")
-        << QStringLiteral("Artist - Song (Live, 2004)");
+        << QStringLiteral("Artist - Song (Live)");
     QTest::newRow("unbranded best version remains")
         << QStringLiteral("Artist - Song - Best Version")
         << QStringLiteral("Artist - Song - Best Version");
@@ -389,7 +406,7 @@ void KaraokeBackendTest::cleansProviderTitles()
                 "Velvet Underground  - Beginning to See the Light    (karaoke) 1969 The Velvet Underground Live"),
             QStringLiteral("lemmy_caution_karaoke")),
         QStringLiteral(
-            "Velvet Underground - Beginning to See the Light (Live) (1969)"));
+            "Velvet Underground - Beginning to See the Light (Live)"));
     QCOMPARE(
         KaraokeBackend::cleanedTitle(
             QStringLiteral(
@@ -421,7 +438,7 @@ void KaraokeBackendTest::cleansProviderTitles()
             QStringLiteral(
                 "Gala - Freed From Desire (2024 Version; Diplo Edit; Karaoke Version)"),
             QStringLiteral("offbeat_karaoke")),
-        QStringLiteral("Gala - Freed From Desire (Diplo Edit) (2024)"));
+        QStringLiteral("Gala - Freed From Desire (Diplo Edit)"));
     QCOMPARE(
         KaraokeBackend::cleanedTitle(
             QStringLiteral(
@@ -680,6 +697,178 @@ void KaraokeBackendTest::cleansProviderTitles()
              QStringLiteral("Artist - Song - Instrumental"));
 }
 
+void KaraokeBackendTest::normalizesTitleRegressions_data()
+{
+    QTest::addColumn<QString>("raw");
+    QTest::addColumn<QString>("sourceId");
+    QTest::addColumn<QString>("channelId");
+    QTest::addColumn<QString>("expected");
+
+    const QJsonObject fixture = titleRegressionFixture();
+    QVERIFY(!fixture.isEmpty());
+    const QJsonObject channels = fixture.value("channels").toObject();
+    const QJsonArray cases = fixture.value("cases").toArray();
+    QVERIFY(!cases.isEmpty());
+    for (const auto &value : cases) {
+        const QJsonObject row = value.toObject();
+        const QString source = row.value("sourceId").toString();
+        QVERIFY(channels.contains(source));
+        QTest::newRow(qPrintable(row.value("name").toString()))
+            << row.value("raw").toString() << source << channels.value(source).toString()
+            << row.value("expected").toString();
+    }
+}
+
+void KaraokeBackendTest::normalizesTitleRegressions()
+{
+    QFETCH(QString, raw);
+    QFETCH(QString, sourceId);
+    QFETCH(QString, channelId);
+    QFETCH(QString, expected);
+    QCOMPARE(KaraokeBackend::cleanedTitle(raw, sourceId), expected);
+    // Deduplication cleans display strings again; normalization must be stable.
+    QCOMPARE(KaraokeBackend::cleanedTitle(expected), expected);
+
+    const QVariantMap song = KaraokeBackend::catalogSongFromJson({
+        {QStringLiteral("id"), QStringLiteral("TitleCase01")},
+        {QStringLiteral("title"), raw},
+        {QStringLiteral("playlist_channel_id"), channelId}
+    });
+    QCOMPARE(song.value("displayTitle").toString(), expected);
+    QCOMPARE(song.value("rawTitle").toString(), raw);
+    QCOMPARE(song.value("sourceId").toString(), sourceId);
+}
+
+void KaraokeBackendTest::rejectsBlankKaraFunFields()
+{
+    const QStringList invalidTitles{
+        QStringLiteral("Karaoke Unknown Song -  *"),
+        QStringLiteral("Karaoke Unknown Song - \t *"),
+        QStringLiteral("Karaoke   - Artist *"),
+        QStringLiteral("Unknown Song -   | Karaoke Version | KaraFun"),
+        QStringLiteral("  - Artist | Karaoke Version | KaraFun"),
+        QStringLiteral("Artist -   (Karaoke Version)"),
+        QStringLiteral("  - Song (Karaoke Version)")
+    };
+    QTemporaryDir dataRoot;
+    QVERIFY(dataRoot.isValid());
+    KaraokeBackend backend(QStringLiteral("/missing-app-root"), dataRoot.path());
+    for (const QString &raw : invalidTitles) {
+        QVERIFY2(KaraokeBackend::catalogSongFromJson({
+            {QStringLiteral("id"), QStringLiteral("BlankCase01")},
+            {QStringLiteral("title"), raw},
+            {QStringLiteral("playlist_channel_id"),
+             QStringLiteral("UCbqcG1rdt9LMwOJN4PyGTKg")}
+        }).isEmpty(), qPrintable(raw));
+        QVERIFY(!backend.enqueue({
+            {QStringLiteral("videoId"), QStringLiteral("BlankCase01")},
+            {QStringLiteral("rawTitle"), raw},
+            {QStringLiteral("sourceId"), QStringLiteral("karafun_karaoke")}
+        }));
+    }
+    QVERIFY(backend.getQueue().isEmpty());
+}
+
+void KaraokeBackendTest::preservesDistinctSongIdentities()
+{
+    const auto song = [](const QString &id, const QString &raw, const QString &source) {
+        return QVariantMap{
+            {QStringLiteral("videoId"), id},
+            {QStringLiteral("rawTitle"), raw},
+            {QStringLiteral("sourceId"), source},
+            {QStringLiteral("displayTitle"), KaraokeBackend::cleanedTitle(raw, source)}
+        };
+    };
+    const QVariantList candidates{
+        song("TitleCase01", "Fleetwood Mac - Angel (Funbox Karaoke, 1974)", "funbox"),
+        song("TitleCase02", "Angel (1974) - Fleetwood Mac | Karaoke Version | KaraFun",
+             "karafun_karaoke"),
+        song("TitleCase03", "Angel (1979) - Fleetwood Mac | Karaoke Version | KaraFun",
+             "karafun_karaoke"),
+        song("TitleCase04", "Artist - Song (Funbox Karaoke, 1999)", "funbox"),
+        song("TitleCase05", "Artist - Song (2001 Version) (Karaoke)", "karaoke_nerds"),
+        song("TitleCase06", "Prince - 1999 (Funbox Karaoke, 1982)", "funbox"),
+        song("TitleCase07", "Elastica - Never Here - Karaoke - Instrumental", "jlo_instru"),
+        song("TitleCase08", "Elastica - Never Here (Funbox Karaoke, 1995)", "funbox")
+    };
+    const QVariantList result = KaraokeBackend::deduplicatedCatalog(candidates);
+    QStringList retainedIds;
+    for (const auto &entry : result)
+        retainedIds.append(entry.toMap().value("videoId").toString());
+    QCOMPARE(retainedIds, (QStringList{
+        "TitleCase01", "TitleCase03", "TitleCase04", "TitleCase06", "TitleCase08"
+    }));
+    QVERIFY(KaraokeBackend::deduplicationKey("Fleetwood Mac - Angel (1974)") !=
+            KaraokeBackend::deduplicationKey("Fleetwood Mac - Angel (1979)"));
+    QCOMPARE(KaraokeBackend::deduplicationKey("Artist - Song (1999)"),
+             KaraokeBackend::deduplicationKey("Artist - Song (2001)"));
+}
+
+void KaraokeBackendTest::upgradesSavedQueueTitles()
+{
+    QTemporaryDir dataRoot;
+    QVERIFY(dataRoot.isValid());
+    // Old labels are untrusted. Keep UUIDs, order, duplicate videos, raw titles
+    // and failed state, including a formerly accepted unattributed queue item.
+    const QStringList rawTitles{
+        "Elastica - Never Here - Karaoke - Instrumental",
+        "Karaoke There's No Business Like Show Business -  (Ethel Merman) *",
+        "Karaoke I Won't Say (I'm in Love) (Movie Version) -  *",
+        "Prince - 1999 (Funbox Karaoke, 1982)",
+        "Fleetwood Mac - Angel (Funbox Karaoke, 1974)",
+        "Fleetwood Mac - Angel (Funbox Karaoke, 1979)",
+        "Karaoke Unknown Song -  *"
+    };
+    const QStringList sources{
+        "jlo_instru", "karafun_karaoke", "karafun_karaoke", "funbox",
+        "funbox", "funbox", "karafun_karaoke"
+    };
+    const QStringList expected{
+        "Elastica - Never Here",
+        "Ethel Merman - There's No Business Like Show Business",
+        "Hercules (1997 film) - I Won't Say (I'm in Love) (Movie)",
+        "Prince - 1999", "Fleetwood Mac - Angel (1974)", "Fleetwood Mac - Angel (1979)",
+        "Karaoke Unknown Song -  *"
+    };
+    QJsonArray entries;
+    for (int index = 0; index < rawTitles.size(); ++index) {
+        entries.append(QJsonObject{
+            {"entryId", QStringLiteral("12345678-1234-1234-1234-%1")
+                            .arg(index, 12, 10, QLatin1Char('0'))},
+            {"videoId", QStringLiteral("TitleCase01")},
+            {"rawTitle", rawTitles.at(index)}, {"sourceId", sources.at(index)},
+            {"displayTitle", QStringLiteral("stale title")},
+            {"status", QStringLiteral("failed")}, {"error", QStringLiteral("Unavailable")}
+        });
+    }
+    QFile file(dataRoot.filePath("karaoke_queue.json"));
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    const QByteArray original = QJsonDocument(QJsonObject{
+        {"schemaVersion", 1}, {"entries", entries}
+    }).toJson();
+    QCOMPARE(file.write(original), original.size());
+    file.close();
+
+    KaraokeBackend backend(QStringLiteral("/missing-app-root"), dataRoot.path());
+    const QVariantList queue = backend.getQueue();
+    QCOMPARE(queue.size(), entries.size());
+    for (int index = 0; index < queue.size(); ++index) {
+        const auto entry = queue.at(index).toMap();
+        QCOMPARE(entry.value("displayTitle").toString(), expected.at(index));
+        for (const QString &key : {QStringLiteral("entryId"), QStringLiteral("videoId"),
+                                  QStringLiteral("rawTitle"), QStringLiteral("sourceId"),
+                                  QStringLiteral("status"), QStringLiteral("error")}) {
+            QCOMPARE(entry.value(key), entries.at(index).toObject().value(key).toVariant());
+        }
+    }
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    QCOMPARE(file.readAll(), original); // Reload alone does not rewrite user data.
+    file.close();
+    QVERIFY(backend.moveQueueEntry(0, 1)); // A normal edit persists upgraded labels.
+    KaraokeBackend reloaded(QStringLiteral("/missing-app-root"), dataRoot.path());
+    QCOMPARE(reloaded.getQueue(), backend.getQueue());
+}
+
 void KaraokeBackendTest::validatesCatalogSongs()
 {
     const QJsonObject valid{
@@ -691,7 +880,7 @@ void KaraokeBackendTest::validatesCatalogSongs()
     const QVariantMap song = KaraokeBackend::catalogSongFromJson(valid);
     QCOMPARE(song.value(QStringLiteral("videoId")).toString(), QStringLiteral("abcDEF123_-"));
     QCOMPARE(song.value(QStringLiteral("displayTitle")).toString(),
-             QStringLiteral("Artist - Song (2004)"));
+             QStringLiteral("Artist - Song"));
     QCOMPARE(song.value(QStringLiteral("url")).toString(),
              QStringLiteral("https://www.youtube.com/watch?v=abcDEF123_-"));
     QCOMPARE(song.value(QStringLiteral("durationSeconds")).toInt(), 187);
@@ -1188,7 +1377,7 @@ void KaraokeBackendTest::loadsFreshCatalogCache()
     QCOMPARE(items.size(), 1);
     const QVariantMap loaded = items.first().toMap();
     QCOMPARE(loaded.value(QStringLiteral("displayTitle")).toString(),
-             QStringLiteral("Artist - Cached Song (2004)"));
+             QStringLiteral("Artist - Cached Song"));
     QCOMPARE(loaded.value(QStringLiteral("url")).toString(),
              QStringLiteral("https://www.youtube.com/watch?v=abcDEF123_-"));
     QCOMPARE(loaded.value(QStringLiteral("sourceId")).toString(),
@@ -1249,7 +1438,7 @@ void KaraokeBackendTest::loadsLegacyMultiSourceCatalogCache()
     const QVariantList items = resetSpy.first().at(0).toList();
     QCOMPARE(items.size(), 2);
     QCOMPARE(items.at(0).toMap().value(QStringLiteral("displayTitle")).toString(),
-             QStringLiteral("Artist - Funbox Song (2004)"));
+             QStringLiteral("Artist - Funbox Song"));
     QCOMPARE(items.at(1).toMap().value(QStringLiteral("displayTitle")).toString(),
              QStringLiteral("Artist - ObsKure Song"));
 }
@@ -1316,7 +1505,7 @@ void KaraokeBackendTest::loadsLegacyFourSourceCatalogCache()
     const QVariantList items = resetSpy.first().at(0).toList();
     QCOMPARE(items.size(), 4);
     QCOMPARE(items.at(0).toMap().value(QStringLiteral("displayTitle")).toString(),
-             QStringLiteral("Artist - Funbox Song (2004)"));
+             QStringLiteral("Artist - Funbox Song"));
     QCOMPARE(items.at(1).toMap().value(QStringLiteral("displayTitle")).toString(),
              QStringLiteral("The Films - Bodybag"));
     QCOMPARE(items.at(2).toMap().value(QStringLiteral("displayTitle")).toString(),
@@ -1395,7 +1584,7 @@ void KaraokeBackendTest::loadsLegacyFiveSourceCatalogCache()
     const QVariantList items = resetSpy.first().at(0).toList();
     QCOMPARE(items.size(), 5);
     QCOMPARE(items.at(0).toMap().value(QStringLiteral("displayTitle")).toString(),
-             QStringLiteral("Artist - Funbox Song (2004)"));
+             QStringLiteral("Artist - Funbox Song"));
     QCOMPARE(items.at(1).toMap().value(QStringLiteral("displayTitle")).toString(),
              QStringLiteral("The Films - Bodybag"));
     QCOMPARE(items.at(2).toMap().value(QStringLiteral("displayTitle")).toString(),
@@ -1486,7 +1675,7 @@ void KaraokeBackendTest::loadsLegacySixSourceCatalogCache()
     const QVariantList items = resetSpy.first().at(0).toList();
     QCOMPARE(items.size(), 6);
     QCOMPARE(items.at(0).toMap().value(QStringLiteral("displayTitle")).toString(),
-             QStringLiteral("Artist - Funbox Song (2004)"));
+             QStringLiteral("Artist - Funbox Song"));
     QCOMPARE(items.at(1).toMap().value(QStringLiteral("displayTitle")).toString(),
              QStringLiteral("The Films - Bodybag"));
     QCOMPARE(items.at(2).toMap().value(QStringLiteral("displayTitle")).toString(),
@@ -1603,7 +1792,7 @@ void KaraokeBackendTest::loadsLegacyNineSourceCatalogCache()
     const QVariantList items = resetSpy.first().at(0).toList();
     QCOMPARE(items.size(), 9);
     const QStringList expectedTitles{
-        QStringLiteral("Artist - Funbox Song (2004)"),
+        QStringLiteral("Artist - Funbox Song"),
         QStringLiteral("The Films - Bodybag"),
         QStringLiteral("The Lemonheads - Fear of Living"),
         QStringLiteral("Pink Floyd - Comfortably Numb"),
@@ -1668,7 +1857,7 @@ void KaraokeBackendTest::loadsLegacyElevenSourceCatalogCache()
     const QVariantList items = resetSpy.first().at(0).toList();
     QCOMPARE(items.size(), 1);
     QCOMPARE(items.first().toMap().value(QStringLiteral("displayTitle")).toString(),
-             QStringLiteral("Artist - Song (2004)"));
+             QStringLiteral("Artist - Song"));
 }
 
 void KaraokeBackendTest::loadsLegacyThirteenSourceCatalogCache()
@@ -1722,7 +1911,7 @@ void KaraokeBackendTest::loadsLegacyThirteenSourceCatalogCache()
     const QVariantList items = resetSpy.first().at(0).toList();
     QCOMPARE(items.size(), 1);
     QCOMPARE(items.first().toMap().value(QStringLiteral("displayTitle")).toString(),
-             QStringLiteral("Artist - Song (2004)"));
+             QStringLiteral("Artist - Song"));
 }
 
 void KaraokeBackendTest::loadsLegacyFifteenSourceCatalogCache()
@@ -1778,7 +1967,7 @@ void KaraokeBackendTest::loadsLegacyFifteenSourceCatalogCache()
     const QVariantList items = resetSpy.first().at(0).toList();
     QCOMPARE(items.size(), 1);
     QCOMPARE(items.first().toMap().value(QStringLiteral("displayTitle")).toString(),
-             QStringLiteral("Artist - Song (2004)"));
+             QStringLiteral("Artist - Song"));
 }
 
 void KaraokeBackendTest::loadsLegacySixteenSourceCatalogCache()
@@ -1835,7 +2024,7 @@ void KaraokeBackendTest::loadsLegacySixteenSourceCatalogCache()
     const QVariantList items = resetSpy.first().at(0).toList();
     QCOMPARE(items.size(), 1);
     QCOMPARE(items.first().toMap().value(QStringLiteral("displayTitle")).toString(),
-             QStringLiteral("Artist - Song (2004)"));
+             QStringLiteral("Artist - Song"));
 }
 
 void KaraokeBackendTest::loadsLegacySeventeenSourceCatalogCache()
@@ -1893,7 +2082,7 @@ void KaraokeBackendTest::loadsLegacySeventeenSourceCatalogCache()
     const QVariantList items = resetSpy.first().at(0).toList();
     QCOMPARE(items.size(), 1);
     QCOMPARE(items.first().toMap().value(QStringLiteral("displayTitle")).toString(),
-             QStringLiteral("Artist - Song (2004)"));
+             QStringLiteral("Artist - Song"));
 }
 
 void KaraokeBackendTest::loadsCurrentCatalogCache()
@@ -1901,7 +2090,7 @@ void KaraokeBackendTest::loadsCurrentCatalogCache()
     QTemporaryDir dataRoot;
     QVERIFY(dataRoot.isValid());
 
-    const QJsonObject cache{
+    QJsonObject cache{
         {QStringLiteral("schemaVersion"), 12},
         {QStringLiteral("sourceChannelIds"), QJsonArray{
             QStringLiteral("UCtPzvwooQ18YZ8Wq8Hka60g"),
@@ -2083,6 +2272,36 @@ void KaraokeBackendTest::loadsCurrentCatalogCache()
             }
         }}
     };
+    const QStringList regressionNames{
+        QStringLiteral("VxrWb80htuU"), QStringLiteral("OqU4_8HED78"),
+        QStringLiteral("ethel-wrapper"), QStringLiteral("missing-hercules-artist"),
+        QStringLiteral("numeric-title"), QStringLiteral("distinct-song-1974"),
+        QStringLiteral("distinct-song-1979")
+    };
+    const QJsonObject fixture = titleRegressionFixture();
+    QVERIFY(!fixture.isEmpty());
+    QJsonArray cachedItems = cache.value(QStringLiteral("items")).toArray();
+    QStringList expectedRegressions;
+    for (const auto &value : fixture.value(QStringLiteral("cases")).toArray()) {
+        const auto row = value.toObject();
+        if (!regressionNames.contains(row.value(QStringLiteral("name")).toString()))
+            continue;
+        cachedItems.append(QJsonObject{
+            {QStringLiteral("videoId"), QStringLiteral("CacheCase%1")
+                 .arg(expectedRegressions.size(), 2, 10, QLatin1Char('0'))},
+            {QStringLiteral("rawTitle"), row.value(QStringLiteral("raw"))},
+            {QStringLiteral("sourceId"), row.value(QStringLiteral("sourceId"))},
+            {QStringLiteral("displayTitle"), QStringLiteral("stale title")}
+        });
+        expectedRegressions.append(row.value(QStringLiteral("expected")).toString());
+    }
+    QCOMPARE(expectedRegressions.size(), regressionNames.size());
+    cachedItems.append(QJsonObject{
+        {QStringLiteral("videoId"), QStringLiteral("BlankCase01")},
+        {QStringLiteral("rawTitle"), QStringLiteral("Karaoke Unknown Song -  *")},
+        {QStringLiteral("sourceId"), QStringLiteral("karafun_karaoke")}
+    });
+    cache[QStringLiteral("items")] = cachedItems;
     QFile file(dataRoot.filePath(QStringLiteral("karaoke_catalog.json")));
     QVERIFY(file.open(QIODevice::WriteOnly));
     QVERIFY(file.write(QJsonDocument(cache).toJson(QJsonDocument::Compact)) > 0);
@@ -2096,7 +2315,11 @@ void KaraokeBackendTest::loadsCurrentCatalogCache()
     QCOMPARE(resetSpy.size(), 1);
     QCOMPARE(finishedSpy.size(), 1);
     const QVariantList items = resetSpy.first().at(0).toList();
-    QCOMPARE(items.size(), 15);
+    QCOMPARE(items.size(), 15 + expectedRegressions.size());
+    for (int index = 0; index < expectedRegressions.size(); ++index) {
+        QCOMPARE(items.at(15 + index).toMap().value(QStringLiteral("displayTitle")).toString(),
+                 expectedRegressions.at(index));
+    }
     QCOMPARE(items.at(0).toMap().value(QStringLiteral("displayTitle")).toString(),
              QStringLiteral("Sigur Rós - Gold"));
     QCOMPARE(items.at(1).toMap().value(QStringLiteral("displayTitle")).toString(),
@@ -2519,7 +2742,7 @@ void KaraokeBackendTest::refreshesLiveCatalog()
     QCOMPARE(
         visibleSourceByKey.value(KaraokeBackend::deduplicationKey(
             QStringLiteral(
-                "Velvet Underground - Beginning to See the Light (Live) (1969)"))),
+                "Velvet Underground - Beginning to See the Light (Live)"))),
         QStringLiteral("lemmy_caution_karaoke"));
     QVERIFY(visibleSourceByKey.contains(KaraokeBackend::deduplicationKey(
         QStringLiteral("Cigarettes After Sex - Apocalypse"))));

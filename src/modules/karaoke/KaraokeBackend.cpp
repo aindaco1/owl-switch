@@ -517,7 +517,37 @@ QString normalizedKaraokeOfficeTitle(QString title)
         {QStringLiteral("i bet on losing dogs mitski"),
          QStringLiteral("Mitski - I Bet on Losing Dogs")},
         {QStringLiteral("28 zach bryan"),
-         QStringLiteral("Zach Bryan - 28")}
+         QStringLiteral("Zach Bryan - 28")},
+        {QStringLiteral("like a virgin madonna"),
+         QStringLiteral("Madonna - Like A Virgin")},
+        {QStringLiteral("hallelujah pentatonix"),
+         QStringLiteral("Pentatonix - Hallelujah")},
+        {QStringLiteral("because of you ne yo"),
+         QStringLiteral("Ne-Yo - Because of You")},
+        {QStringLiteral("since u been gone kelly clarkson"),
+         QStringLiteral("Kelly Clarkson - Since U Been Gone")},
+        {QStringLiteral("jubel klingande"),
+         QStringLiteral("Klingande - Jubel")},
+        {QStringLiteral("so sick ne yo"),
+         QStringLiteral("Ne-Yo - So Sick")},
+        {QStringLiteral("lucky girl fazerdaze"),
+         QStringLiteral("Fazerdaze - Lucky Girl")},
+        {QStringLiteral("when i m sixty four the beatles"),
+         QStringLiteral("The Beatles - When I'm Sixty-Four")},
+        {QStringLiteral("one call away charlie puth"),
+         QStringLiteral("Charlie Puth - One Call Away")},
+        {QStringLiteral("replay iyaz"),
+         QStringLiteral("Iyaz - Replay")},
+        {QStringLiteral("best song ever one direction"),
+         QStringLiteral("One Direction - Best Song Ever")},
+        {QStringLiteral("oceans where feet may fail hillsong united"),
+         QStringLiteral("Hillsong UNITED - Oceans (Where Feet May Fail)")},
+        {QStringLiteral("how long will i love you ellie goulding"),
+         QStringLiteral("Ellie Goulding - How Long Will I Love You")},
+        {QStringLiteral("in the end linkin park"),
+         QStringLiteral("Linkin Park - In The End")},
+        {QStringLiteral("hero mariah carey"),
+         QStringLiteral("Mariah Carey - Hero")}
     };
     return malformedTitleAliases.value(key, title);
 }
@@ -735,10 +765,70 @@ QString normalizedJLoInstruTitle(const QString &title)
     // already artist-first. Keep verified exceptions in one canonical map so
     // the dominant grammar remains deterministic.
     static const QHash<QString, QString> artistFirstAliases{
-        {QStringLiteral("1979 - the smashing pumpkins"),
-         QStringLiteral("The Smashing Pumpkins - 1979")}
+        {QStringLiteral("1979 the smashing pumpkins"),
+         QStringLiteral("The Smashing Pumpkins - 1979")},
+        {QStringLiteral("it s getting boring by the sea blood red shoes"),
+         QStringLiteral("Blood Red Shoes - It's Getting Boring By The Sea")},
+        {QStringLiteral("never here elastica"),
+         QStringLiteral("Elastica - Never Here")},
+        {QStringLiteral("cherub rock the smashing pumpkins"),
+         QStringLiteral("The Smashing Pumpkins - Cherub Rock")},
+        {QStringLiteral("sour times portishead"),
+         QStringLiteral("Portishead - Sour Times")},
+        {QStringLiteral("someone the divine comedy"),
+         QStringLiteral("The Divine Comedy - Someone")},
+        {QStringLiteral("my body is a cage arcade fire"),
+         QStringLiteral("Arcade Fire - My Body Is A Cage")},
+        {QStringLiteral("romantic homicide d4vd"),
+         QStringLiteral("D4vd - Romantic Homicide")},
+        {QStringLiteral("timewatching the divine comedy"),
+         QStringLiteral("The Divine Comedy - Timewatching")},
+        {QStringLiteral("it s a fire portishead"),
+         QStringLiteral("Portishead - It's A Fire")},
+        {QStringLiteral("roads portishead"),
+         QStringLiteral("Portishead - Roads")},
+        {QStringLiteral("we are sex bob omb sex bob omb"),
+         QStringLiteral("Sex Bob Omb - We Are Sex Bob Omb")},
+        {QStringLiteral("my love mine all mine mitski"),
+         QStringLiteral("Mitski - My Love Mine All Mine")},
+        {QStringLiteral("ceremony new order"),
+         QStringLiteral("New Order - Ceremony")},
+        {QStringLiteral("la grenade clara luciani"),
+         QStringLiteral("Clara Luciani - La Grenade")},
+        {QStringLiteral("l homme pressé noir désir"),
+         QStringLiteral("Noir Désir - L'homme Pressé")},
+        {QStringLiteral("car song elastica"),
+         QStringLiteral("Elastica - Car Song")},
+        {QStringLiteral("line up elastica"),
+         QStringLiteral("Elastica - Line Up")},
+        {QStringLiteral("stutter elastica"),
+         QStringLiteral("Elastica - Stutter")},
+        {QStringLiteral("connection elastica"),
+         QStringLiteral("Elastica - Connection")},
+        {QStringLiteral("only shallow my bloody valentine"),
+         QStringLiteral("My Bloody Valentine - Only Shallow")},
+        {QStringLiteral("tears the chameleons"),
+         QStringLiteral("The Chameleons - Tears")},
+        {QStringLiteral("monkeyland the chameleons"),
+         QStringLiteral("The Chameleons - Monkeyland")},
+        {QStringLiteral("disorder joy division"),
+         QStringLiteral("Joy Division - Disorder")},
+        {QStringLiteral("ton héritage benjamin biolay"),
+         QStringLiteral("Benjamin Biolay - Ton Héritage")},
+        {QStringLiteral("galapagos the smashing pumpkins"),
+         QStringLiteral("The Smashing Pumpkins - Galapagos")},
+        {QStringLiteral("bullet with butterfly wings the smashing pumpkins"),
+         QStringLiteral("The Smashing Pumpkins - Bullet With Butterfly Wings")},
+        {QStringLiteral("mayonaise the smashing pumpkins"),
+         QStringLiteral("The Smashing Pumpkins - Mayonaise")},
+        {QStringLiteral("a w lana del rey"),
+         QStringLiteral("Lana Del Rey - A&W")},
+        {QStringLiteral("how beautiful you are the cure"),
+         QStringLiteral("The Cure - How Beautiful You Are")},
+        {QStringLiteral("apocalypse cigarettes after sex"),
+         QStringLiteral("Cigarettes After Sex - Apocalypse")}
     };
-    return artistFirstAliases.value(normalized.toCaseFolded(), normalized);
+    return artistFirstAliases.value(titleLookupKey(normalized), normalized);
 }
 
 QString withoutOffbeatKaraokeQualifier(const QString &title)
@@ -812,6 +902,25 @@ QString withoutJustSingKaraokeBranding(QString title)
     return title.trimmed();
 }
 
+QString karaFunArtistSong(QString artist, QString song)
+{
+    artist = artist.trimmed();
+    song = song.trimmed();
+    if (song.isEmpty())
+        return {};
+    // Legacy KaraFun metadata, verified against its own catalog. Do not unwrap
+    // arbitrary artist/title parentheses or infer artists from unknown songs.
+    if (artist.compare(QStringLiteral("(Ethel Merman)"), Qt::CaseInsensitive) == 0)
+        artist = QStringLiteral("Ethel Merman");
+    if (artist.isEmpty() && titleLookupKey(song) ==
+            QStringLiteral("i won t say i m in love movie version")) {
+        artist = QStringLiteral("Hercules (1997 film)");
+    }
+    if (artist.isEmpty())
+        return {};
+    return artist + QStringLiteral(" - ") + song;
+}
+
 QString karaFunCatalogTitle(const QString &rawTitle)
 {
     // Current KaraFun uploads are song-first and pipe-delimited. Retain the
@@ -825,8 +934,8 @@ QString karaFunCatalogTitle(const QString &rawTitle)
         QRegularExpression::CaseInsensitiveOption);
     const QRegularExpressionMatch songFirstMatch = songFirstTitle.match(rawTitle);
     if (songFirstMatch.hasMatch()) {
-        return songFirstMatch.captured(2).trimmed() + QStringLiteral(" - ")
-               + songFirstMatch.captured(1).trimmed();
+        return karaFunArtistSong(songFirstMatch.captured(2),
+                                 songFirstMatch.captured(1));
     }
 
     static const QRegularExpression legacySongFirstTitle(
@@ -836,9 +945,8 @@ QString karaFunCatalogTitle(const QString &rawTitle)
     const QRegularExpressionMatch legacySongFirstMatch =
         legacySongFirstTitle.match(rawTitle);
     if (legacySongFirstMatch.hasMatch()) {
-        return legacySongFirstMatch.captured(2).trimmed()
-               + QStringLiteral(" - ")
-               + legacySongFirstMatch.captured(1).trimmed();
+        return karaFunArtistSong(legacySongFirstMatch.captured(2),
+                                 legacySongFirstMatch.captured(1));
     }
 
     static const QRegularExpression artistFirstTitle(
@@ -850,8 +958,8 @@ QString karaFunCatalogTitle(const QString &rawTitle)
     const QRegularExpressionMatch artistFirstMatch = artistFirstTitle.match(rawTitle);
     if (!artistFirstMatch.hasMatch())
         return {};
-    return artistFirstMatch.captured(1).trimmed() + QStringLiteral(" - ")
-           + artistFirstMatch.captured(2).trimmed();
+    return karaFunArtistSong(artistFirstMatch.captured(1),
+                             artistFirstMatch.captured(2));
 }
 
 QString sourceIdForChannelId(const QString &channelId)
@@ -970,13 +1078,16 @@ KaraokeBackend::~KaraokeBackend()
     stopPrefetchProcess(true);
 }
 
-QString KaraokeBackend::cleanedTitle(const QString &rawTitle,
-                                     const QString &sourceId)
+namespace {
+
+QString cleanedSourceTitle(const QString &rawTitle, const QString &sourceId)
 {
     if (sourceId == kKaraFunSourceId) {
         const QString catalogTitle = karaFunCatalogTitle(rawTitle);
-        if (!catalogTitle.isEmpty())
-            return normalizedTitleSeparators(catalogTitle);
+        // Invalid legacy queue records must remain editable. Catalog admission
+        // rejects them, while queue reload keeps their original label intact.
+        return catalogTitle.isEmpty() ? rawTitle.trimmed()
+                                      : normalizedTitleSeparators(catalogTitle);
     }
 
     static const QRegularExpression funboxSuffix(
@@ -1187,12 +1298,110 @@ QString KaraokeBackend::cleanedTitle(const QString &rawTitle,
     return normalizedTitleSeparators(cleaned);
 }
 
+QString withoutRedundantSongYears(const QString &title)
+{
+    // Only inspect suffix metadata on the song side. Artist names, numeric
+    // song names and parenthetical song wording are not release metadata.
+    static const QRegularExpression separator(QStringLiteral("\\s[-–—]\\s"));
+    const auto separatorMatch = separator.match(title);
+    if (!separatorMatch.hasMatch())
+        return title;
+    const qsizetype songStart = separatorMatch.capturedEnd();
+    QString song = title.mid(songStart);
+    static const QRegularExpression datedLiveSuffix(
+        QStringLiteral("^(.+?)\\s+(?:-\\s+)?(Live\\s+[^()]*\\b[0-9]{4}[^()]*)$"),
+        QRegularExpression::CaseInsensitiveOption);
+    const auto liveMatch = datedLiveSuffix.match(song);
+    if (liveMatch.hasMatch()) {
+        song = liveMatch.captured(1).trimmed() + QStringLiteral(" (")
+               + liveMatch.captured(2).trimmed() + QLatin1Char(')');
+    }
+    static const QRegularExpression suffixes(
+        QStringLiteral("(?:\\s+\\([^()]*\\))+$"));
+    const auto suffixMatch = suffixes.match(song);
+    if (!suffixMatch.hasMatch())
+        return title;
+
+    const QString baseSong = song.left(suffixMatch.capturedStart()).trimmed();
+    if (baseSong.isEmpty())
+        return title;
+    // These are different compositions, not reissues or re-recordings. Add
+    // exceptions only with attribution evidence; see docs/ARCHITECTURE.md.
+    static const QHash<QString, QSet<QString>> distinctSongYears{
+        {QStringLiteral("fleetwood mac\nangel"),
+         {QStringLiteral("1974"), QStringLiteral("1979")}}
+    };
+    QString suffix = suffixMatch.captured();
+    static const QRegularExpression qualifier(QStringLiteral("\\s+\\(([^()]*)\\)"));
+    static const QRegularExpression yearOnly(
+        QStringLiteral("^[0-9]{4}(?:/[0-9]{4})*$"));
+    static const QRegularExpression datedEdition(
+        QStringLiteral(
+            "^(?:[0-9]{4}\\s+)?(?:Live|Acoustic|Demo|Remix|Rmx|Mix|Remaster(?:ed)?|"
+            "Version|Ver|Eurovision|Bercy|Paris|BBC Children In Need)\\b|"
+            "\\b(?:Live|Remix|Rmx|Mix|Version|Ver|Concert)\\s*(?:[0-9]{4})?$"),
+        QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression editionYear(
+        // "2001 Intro" names the music, not the recording date.
+        QStringLiteral("\\b(?:[0-9]{1,2}\\s+[0-9]{1,2}\\s+)?[0-9]{4}\\b(?!\\s+Intro\\b)"),
+        QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression emptyEditionLabel(
+        QStringLiteral("^(?:Version|Ver)$"), QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression metadataEdges(
+        QStringLiteral("^[\\s,;–—-]+|[\\s,;–—-]+$"));
+    // A parenthetical subtitle belongs to the identity too: "Angel (Other
+    // Song)" must not inherit the verified years for the song "Angel".
+    QString identitySong = baseSong;
+    auto qualifiers = qualifier.globalMatch(suffix);
+    while (qualifiers.hasNext()) {
+        const auto match = qualifiers.next();
+        if (!yearOnly.match(match.captured(1)).hasMatch() &&
+            !datedEdition.match(match.captured(1)).hasMatch()) {
+            identitySong += match.captured();
+        }
+    }
+    const QString identity = titleLookupKey(title.left(separatorMatch.capturedStart()))
+                             + QLatin1Char('\n') + titleLookupKey(identitySong);
+    const QSet<QString> retainedYears = distinctSongYears.value(identity);
+    qsizetype offset = 0;
+    while (true) {
+        const auto match = qualifier.match(suffix, offset);
+        if (!match.hasMatch())
+            break;
+        QString label = match.captured(1);
+        if (yearOnly.match(label).hasMatch()) {
+            if (!retainedYears.contains(label))
+                label.clear();
+        } else if (datedEdition.match(label).hasMatch() &&
+                   editionYear.match(label).hasMatch()) {
+            label.remove(editionYear);
+            label.remove(metadataEdges);
+            label = label.simplified();
+            if (emptyEditionLabel.match(label).hasMatch())
+                label.clear();
+        }
+        if (label == match.captured(1)) {
+            offset = match.capturedEnd();
+            continue;
+        }
+        const QString replacement = label.isEmpty() ? QString{}
+            : QStringLiteral(" (") + label + QLatin1Char(')');
+        suffix.replace(match.capturedStart(), match.capturedLength(), replacement);
+        offset = match.capturedStart() + replacement.size();
+    }
+    return title.left(songStart) + baseSong + suffix;
+}
+
+}
+
+QString KaraokeBackend::cleanedTitle(const QString &rawTitle, const QString &sourceId)
+{
+    return withoutRedundantSongYears(cleanedSourceTitle(rawTitle, sourceId));
+}
+
 QString KaraokeBackend::deduplicationKey(const QString &title)
 {
     QString comparable = cleanedTitle(title);
-    static const QRegularExpression funboxYear(
-        QStringLiteral("\\s*\\([0-9]{4}(?:/[0-9]{4})*\\)\\s*$"));
-    comparable.remove(funboxYear);
     comparable.replace(QLatin1Char('&'), QStringLiteral(" and "));
     comparable = comparable.normalized(QString::NormalizationForm_D)
                      .toCaseFolded();
@@ -1775,6 +1984,10 @@ QVariantMap KaraokeBackend::validatedQueueEntry(const QVariantMap &candidate,
         return {};
     const QString sourceId = candidate.value(QStringLiteral("sourceId")).toString();
     const bool hasKnownSource = isKnownSourceId(sourceId);
+    if (createEntryId && sourceId == kKaraFunSourceId &&
+        isExcludedCatalogTitle(sourceId, rawTitle)) {
+        return {};
+    }
 
     QString entryId = candidate.value(QStringLiteral("entryId")).toString().trimmed();
     if (entryId.isEmpty() && createEntryId)
