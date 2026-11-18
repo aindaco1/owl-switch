@@ -117,7 +117,7 @@ async function installationToken(env) {
 async function githubRequest(env, path, options = {}) {
   if (options.method === 'GET' && /\/artifacts\/\d+$/.test(path)) path += '?per_page=1';
   const response = await fetch(`https://api.github.com${path}`, {
-    redirect: 'error',
+    redirect: 'manual',
     ...options,
     headers: {
       Accept: 'application/vnd.github+json',
