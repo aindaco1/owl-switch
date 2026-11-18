@@ -149,3 +149,10 @@ The app preview, draft persistence and explicit retry stay in the app. The smoke
 script checks the new receipt contract. Historical count and operator-note
 adoption also passed against the existing synthetic issue #28 during deployment;
 that issue was reclosed after verification.
+
+With `ISSUE_ARTIFACTS_ENABLED=true`, each accepted group mirrors the count,
+last-seen time and latest reviewed build/platform to one versioned Markdown
+artifact. The issue keeps the sanitized event details. Duplicate receipts skip
+the mirror. Set the flag to false and redeploy to disable publication. Preserve
+the group's artifact record when reverting the Worker. The live delivery smoke
+also checks artifact identity and version counts through duplicate and reopen.

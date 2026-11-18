@@ -23,7 +23,7 @@ const payload = {
 };
 
 function github(path, body) {
-  const args = ['api', path];
+  const args = ['api', '-H', 'X-GitHub-Api-Version: 2026-03-10', path];
   if (body) args.push('--method', 'PATCH', '--input', '-');
   return JSON.parse(execFileSync('gh', args, {
     encoding: 'utf8', input: body ? JSON.stringify(body) : undefined,
@@ -42,6 +42,21 @@ function verifyIssue(issue, receipt, count) {
   const aggregate = JSON.parse(Buffer.from(state[1], 'base64').toString('utf8'));
   assert.equal(aggregate.count, count);
   assert.equal(aggregate.versions[payload.app.version], count);
+}
+
+function verifyArtifact(receipt, expectedVersions, existingNumber) {
+  const base = `repos/${repository}/issues/${receipt.issueNumber}/artifacts`;
+  const artifacts = github(base);
+  assert.equal(artifacts.length, 1);
+  const [artifact] = artifacts;
+  if (existingNumber !== undefined) assert.equal(artifact.number, existingNumber);
+  assert.equal(artifact.type, 'generic');
+  assert.ok(artifact.body.startsWith(`<!-- dustwave-issue-artifact:${receipt.fingerprint} -->`));
+  assert.ok(artifact.body.includes(`Reports: ${expectedVersions}\n`));
+  assert.ok(artifact.body.includes(payload.app.version));
+  assert.equal(github(`${base}/${artifact.number}`).versions.length, expectedVersions);
+  console.log(`Artifact ${artifact.number}, verified ${expectedVersions} version(s)`);
+  return artifact.number;
 }
 
 async function submit(report = payload, expectedStatus = 200) {
@@ -81,7 +96,9 @@ async function main() {
     assert.equal(first.action, 'created');
     console.log(`Creation verified: ${firstIssue.html_url}`);
 
+    const artifactNumber = verifyArtifact(first, 1);
     assert.equal((await submit()).action, 'duplicate');
+    verifyArtifact(first, 1, artifactNumber);
     const changed = structuredClone(payload);
     changed.report.context.recentEvents[0].message = 'Synthetic changed reviewed draft';
     await submit(changed, 409);
@@ -91,18 +108,18 @@ async function main() {
     for (const draft of drafts) draft.report.id = randomUUID();
     const receipts = await Promise.all(drafts.map(draft => submit(draft)));
     for (const receipt of receipts) {
-      ownedIssues.add(receipt.issueNumber);
       assert.equal(receipt.issueNumber, first.issueNumber, 'Concurrent reports must aggregate');
       assert.equal(receipt.action, 'updated');
     }
     verifyIssue(github(`repos/${repository}/issues/${first.issueNumber}`), first, 3);
     github(`repos/${repository}/issues/${first.issueNumber}`, { state: 'closed', state_reason: 'completed' });
+    verifyArtifact(first, 3, artifactNumber);
     const next = structuredClone(payload);
     next.report.id = randomUUID();
     const reopened = await submit(next);
-    ownedIssues.add(reopened.issueNumber);
     assert.equal(reopened.issueNumber, first.issueNumber);
     verifyIssue(github(`repos/${repository}/issues/${first.issueNumber}`), first, 4);
+    verifyArtifact(first, 4, artifactNumber);
     console.log(`Delivery, deduplication, immutable drafts, concurrent grouping and reopening verified: ${firstIssue.html_url}`);
   } finally {
     for (const number of ownedIssues) {

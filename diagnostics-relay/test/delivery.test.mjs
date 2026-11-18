@@ -15,12 +15,18 @@ function report(id, message = 'Synthetic playback failure') {
 }
 const request = value => new Request('https://internal/report', { method: 'POST', body: JSON.stringify(value) });
 
-function service({ legacy = null, uncertainCreate = false } = {}) {
+function service({ legacy = null, uncertainCreate = false, artifactsEnabled = false } = {}) {
   const issues = new Map(); const calls = []; const groups = new Map(); const ids = new Map();
   if (legacy) issues.set(legacy.number, structuredClone(legacy));
+  let artifact;
   let loseResponse = uncertainCreate;
   const api = async (_env, path, options) => {
     calls.push({ path, method: options.method });
+    if (path.includes('/artifacts')) {
+      if (options.method === 'GET') return path.includes('?') ? [] : { artifact };
+      artifact = { number: 1, type: 'generic', ...JSON.parse(options.body) };
+      return artifact;
+    }
     if (path.startsWith('/search/issues')) return { items: [...issues.values()] };
     if (options.method === 'GET') {
       const value = issues.get(Number(path.split('/').at(-1)));
@@ -36,7 +42,7 @@ function service({ legacy = null, uncertainCreate = false } = {}) {
     const value = { ...issues.get(number), ...JSON.parse(options.body), number }; issues.set(number, value);
     return structuredClone(value);
   };
-  const env = { REPORT_INDEX: { get: async () => legacy ? { number: legacy.number } : null },
+  const env = { ISSUE_ARTIFACTS_ENABLED: String(artifactsEnabled), REPORT_INDEX: { get: async () => legacy ? { number: legacy.number } : null },
     REPORT_GROUPS: { idFromName: x => x, get: key => {
       if (!groups.has(key)) groups.set(key, new OwlReportGroup({ storage: storage() }, env, api));
       return groups.get(key);
@@ -46,7 +52,7 @@ function service({ legacy = null, uncertainCreate = false } = {}) {
     return ids.get(id);
   }
   const send = value => inbox(value.report.id).fetch(request(value));
-  return { env, calls, issues, send };
+  return { env, calls, issues, send, artifact: () => artifact };
 }
 
 test('concurrent reports serialize counts and same-ID retries return matching receipts', async () => {
@@ -99,4 +105,13 @@ test('legacy provider failure never creates a replacement issue', async () => {
   });
   assert.equal((await group.fetch(request(report('one')))).status, 502);
   assert.equal(posts, 0); assert.equal(await ctx.storage.get('group'), undefined);
+});
+
+test('accepted reports version one build snapshot and retries preserve its version', async () => {
+  const f = service({ artifactsEnabled: true });
+  for (const id of ['one', 'one', 'two']) assert.equal((await f.send(report(id))).status, 200);
+  assert.deepEqual(f.calls.filter(c => c.path.includes('/artifacts')).map(c => c.method), ['GET', 'POST', 'GET', 'PATCH']);
+  assert.match(f.artifact().body, /Reports: 2/);
+  assert.match(f.artifact().body, /1.7.0/);
+  assert.doesNotMatch(f.artifact().body, /Synthetic playback failure/);
 });

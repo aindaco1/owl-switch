@@ -1,4 +1,6 @@
+import { readBoundedText } from '@dustwave/worker-core/response-body';
 import { createAppAuth } from '@octokit/auth-app';
+import { createGitHubIssueArtifactWriter } from '@dustwave/desktop-core/github-issue-artifacts';
 import { createGitHubIssueReporter } from '@dustwave/desktop-core/github-issues';
 import { ReviewedReportGroup } from '@dustwave/desktop-core/reviewed-report-group';
 import { readBoundedBytes } from '@dustwave/worker-core/request-validation';
@@ -113,7 +115,9 @@ async function installationToken(env) {
 }
 
 async function githubRequest(env, path, options = {}) {
+  if (options.method === 'GET' && /\/artifacts\/\d+$/.test(path)) path += '?per_page=1';
   const response = await fetch(`https://api.github.com${path}`, {
+    redirect: 'manual',
     ...options,
     headers: {
       Accept: 'application/vnd.github+json',
@@ -124,7 +128,7 @@ async function githubRequest(env, path, options = {}) {
       ...(options.headers || {})
     }
   });
-  const text = await response.text();
+  const text = options.signal ? await readBoundedText(response, 2 * 1024 * 1024) : await response.text();
   const data = text ? JSON.parse(text) : null;
   if (!response.ok) throw Object.assign(new Error('GitHub delivery failed'), { status: response.status, errors: data?.errors, providerOperation: options.method });
   return data;
@@ -216,6 +220,12 @@ export class OwlReportGroup extends ReviewedReportGroup {
       failureCode: 'owlswitch-submit-failed', receiptRetentionMS: 30 * 86400000,
       labels: () => env.GITHUB_LABELS || 'crash,automated-report,needs-triage',
       issueBody,
+      issueArtifact(report, fp, state) {
+        const latest = JSON.stringify({ version: report.app.version, os: report.app.os, arch: report.app.arch }, null, 2)
+          .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+        return { name: 'OwlSwitch diagnostic history',
+          body: `Reports: ${state.count}\n\nFingerprint: ${fp}\n\nLast seen: ${state.lastSeen}\n\n### Latest build and platform\n\n<pre>${latest}</pre>` };
+      },
       reopen: issue => !issue.labels?.some(label => ['duplicate', 'do-not-reopen'].includes(typeof label === 'string' ? label : label.name)),
       initialState: async (_report, fp, index) => {
         // Adopt the existing issue and count before the first durable increment.
@@ -239,7 +249,8 @@ export class OwlReportGroup extends ReviewedReportGroup {
         return state;
       }
     };
-    super(ctx, env, adapter, { submit: api.submitCrashReport, updateAggregateState: api.updateAggregateState, owner: 'aindaco1' });
+    super(ctx, env, adapter, { submit: api.submitCrashReport, updateAggregateState: api.updateAggregateState, owner: 'aindaco1',
+      writeIssueArtifact: env.ISSUE_ARTIFACTS_ENABLED === 'true' ? createGitHubIssueArtifactWriter({ request }) : undefined });
   }
   alarm() {
     const operation = this.tail.then(async () => {
