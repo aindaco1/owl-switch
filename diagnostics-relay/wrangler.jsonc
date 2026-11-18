@@ -28,6 +28,7 @@
   ],
   "vars": {
     "REPORTS_ENABLED": "true",
+    "ISSUE_ARTIFACTS_ENABLED": "true",
     "ALLOWED_APP_IDENTIFIER": "com.240mp.jellyfin",
     "GITHUB_OWNER": "aindaco1",
     "GITHUB_REPO": "owl-switch",
