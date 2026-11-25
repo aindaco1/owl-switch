@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(OwlSwitch VERSION 1.7.3 LANGUAGES CXX)
+project(OwlSwitch VERSION 1.8.0 LANGUAGES CXX)
 
 if(NOT APPLE)
     message(FATAL_ERROR "This fork is macOS-only. Configure and build it on macOS.")
@@ -17,7 +17,7 @@ set(APP_DISPLAY_NAME "${APP_PRODUCT_NAME}")
 # Retained only so installations older than 1.6.4 can discover and validate
 # future OwlSwitch updates. This is not used for current project or artifact naming.
 set(APP_LEGACY_NAME "240-mp-jellyfin")
-set(APP_RELEASE_TAG "v1.7.3")
+set(APP_RELEASE_TAG "v1.8.0")
 # The 1.6.4 updater requires this signed identity. Changing it requires a
 # separately released transition version whose updater trusts both identities.
 set(APP_BUNDLE_IDENTIFIER "com.240mp.jellyfin" CACHE STRING "macOS bundle identifier")
@@ -157,6 +157,10 @@ target_include_directories(owlswitch PRIVATE
 
 if(BUILD_TESTING)
     find_package(Qt6 REQUIRED COMPONENTS Test)
+    find_program(QML_TEST_RUNNER qmltestrunner REQUIRED)
+    add_test(NAME media_navigation_qml COMMAND "${QML_TEST_RUNNER}"
+        -input "${CMAKE_SOURCE_DIR}/tests/qml" -import "${CMAKE_SOURCE_DIR}/views"
+        -platform offscreen)
 
     add_executable(tls_trust_tests tests/TlsTrustTest.cpp src/tools/TlsTrust.cpp)
     target_include_directories(tls_trust_tests PRIVATE src)

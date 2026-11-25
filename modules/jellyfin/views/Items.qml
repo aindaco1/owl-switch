@@ -25,6 +25,11 @@ FocusScope {
     property var allItems: []
     property var items: []
     property string filterText: navListState.filterText || ""
+    readonly property bool showWatchedIndicators: {
+        var value = appCore.get_setting(moduleRoot.moduleId, "watched_indicators")
+        return value === true || value === "ON"
+    }
+    property int pendingRestoreIndex: navListState.currentIndex ?? -1
     property bool isLoading: false
     property bool isLoadingMore: false
     property string errorMessage: ""
@@ -70,6 +75,7 @@ FocusScope {
     }
 
     function handleKey(event) {
+        pendingRestoreIndex = -1
         if (event.key === Qt.Key_Up) {
             if (itemList.count > 0)
                 itemList.currentIndex = (itemList.currentIndex - 1 + itemList.count) % itemList.count
@@ -192,15 +198,20 @@ FocusScope {
         isLoadingMore = !finished
         errorMessage = ""
 
-        var restore = reset && navListState.currentIndex !== undefined
-            ? navListState.currentIndex : itemList.currentIndex
-        applyFilter(restore)
+        applyFilter(pendingRestoreIndex >= 0 ? pendingRestoreIndex : itemList.currentIndex)
+        if (finished || pendingRestoreIndex < items.length)
+            pendingRestoreIndex = -1
     }
 
     Connections {
         target: jellyfinBackend
         function onItemsPageLoaded(loadedItems, reset, finished) {
             itemListRoot.appendLoadedItems(loadedItems, reset, finished)
+        }
+        function onWatchHistoryChanged() {
+            if (itemListRoot.pendingRestoreIndex < 0)
+                itemListRoot.pendingRestoreIndex = itemList.currentIndex
+            itemListRoot.loadItems()
         }
         function onErrorOccurred(message) {
             itemListRoot.isLoading = false
@@ -209,7 +220,9 @@ FocusScope {
         }
     }
 
-    Component.onCompleted: {
+    Component.onCompleted: loadItems()
+
+    function loadItems() {
         isLoading = true
         isLoadingMore = false
         errorMessage = ""
@@ -385,6 +398,7 @@ FocusScope {
 
     ListView {
         id: itemList
+        objectName: "jellyfinItemsList"
         model: items
         anchors.top: parent.top
         anchors.left: parent.left
@@ -400,7 +414,8 @@ FocusScope {
         delegate: SelectableMarqueeRow {
             width: itemList.width
             height: root.sh * 0.0583333
-            label: JellyfinMedia.listTitle(modelData, mode === "continue" || mode === "upnext")
+            label: (itemListRoot.showWatchedIndicators ? JellyfinMedia.watchedPrefix(modelData) : "") +
+                   JellyfinMedia.listTitle(modelData, mode === "continue" || mode === "upnext")
             selected: itemList.currentIndex === index
         }
     }

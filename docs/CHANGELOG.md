@@ -2,6 +2,12 @@
 
 All notable OwlSwitch changes are documented here. Releases through 1.6.3 used the former project name; 1.6.4 introduced the renamed bundle while retaining compatibility aliases and trusted identifiers.
 
+## [1.8.0] - 2026-11-24
+
+- Settings → Jellyfin → Watched Indicators marks completed movies, episodes, seasons, and series. Seasons and series show the remaining episode count when Jellyfin supplies it. The setting defaults to off.
+- Returning from Local queue playback selects the last entry that played, including when shuffle is on or the same file appears more than once.
+- The diagnostics relay keeps a versioned history of the latest reported OwlSwitch version, macOS version, and architecture for each grouped issue.
+
 ## [1.7.3] - 2026-11-03
 
 - Correct the audited JLo.Instru and Karaoke Office artist/song inversions, remove the legacy Ethel Merman artist wrapper, and restore the missing Hercules attribution on KaraFun's movie version of I Won't Say (I'm in Love).

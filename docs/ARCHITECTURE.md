@@ -252,7 +252,8 @@ The Jellyfin module lives in `modules/jellyfin/` and `src/modules/jellyfin/`.
 - User-facing library browsing supports movie/TV libraries, Continue Watching, Up Next, collections, and folders.
 - Movie and TV list loading is paged through `/Items` with `limit=250`, typed `includeItemTypes` requests, lightweight list fields, and `enableTotalRecordCount=false`.
 - TV libraries browse `Series` -> `Season` -> `Episode`; episodes reuse the same metadata detail, track selection, and playback flow as movies.
-- Completed lists are cached per parent/type for the current app session and cleared on logout or new authentication.
+- Completed lists are cached per parent/type for the current app session and cleared after a playback-stop acknowledgement, logout, or new authentication.
+- The optional Watched Indicators setting uses Jellyfin user data for movie and episode completion and season/series counts. The active list refreshes when Jellyfin acknowledges a playback stop.
 - Detail loading fetches heavier fields, including `Overview` and `MediaSources`, only when a playable movie or episode is opened.
 - Playback calls `/Items/{itemId}/PlaybackInfo`, prefers direct/static playback when selected, supports constrained HLS transcoding, and retries a failed direct launch once through the transcode path.
 - During HLS transcoding, audio or burned-in subtitle changes close the old Jellyfin session and request a new transcode at the current playback position; mpv client messages bridge the OSD action back to `Player.qml`.
@@ -331,6 +332,7 @@ Local lives in `modules/local_files/` and `src/modules/local_files/` and incorpo
 - `local_queue.json` stores both queues in one schema-versioned, owner-only atomic file. Entries use UUID identity and are capped at 1,000 per queue. Local entries are revalidated under the active media root when loaded or when that root changes; YouTube soundtrack entries retain only a validated video ID and bounded display title.
 - Playlist import accepts local relative, absolute, or `file:` entries only. Remote schemes, root escapes, cycles, newline-containing paths, excessive nesting, unsupported types, and missing files are rejected before persistence.
 - `preparePlayback()` writes an owner-only `local_queue.m3u8` and returns the exact entry snapshot matching mpv's playlist order. Shuffle keeps the selected item first without mutating the saved queue.
+- On return, the queue editor selects the last loaded media entry by UUID in saved queue order. If it was removed or playback never loaded an entry, the editor restores the previous row within the available bounds.
 - Queue completion leaves entries in place. Item errors persist as a visible failed state until a successful retry or manual removal.
 - Repeat Off maps to normal playlist completion, Repeat Queue to `--loop-playlist=inf`, and Repeat One to `--loop-file=inf` through the shared named mpv options path.
 - The soundtrack pane accepts a pasted public or unlisted YouTube playlist URL. `LocalFilesBackend` canonicalizes the input to a YouTube playlist URL and runs the shared bounded yt-dlp/Deno job. The first valid video is persisted immediately and subsequent entries flush in batches of 16 in source order, so playback can begin before a large inventory finishes. Those entries use the same move/remove/clear queue operations as local audio and stream through the separate mpv process without downloading a cache.

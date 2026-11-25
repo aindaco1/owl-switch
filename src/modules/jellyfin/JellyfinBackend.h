@@ -61,6 +61,7 @@ signals:
     void librariesLoaded(const QVariant &libraries);
     void itemsLoaded(const QVariant &items);
     void itemsPageLoaded(const QVariant &items, bool reset, bool finished);
+    void watchHistoryChanged();
     void itemLoaded(const QVariant &detail);
     void streamUrlReady(const QString &url, const QVariant &httpHeaders);
     void nextEpisodeReady(const QVariantMap &detail);
@@ -91,6 +92,7 @@ private:
     bool saveAuthenticationResult(const QJsonObject &result, const QString &baseUrl);
     void pollQuickConnect();
     void authenticateWithQuickConnectSecret();
+    void invalidateItemCache();
     void load_items_page(const QString &parentId, const QString &itemType, bool recursive,
                          int startIndex, int generation);
     void load_special_items(const QUrl &url, const QString &errorPrefix);

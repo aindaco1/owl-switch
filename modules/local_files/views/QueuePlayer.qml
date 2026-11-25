@@ -34,6 +34,7 @@ FocusScope {
                                            : subtitleMode === "forced" ? -1 : -2
 
     signal goBack()
+    signal queueEntryLoaded(string entryId)
 
     function currentEntry() {
         return currentIndex >= 0 && currentIndex < entries.length ? entries[currentIndex] : null
@@ -197,8 +198,11 @@ FocusScope {
             }
         }
         function onPlaybackItemLoaded(playlistIndex) {
+            if (!playerRoot.playbackStarted || playerRoot.stopping) return
             if (playlistIndex >= 0 && playlistIndex < entries.length)
                 currentIndex = playlistIndex
+            // mpv can load the initial file before delivering its first playlist position.
+            playerRoot.queueEntryLoaded(playerRoot.currentEntry().entryId)
             mainItemLoaded = true
             applyTracks(currentIndex)
             moduleRoot.showSoundtrackOverlay(currentEntryPath(),
@@ -211,6 +215,8 @@ FocusScope {
                 return
             var entry = entries[playlistIndex]
             if (reason === "eof") {
+                // A short first file may have loaded before the IPC connection was ready.
+                playerRoot.queueEntryLoaded(entry.entryId)
                 localFilesBackend.clearPosition(entry.filePath || "")
             } else if (reason !== "redirect" && reason !== "stop" && reason !== "quit") {
                 localFilesBackend.failQueueEntry("media", entry.entryId || "",

@@ -1,6 +1,7 @@
 #include <QtTest>
 
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -330,6 +331,12 @@ void NatureBackendTest::fetchIsAnonymousAndBounded()
     NatureBackend backend(dataRoot.path(), endpoint);
     QSignalSpy loadedSpy(&backend, &NatureBackend::observationsLoaded);
     QSignalSpy failedSpy(&backend, &NatureBackend::loadFailed);
+    QElapsedTimer timer;
+    timer.start();
+    QList<qint64> refreshStarts;
+    connect(&backend, &NatureBackend::refreshStarted, this, [&] {
+        refreshStarts.append(timer.elapsed());
+    });
 
     backend.refreshObservations();
     QVERIFY2(loadedSpy.wait(3000), qPrintable(failedSpy.isEmpty()
@@ -362,10 +369,11 @@ void NatureBackendTest::fetchIsAnonymousAndBounded()
 
     for (int attempt = 0; attempt < 5; ++attempt)
         backend.refreshObservations();
-    QTest::qWait(150);
-    QCOMPARE(server.requests.size(), 2);
-    QTRY_COMPARE_WITH_TIMEOUT(server.requests.size(), 4, 2000);
+    QTRY_COMPARE_WITH_TIMEOUT(server.requests.size(), 4, 3000);
     QTRY_COMPARE_WITH_TIMEOUT(loadedSpy.size(), 2, 1000);
+    QCOMPARE(refreshStarts.size(), 2);
+    // Rate limiting is measured from request start, including time spent on the first response.
+    QVERIFY(refreshStarts.last() - refreshStarts.first() >= 999);
 }
 
 void NatureBackendTest::fetchesLiveObservations()
