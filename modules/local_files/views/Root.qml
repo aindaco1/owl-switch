@@ -83,6 +83,10 @@ FocusScope {
             ignoreUnknownSignals: true
             function onNavigateTo(path, params, listState) { moduleRoot.navigateTo(path, params, listState) }
             function onReplaceWith(path, params) { moduleRoot.replaceWith(path, params) }
+            function onQueueEntryLoaded(entryId) {
+                if (moduleRoot.navStack.length > 0)
+                    moduleRoot.navStack[moduleRoot.navStack.length - 1].listState.queueEntryId = entryId
+            }
             function onGoBack() { moduleRoot.navigateBack() }
         }
     }

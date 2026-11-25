@@ -160,8 +160,11 @@ void LocalFilesBackendTest::persistsDuplicateQueuesAndExpandsLocalPlaylists()
         QCOMPARE(queue.size(), 3);
         QCOMPARE(queue.at(0).toMap().value(QStringLiteral("filePath")).toString(), first);
         QCOMPARE(queue.at(2).toMap().value(QStringLiteral("filePath")).toString(), first);
-        QVERIFY(queue.at(0).toMap().value(QStringLiteral("entryId")) !=
-                queue.at(2).toMap().value(QStringLiteral("entryId")));
+        const QString firstId = queue.at(0).toMap().value(QStringLiteral("entryId")).toString();
+        const QString duplicateId = queue.at(2).toMap().value(QStringLiteral("entryId")).toString();
+        QVERIFY(firstId != duplicateId);
+        QCOMPARE(backend.queueIndexForEntryId(QStringLiteral("media"), firstId), 0);
+        QCOMPARE(backend.queueIndexForEntryId(QStringLiteral("media"), duplicateId), 2);
     }
 
     LocalFilesBackend reloaded(app.path(), data.path());

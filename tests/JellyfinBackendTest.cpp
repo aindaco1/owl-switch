@@ -61,6 +61,7 @@ public:
     }
 
     QByteArray playbackInfoResponse;
+    QByteArray itemsResponse;
     QList<Request> requests;
 
     bool sawTargetPrefix(const QByteArray &prefix) const {
@@ -81,6 +82,8 @@ private:
     QByteArray responseFor(const Request &request) const {
         if (request.target.startsWith("/Items/item/PlaybackInfo"))
             return playbackInfoResponse;
+        if (request.target.startsWith("/Items?"))
+            return itemsResponse;
         return QByteArrayLiteral("{}");
     }
 };
@@ -92,6 +95,7 @@ private slots:
     void rejectsMissingCredentialsWithoutStartingPlayback();
     void directPlaybackUsesPrivateHeadersAndReportsStart();
     void transcodePlaybackPreservesTracksAndAppliesQualityLimit();
+    void stopRefreshesCachedWatchHistoryFromServer();
 
 private:
     static void writeAuth(const QString &root, quint16 port);
@@ -219,6 +223,42 @@ void JellyfinBackendTest::transcodePlaybackPreservesTracksAndAppliesQualityLimit
     QCOMPARE(startBody.value(QStringLiteral("AudioStreamIndex")).toInt(), 3);
     QCOMPARE(startBody.value(QStringLiteral("SubtitleStreamIndex")).toInt(), 4);
     QCOMPARE(startBody.value(QStringLiteral("StartPositionTicks")).toDouble(), 4500000.0);
+}
+
+void JellyfinBackendTest::stopRefreshesCachedWatchHistoryFromServer()
+{
+    QTemporaryDir dataRoot;
+    QVERIFY(dataRoot.isValid());
+    FakeJellyfinServer server;
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    writeAuth(dataRoot.path(), server.serverPort());
+    JellyfinBackend backend({}, dataRoot.path());
+    QSignalSpy pages(&backend, &JellyfinBackend::itemsPageLoaded);
+    QSignalSpy history(&backend, &JellyfinBackend::watchHistoryChanged);
+
+    server.itemsResponse = R"({"Items":[{"Id":"item","Type":"Episode","UserData":{"Played":false,"PlaybackPositionTicks":500000}}]})";
+    backend.load_items_for_type("season", "Episode", false);
+    QVERIFY(pages.wait());
+    const QVariantMap before = pages.takeFirst().first().toList().first().toMap();
+    QVERIFY(!before.value("played").toBool());
+    QVERIFY(before.value("viewOffset").toInt() > 0);
+    QCOMPARE(before.value("unplayedItemCount").toInt(), -1);
+
+    server.itemsResponse = R"({"Items":[{"Id":"item","Type":"Episode","UserData":{"Played":true}}]})";
+    backend.load_items_for_type("season", "Episode", false);
+    QCOMPARE(pages.count(), 1); // Synchronous session cache hit.
+    QVERIFY(!pages.takeFirst().first().toList().first().toMap().value("played").toBool());
+
+    backend.report_playback_stopped("item", "source", 900000, false);
+    QVERIFY(history.wait());
+    backend.load_items_for_type("season", "Episode", false);
+    QVERIFY(pages.wait());
+    QVERIFY(pages.takeFirst().first().toList().first().toMap().value("played").toBool());
+
+    server.itemsResponse = R"({"Items":[{"Id":"season","Type":"Season","UserData":{"Played":false,"UnplayedItemCount":3}}]})";
+    backend.load_items_for_type("series", "Season", false);
+    QVERIFY(pages.wait());
+    QCOMPARE(pages.takeFirst().first().toList().first().toMap().value("unplayedItemCount").toInt(), 3);
 }
 
 QTEST_GUILESS_MAIN(JellyfinBackendTest)

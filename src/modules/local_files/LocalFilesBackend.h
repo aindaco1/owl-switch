@@ -34,6 +34,7 @@ public:
     Q_INVOKABLE QVariantMap probeMediaTracks(const QString &filePath);
 
     // Both persistent queues share one validated and atomically-written store.
+    Q_INVOKABLE int queueIndexForEntryId(const QString &kind, const QString &entryId) const;
     Q_INVOKABLE QVariantList getQueue(const QString &kind = QStringLiteral("media")) const;
     Q_INVOKABLE int enqueue(const QString &kind, const QVariantMap &candidate);
     Q_INVOKABLE bool removeQueueEntry(const QString &kind, const QString &entryId);
@@ -101,7 +102,6 @@ private:
 
     QVariantList &mutableQueue(const QString &kind);
     const QVariantList &queue(const QString &kind) const;
-    int queueIndexForEntryId(const QString &kind, const QString &entryId) const;
     QVariantMap validatedQueueEntry(const QString &kind, const QVariantMap &candidate,
                                     bool createEntryId, bool requireFile) const;
     QStringList expandedPlaylistEntries(const QString &playlistPath,

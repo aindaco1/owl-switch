@@ -117,6 +117,15 @@ function listTitle(item, includeSeries) {
     return prefix ? prefix + ": " + title : title
 }
 
+function watchedPrefix(item) {
+    if (item.type === "series" || item.type === "season") {
+        if (item.unplayedItemCount > 0) return "[" + item.unplayedItemCount + " LEFT] "
+    } else if (item.type !== "movie" && item.type !== "episode") {
+        return ""
+    }
+    return item.played === true ? "[WATCHED] " : ""
+}
+
 function buildSubtitleStreams(item) {
     var subs = [{ "id": "-1", "mpvTrack": -1, "displayTitle": "OFF", "subFile": "" }]
     var loaded = item && item.subtitleStreams ? item.subtitleStreams : []

@@ -38,6 +38,14 @@
       "requires_auth": true
     },
     {
+      "key": "watched_indicators",
+      "label": "Watched Indicators",
+      "type": "toggle",
+      "default": "OFF",
+      "requires_auth": true,
+      "description": "Mark watched titles and show remaining episodes in seasons and series."
+    },
+    {
       "key": "autoplay_next_episode",
       "label": "Autoplay Next Episode",
       "type": "toggle",

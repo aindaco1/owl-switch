@@ -323,9 +323,7 @@ void JellyfinBackend::cancel_quick_connect() {
 
 void JellyfinBackend::logout() {
     cancel_quick_connect();
-    ++m_itemsLoadGeneration;
-    m_itemsLoadAccumulator.clear();
-    m_itemCache.clear();
+    invalidateItemCache();
     QFile::remove(authFilePath());
     emit logoutComplete();
     emit authStateChanged();
@@ -386,6 +384,12 @@ void JellyfinBackend::load_libraries() {
     });
 }
 
+void JellyfinBackend::invalidateItemCache() {
+    ++m_itemsLoadGeneration;
+    m_itemsLoadAccumulator.clear();
+    m_itemCache.clear();
+}
+
 void JellyfinBackend::load_items(const QString &libraryId) {
     load_items_for_type(libraryId, QStringLiteral("Movie"), true);
 }
@@ -437,6 +441,7 @@ void JellyfinBackend::load_items_page(const QString &parentId, const QString &it
     query.addQueryItem("fields", browseItemFields(itemType));
     query.addQueryItem("enableImages", "false");
     query.addQueryItem("enableTotalRecordCount", "false");
+    query.addQueryItem("enableUserData", "true");
     if (itemType == "Episode") {
         query.addQueryItem("mediaTypes", "Video");
         query.addQueryItem("excludeLocationTypes", "Virtual");
@@ -487,15 +492,13 @@ void JellyfinBackend::load_items_page(const QString &parentId, const QString &it
         }
 
         const bool finished = rawItems.size() < kItemsPageSize;
-        emit itemsPageLoaded(pageItems, startIndex == 0, finished);
-
         if (finished) {
             m_itemCache.insert(itemCacheKey(parentId, itemType, recursive), m_itemsLoadAccumulator);
             m_itemsLoadAccumulator.clear();
-            return;
         }
-
-        load_items_page(parentId, itemType, recursive, startIndex + rawItems.size(), generation);
+        emit itemsPageLoaded(pageItems, startIndex == 0, finished);
+        if (!finished)
+            load_items_page(parentId, itemType, recursive, startIndex + rawItems.size(), generation);
     });
 }
 
@@ -538,11 +541,13 @@ void JellyfinBackend::load_item_detail(const QString &itemId) {
 
 void JellyfinBackend::load_special_items(const QUrl &url, const QString &errorPrefix) {
     QNetworkReply *reply = jellyfinGet(url);
-    connect(reply, &QNetworkReply::finished, this, [this, reply, errorPrefix]() {
+    const int generation = ++m_itemsLoadGeneration;
+    connect(reply, &QNetworkReply::finished, this, [this, reply, errorPrefix, generation]() {
         const QByteArray data = reply->readAll();
         const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         const auto error = reply->error();
         reply->deleteLater();
+        if (generation != m_itemsLoadGeneration) return;
         if (error != QNetworkReply::NoError || status < 200 || status >= 300) {
             emit errorOccurred(QString("%1 (%2).").arg(errorPrefix).arg(status > 0 ? status : int(error)));
             return;
@@ -770,6 +775,12 @@ void JellyfinBackend::report_playback_stopped(const QString &itemId,
         reply->deleteLater();
         if (m_currentPlaySessionId == session)
             m_currentPlaySessionId.clear();
+        if (reply->error() == QNetworkReply::NoError) {
+            // Jellyfin decides completion using the user's server-side thresholds.
+            // Lists fetched before the stop was acknowledged may still be stale.
+            invalidateItemCache();
+            emit watchHistoryChanged();
+        }
     });
 }
 
@@ -899,9 +910,7 @@ bool JellyfinBackend::saveAuthenticationResult(const QJsonObject &result, const 
         return false;
 
     QJsonObject auth = loadAuth();
-    ++m_itemsLoadGeneration;
-    m_itemsLoadAccumulator.clear();
-    m_itemCache.clear();
+    invalidateItemCache();
     auth["serverUrl"] = baseUrl;
     auth["accessToken"] = token;
     auth["userId"] = id;
@@ -1178,6 +1187,7 @@ QVariantMap JellyfinBackend::formatItem(const QJsonObject &item) const {
     const QJsonObject userData = item["UserData"].toObject();
     out["viewOffset"] = ticksToMs(userData["PlaybackPositionTicks"].toVariant().toLongLong());
     out["played"] = userData["Played"].toBool(false);
+    out["unplayedItemCount"] = userData["UnplayedItemCount"].toInt(-1);
 
     const QJsonArray mediaSources = item["MediaSources"].toArray();
     QJsonArray streams = item["MediaStreams"].toArray();

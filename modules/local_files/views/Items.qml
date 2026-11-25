@@ -372,6 +372,7 @@ FocusScope {
 
     ListView {
         id: queueList
+        objectName: "localMediaQueueList"
         model: visibleQueue
         anchors.top: parent.top
         anchors.left: parent.left
@@ -585,9 +586,13 @@ FocusScope {
         fileList.model = loaded
         var fileRestore = navListState.currentIndex !== undefined ? navListState.currentIndex : 0
         fileList.currentIndex = loaded.length > 0 ? Math.min(fileRestore, loaded.length - 1) : -1
-        var queueRestore = navListState.queueIndex !== undefined ? navListState.queueIndex : 0
+        var playedIndex = navListState.queueEntryId
+                        ? localFilesBackend.queueIndexForEntryId(queueKind, navListState.queueEntryId) : -1
+        var queueRestore = playedIndex >= 0 ? playedIndex : (navListState.queueIndex ?? 0)
         queueList.currentIndex = visibleQueue.length > 0
-                               ? Math.min(queueRestore, visibleQueue.length - 1) : -1
+                               ? Math.max(0, Math.min(queueRestore, visibleQueue.length - 1)) : -1
+        if (queueList.currentIndex >= 0)
+            queueList.positionViewAtIndex(queueList.currentIndex, ListView.Contain)
         if (autoLaunch && mediaQueue.length > 0 && moduleRoot.claimAutoLaunch())
             Qt.callLater(function() { startQueue(mediaQueue[0].entryId || "") })
         else
